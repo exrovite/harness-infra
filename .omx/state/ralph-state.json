@@ -1,0 +1,16 @@
+{
+  "active": false,
+  "iteration": 1,
+  "max_iterations": 10,
+  "current_phase": "complete",
+  "started_at": "2026-05-04T11:14:26Z",
+  "task_description": "Implement Sprint 22 contract: Persistent Execution Loop ($ralph) in G:\\harness infra",
+  "context_snapshot_path": ".omx\\context\\sprint-22-ralph-20260504T111426Z.md",
+  "verification_started_at": "2026-05-04T12:29:00Z",
+  "run_outcome": "finish",
+  "completed_at": "2026-05-04T12:39:30Z",
+  "lifecycle_outcome": "finished",
+  "architect_verdict": "APPROVED",
+  "deslop_pass": "completed",
+  "verification_summary": "bash -n hooks pass; test-ralph-loop 36/0; evidence checkpoint 19/19; turn-packet all pass; sprint21 legacy only hash mismatch due intentional gate edits"
+}

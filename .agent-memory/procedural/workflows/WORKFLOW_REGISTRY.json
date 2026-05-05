@@ -1,0 +1,85 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-04T09:00:00.000000",
+  "total_workflows": 2,
+  "workflows": [
+    {
+      "id": "workflow_001",
+      "name": "Full Harness Development Cycle",
+      "protocol_level": "Full",
+      "description": "Complete autonomous development loop: PLAN -> NEGOTIATE -> BUILD -> EVALUATE -> COMPLETE. Used for multi-feature work, new systems, risky changes.",
+      "phases": [
+        {
+          "phase": "PLAN",
+          "agent": "planner",
+          "scripts_before": ["startup-recovery", "check-budget"],
+          "scripts_after": ["validate-phase 1", "git-checkpoint PLAN"],
+          "human_gate": true,
+          "gate_condition": "Product spec ready for review"
+        },
+        {
+          "phase": "NEGOTIATE",
+          "agents": ["generator", "evaluator"],
+          "scripts_before": ["pre-phase-start"],
+          "scripts_after": [],
+          "human_gate": false,
+          "gate_condition": "Sprint contract agreed (max 3 attempts)",
+          "retry_limit": 3
+        },
+        {
+          "phase": "BUILD",
+          "agent": "generator",
+          "scripts_before": ["pre-phase-start", "check-budget"],
+          "scripts_during": ["detect-loop (via hook)"],
+          "scripts_after": ["validate-phase 3", "git-checkpoint BUILD"],
+          "human_gate": false,
+          "gate_condition": "All tests pass, no loops, phase-complete-marker written"
+        },
+        {
+          "phase": "EVALUATE",
+          "agent": "evaluator",
+          "scripts_before": ["ensure-dev-server", "evaluate-protocol-compliance", "verify-fix-applied"],
+          "scripts_after": ["git-checkpoint EVALUATE"],
+          "human_gate": false,
+          "gate_condition": "All sprint contract criteria pass",
+          "retry_limit": 3,
+          "on_fail": "Return to BUILD with feedback"
+        },
+        {
+          "phase": "COMPLETE",
+          "agent": null,
+          "scripts": ["write-handoff COMPLETE", "notify 'All sprints complete'"],
+          "human_gate": true,
+          "gate_condition": "Human sign-off"
+        }
+      ],
+      "stuck_handling": "detect-loop blocks execution. Known fix injected or human notified via Telegram. Agent paused until resolution.",
+      "budget": {
+        "max_iterations": 30,
+        "max_hours": 4,
+        "max_cost_usd": 50
+      }
+    },
+    {
+      "id": "workflow_002",
+      "name": "Lightweight Change",
+      "protocol_level": "Lightweight",
+      "description": "Single-file edits, config changes, targeted fixes. No sprint contracts, no evaluator agent. Inline assertions verified by deterministic checks.",
+      "phases": [
+        {
+          "phase": "IMPLEMENT",
+          "agent": "generator",
+          "scripts_after": ["detect-loop", "validate.sh (project-specific test runner, not a harness script)"],
+          "human_gate": false
+        },
+        {
+          "phase": "VERIFY",
+          "agent": null,
+          "scripts": ["validate-phase", "verify-fix-applied"],
+          "human_gate": false
+        }
+      ],
+      "notes": "Default for most changes. Escalate to Full when: multiple files change, change is hard to reverse, or change affects production."
+    }
+  ]
+}

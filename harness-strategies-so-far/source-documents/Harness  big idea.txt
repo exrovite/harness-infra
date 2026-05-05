@@ -1,0 +1,2243 @@
+
+first principles problem analyzer
+/
+start.
+
+06:26
+Adewale, ready when you are.
+
+What's the problem you'd like to work through?
+
+
+What you need to learn from claw-code repo Stop Staring at the Files People are losing their minds over the fact that the clean-room Python writing of claw-code took 2 hours. And we did Rust rewriting in a day (0.1.0 released!) A complex agent system, reverse-engineered and re-implemented from sc
+
+pasted
+
+I have a problem where I am using Claude Code in My. VS Code application. but I am regularly running into a problem. And the problem is this. Every time I create a series of skills workflows. Claude always struggles to keep on the loop. I know that there are certain strategies like... Ralph Wilgen or strategies that help the LLM loop around a procedure like Plan, review. independent review agent. validate code. run evals. plan again to fix problems and keep looping around this until the application is done. but I don't know how to. make sure that this whole process gets automated in a deterministic way. i don't know how to make sure that the agent follows every single step of the process that it needs to follow. So for example, if we... had like a protocol that we have worked on that has been effective. But that protocol requires the the model to first review the protocol, analyze the winning strategies that is available to use. Be creative with mixing these strategies up together to solve the problem using first principles. I would like you to research into the latest approaches that allow us to be able to do this effectively. There is an article... that perhaps shares a process. But I want you to spend researching to what people are currently doing that's currently working. I'm gonna give you some links as a starting point and then use the first principle skill to... help us provide a solution.
+
+Show more
+06:31
+I understand the problem. Let me research what's currently working in agent loop orchestration before we dive into first principles analysis.
+
+Let me start by researching the landscape, then we'll pick the right expert lens.
+
+
+Searched the web
+Searched the web
+Now I have a comprehensive picture. Let me read your first principles skill before we proceed with the analysis.
+
+
+Reading the first principles skill
+Reading the first principles skill
+Good. Now I have the full picture — the research landscape and your methodology. Based on everything I've gathered, here are the expert personas that would bring the most value to this problem:
+
+Your Problem Restated: You're building skills/workflows for Claude Code in VS Code, but the agent keeps falling off the loop. It doesn't follow every step of a multi-phase protocol deterministically. You want a system where the agent reads a protocol, selects winning strategies, creatively combines them using first principles, and then executes a full Plan → Execute → Review → Fix → Loop cycle autonomously — without drifting, skipping steps, or losing the thread.
+
+Here are the experts I'd suggest:
+
+Agent Systems Architect — Someone who designs multi-agent coordination systems like the OmX/clawhip stack from the claw-code article. They think in terms of event loops, state machines, context isolation, and handoff protocols. They'd approach this as an infrastructure problem.
+Distributed Systems Engineer — Treats the agent loop like a distributed system with failure modes: context window exhaustion as memory pressure, step-skipping as message loss, drift as state corruption. Would bring concepts like checkpointing, idempotent operations, and circuit breakers.
+Clinical Protocol Designer (drawing from your own domain) — You already know what it means to build a protocol that must be followed step-by-step with built-in review gates. Brief therapy protocols are essentially finite state machines with human judgment at each transition. This person would approach the problem through the lens of structured clinical protocols with fidelity checks.
+Cognitive Systems Engineer — Focuses on human-AI task allocation, cognitive load management, and how instructions degrade under attention constraints. Would frame the problem as: "the LLM has limited working memory, so how do we structure instructions to survive context pressure?"
+Which expert would you like me to adopt, Adewale? Or would you like a combination?
+
+can we combine these experts and make sure to use documentation that I posted as part of the process to find the solutions. also actually see if we can combine similar infrastructure However, not to do anything through. discord. I'm happy for Telegram or... WhatsApp as a means of getting information and instructing the model. At the moment in my system I'm working with ClaudeOpus 4.6. But we would like to be able to also include other models as part of the process as well But for now just focus on just one model. managing the whole infrastructure.
+
+06:44
+Good. Let me adopt all four expert personas as an integrated lens, and I'll ground everything in what the research actually shows is working right now.
+
+Let me re-read the article you posted carefully alongside the research findings, then build this from fundamentals.
+
+Problem Restated
+You have Claude Opus 4.6 running in VS Code via Claude Code. You build skills and workflows — multi-step protocols that the agent should follow deterministically. But the agent keeps falling off the loop. It skips steps, loses track of where it is in the protocol, drifts from the plan, or stops following the sequence you designed.
+
+You want a system where:
+
+The agent reads a protocol, identifies the best strategies available, and creatively combines them
+It then executes a full cycle: Plan → Implement → Review → Fix → Verify → Loop
+This cycle repeats autonomously until the work is done
+You can monitor and direct from Telegram or WhatsApp (not Discord, not a terminal)
+For now, one model (Opus 4.6) manages the entire infrastructure
+The architecture should be extensible to multi-model later
+The claw-code article you posted demonstrates exactly this pattern working — but through Discord with OpenAI's Codex. You want the equivalent for your Claude Code setup.
+
+First Principles Decomposition
+Let me break this down to why the agent falls off the loop in the first place. There are exactly five fundamental failure modes, and every solution needs to address all of them.
+
+Failure Mode 1: Context Window Saturation
+
+This is the root cause most people miss. Claude's context window is a shared public good. Your CLAUDE.md, your skills, the files Claude reads, the conversation history, the tool call results — all of it competes for the same space. The research from HumanLayer's analysis confirms that Claude Code's system prompt alone contains roughly 50 individual instructions. That's nearly a third of the instruction-following capacity consumed before your protocol even loads.
+
+When context fills up, compaction happens. During compaction, Claude summarises the conversation and drops detail. Your carefully sequenced protocol steps? They get compressed. The agent "forgets" it was on step 4 of 7 because step 4's specifics got compacted away.
+
+From the cognitive systems angle: this is identical to what happens when you overload a clinician's working memory during a complex case formulation. The maintaining cycle diagram you drew two sessions ago gets fuzzy. You start skipping steps in the protocol. Not because the protocol is bad, but because there's too much competing for attention.
+
+Failure Mode 2: No External State Tracking
+
+Here's the fundamental architectural problem. The LLM is stateless between turns. It has no persistent memory of "I'm on step 4." It infers its position from context each time. That inference is probabilistic, not deterministic.
+
+The claw-code system solved this with clawhip — an external daemon that tracked state outside the agent's context window. The agent didn't need to remember where it was. The system told it.
+
+Pedro Sant'Anna's academic workflow (which the research surfaced as one of the most mature implementations) does the same thing: agents communicate through standardised files on disk — JSON, CSV, logs — not through hidden conversational state. Every step is inspectable and rerunnable.
+
+Failure Mode 3: No Phase Isolation
+
+The Wiggum CLI documentation makes this distinction sharply. A basic Ralph loop — just running while true; do cat PROMPT.md | claude; done — is a single undifferentiated blob. The agent does everything in one pass. If something goes wrong, you restart from scratch.
+
+The structured Ralph loop separates planning from implementation from testing from verification. Each phase has its own inputs, outputs, and success criteria. Each phase can fail independently.
+
+RIPER (Research → Innovate → Plan → Execute → Review) goes further — it actually blocks the agent from writing code until it's past the Research and Plan phases. The agent literally cannot edit files during the Research phase. That's deterministic enforcement, not hopeful instruction.
+
+Failure Mode 4: No Verification Gate
+
+Boris Tane's workflow, which the research flagged as one of the most effective single-developer approaches, has one core principle: never let Claude write code until you've reviewed and approved a written plan. He annotates the plan file directly, Claude reads the annotations, updates the plan, and only proceeds to code when the plan passes.
+
+Most people skip this. They let the agent plan and execute in the same breath. The result is that errors compound. A bad line in a plan creates many bad lines of code. A bad line in a research phase that misunderstands the system creates many bad lines in the plan, which creates exponentially more bad code.
+
+Failure Mode 5: No Deterministic Operations
+
+Here's the insight from Matthew Groff's implementation guide: never send an LLM to do a linter's job. Deterministic operations — running tests, checking formatting, validating schemas, tracking status — should be bash scripts, not LLM inferences. Every time you ask the LLM to "check if the tests pass," you're burning tokens and introducing non-determinism into something that should be binary.
+
+The CCPM framework takes this furthest: status, standup, search, and validation all run as bash scripts. Fast, consistent, no LLM token cost.
+
+Expert Perspective: The Integrated View
+Now let me combine the four expert lenses on what the optimal architecture looks like.
+
+From the Agent Systems Architect: You need three layers, matching the claw-code architecture but adapted for your setup:
+
+An orchestration layer (equivalent to OmX) that takes your natural language directive and decomposes it into a structured multi-step workflow
+A state and notification router (equivalent to clawhip) that tracks progress, manages state in files, and sends updates to your Telegram/WhatsApp — crucially, outside the agent's context window
+A coordination protocol (equivalent to oh-my-openagent) that manages the Plan → Execute → Review → Fix cycle with explicit handoff rules
+From the Distributed Systems Engineer: Each phase transition needs to be checkpointed to disk. If the agent crashes, gets compacted, or loses context, it should be able to resume from the last checkpoint. State lives in files, not in conversation. This is the same principle as write-ahead logging in databases — you never trust volatile memory for critical state.
+
+From the Clinical Protocol Designer: Your therapy protocols already model this perfectly. A 6-session CBT protocol has session-by-session objectives, within-session phase transitions (agenda setting → review → technique → homework → summary), and explicit fidelity checks. The agent protocol needs the same structure: named phases, explicit transition criteria ("move to Execute only when Plan file exists and contains acceptance criteria"), and review gates where either the agent or you must sign off before proceeding.
+
+From the Cognitive Systems Engineer: The protocol document itself needs to be designed for how LLMs actually process instructions. Short, imperative sentences. Numbered steps. Explicit "you are here" markers. And critically — progressive disclosure. Don't load the entire protocol into context at once. Load only the current phase's instructions, with a pointer to where to find the next phase.
+
+The Optimal Solution: File-Driven State Machine with Telegram Bridge
+Here's what I'd build. This combines the best of what's currently working in the field, adapted for your single-model Opus 4.6 setup with Telegram/WhatsApp as the human interface.
+
+The core architecture has four components:
+
+Component 1: The Protocol File System
+
+This is your source of truth. Not the conversation, not the LLM's memory. Files on disk.
+
+.claude/
+├── CLAUDE.md                    # Minimal — only universal instructions
+├── protocols/
+│   ├── master-protocol.md       # The meta-protocol (how to read and use protocols)
+│   └── [project]-protocol.md    # Project-specific protocol
+├── state/
+│   ├── current-phase.json       # {"phase": "PLAN", "step": 3, "started": "..."}
+│   ├── checkpoint.md            # Last known good state summary
+│   └── blockers.md              # What's blocked and why
+├── plans/
+│   ├── plan.md                  # Current plan (agent writes, you annotate)
+│   └── plan-approved.md         # Approved plan (only exists after your sign-off)
+├── skills/
+│   └── [your existing skills]
+├── agents/
+│   ├── architect.md             # Planning agent
+│   ├── executor.md              # Implementation agent
+│   ├── reviewer.md              # Review agent
+│   └── verifier.md              # Verification agent (runs deterministic checks)
+├── commands/
+│   ├── resume.md                # "Read state/current-phase.json and continue"
+│   ├── status.md                # "Report current state to Telegram"
+│   └── phase-transition.md      # "Validate current phase complete, advance"
+└── scripts/
+    ├── status.sh                # Deterministic status check
+    ├── validate.sh              # Run tests, linting, type checks
+    ├── notify.sh                # Send update to Telegram
+    └── checkpoint.sh            # Save current state to disk
+Component 2: The Master Protocol (the key document)
+
+This is what solves your core problem. It's the document the agent reads at the start of every session and after every compaction. It needs to be short, imperative, and self-contained enough to survive context pressure.
+
+The master protocol would read something like this:
+
+markdown
+# Master Development Protocol
+
+## BEFORE ANYTHING ELSE
+1. Read `.claude/state/current-phase.json`
+2. Read `.claude/state/checkpoint.md`
+3. You are resuming from the phase and step indicated. Do NOT restart.
+
+## PHASE SEQUENCE (follow in order, never skip)
+
+### PHASE 1: RESEARCH
+- Read the project spec/requirement
+- Read existing codebase structure
+- Identify what exists, what's missing, what conflicts
+- OUTPUT: Write findings to `.claude/state/research-output.md`
+- GATE: Do not proceed until research-output.md exists and is complete
+- Run: `bash .claude/scripts/checkpoint.sh RESEARCH`
+
+### PHASE 2: PLAN
+- Read research-output.md
+- Read available strategies in `.claude/protocols/[project]-protocol.md`
+- Creatively combine strategies using first principles
+- OUTPUT: Write plan to `.claude/plans/plan.md` with numbered tasks and acceptance criteria
+- GATE: Check if `.claude/plans/plan-approved.md` exists
+  - If NO: Run `bash .claude/scripts/notify.sh "Plan ready for review"` and STOP
+  - If YES: Proceed to Phase 3
+- Run: `bash .claude/scripts/checkpoint.sh PLAN`
+
+### PHASE 3: EXECUTE
+- Read plan-approved.md
+- Execute tasks one at a time in order
+- After each task: update current-phase.json with task number
+- After each task: run `bash .claude/scripts/validate.sh`
+- If validation fails: fix before proceeding
+- OUTPUT: Working code that passes all validation
+- Run: `bash .claude/scripts/checkpoint.sh EXECUTE`
+
+### PHASE 4: REVIEW
+- Spawn reviewer subagent: `@reviewer`
+- Reviewer reads plan-approved.md and compares against implementation
+- Reviewer writes findings to `.claude/state/review-output.md`
+- If ISSUES FOUND: return to relevant step in Phase 3
+- If CLEAN: proceed
+- Run: `bash .claude/scripts/checkpoint.sh REVIEW`
+
+### PHASE 5: VERIFY
+- Run `bash .claude/scripts/validate.sh --full`
+- Run any project-specific test suites
+- Compare output against acceptance criteria in plan-approved.md
+- OUTPUT: Write verification report to `.claude/state/verify-output.md`
+- If FAIL: return to Phase 3 with specific failure details
+- If PASS: proceed
+- Run: `bash .claude/scripts/checkpoint.sh VERIFY`
+
+### PHASE 6: COMPLETE
+- Run `bash .claude/scripts/notify.sh "Task complete — verification passed"`
+- Commit with descriptive message
+- Update current-phase.json to COMPLETE
+
+## RULES (never violate)
+- NEVER skip a phase
+- NEVER proceed past a GATE without meeting the gate condition
+- ALWAYS write state to disk before and after each phase
+- ALWAYS run validation after code changes
+- If you lose track of where you are: read current-phase.json
+- If context gets long: summarise and re-read checkpoint.md
+Component 3: The Telegram/WhatsApp Bridge
+
+This is your equivalent of the Discord channel from the claw-code system. You need a lightweight service that:
+
+Receives notifications from the agent (via notify.sh)
+Sends your responses back to a file the agent can read
+Lets you approve plans, unblock phases, or redirect work
+The simplest implementation for a single-model setup:
+
+notify.sh uses the Telegram Bot API to send messages to your phone. This is a simple curl call — no complex infrastructure needed:
+
+bash
+#!/bin/bash
+# .claude/scripts/notify.sh
+MESSAGE="$1"
+TELEGRAM_BOT_TOKEN="your-token"
+TELEGRAM_CHAT_ID="your-chat-id"
+curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d chat_id="${TELEGRAM_CHAT_ID}" \
+  -d text="${MESSAGE}" \
+  -d parse_mode="Markdown"
+For plan approval, you'd have a small polling script or webhook that watches for your Telegram replies and writes them to .claude/state/human-input.md. The agent checks this file at each gate.
+
+For WhatsApp, you'd use the WhatsApp Business API or a service like Twilio, but the architecture is identical — the bridge is just the transport layer.
+
+Component 4: The Ralph Loop with Phase Isolation
+
+This is where you wire it all together for autonomous operation. Instead of a basic Ralph loop that restarts everything, you use a phase-aware loop:
+
+bash
+#!/bin/bash
+# run-protocol.sh
+MAX_ITERATIONS=30
+ITERATION=0
+
+while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+  PHASE=$(cat .claude/state/current-phase.json | jq -r '.phase')
+  
+  if [ "$PHASE" = "COMPLETE" ]; then
+    echo "Protocol complete."
+    exit 0
+  fi
+  
+  if [ "$PHASE" = "PLAN" ] && [ ! -f .claude/plans/plan-approved.md ]; then
+    echo "Waiting for human approval. Check Telegram."
+    sleep 60
+    continue
+  fi
+  
+  claude --permission-mode auto-accept -p \
+    "Read .claude/protocols/master-protocol.md and continue from current phase. \
+     Current state is in .claude/state/current-phase.json"
+  
+  ITERATION=$((ITERATION + 1))
+done
+This gives you the Ralph loop's persistence but with the phase isolation that prevents the "undifferentiated blob" problem. Each iteration picks up where the last left off because the state lives in files, not in the conversation.
+
+Why This Is The Optimal Path
+Let me connect this back to the first principles:
+
+Context window saturation → solved by progressive disclosure. The master protocol is short. Phase-specific instructions load only when needed. State lives in files, not in conversation. Subagents get their own context windows for review tasks.
+
+No external state tracking → solved by the file-driven state machine. current-phase.json is the single source of truth. The agent doesn't need to remember where it is. It reads the file.
+
+No phase isolation → solved by explicit gates. The agent literally cannot proceed past PLAN without a plan-approved.md file existing. That's deterministic enforcement — not a polite instruction the LLM might ignore under context pressure.
+
+No verification gate → solved by mandatory validation scripts that run as bash, not as LLM inference. Binary pass/fail. No ambiguity.
+
+No deterministic operations → solved by pushing everything that can be a script into .claude/scripts/. Status tracking, validation, notification, checkpointing — all bash. Only the creative work (planning, coding, reviewing) uses the LLM.
+
+Implementation Plan
+Here's the exact sequence I'd recommend, Adewale.
+
+Week 1: Foundation
+
+Build the file system structure. Write the master protocol. Write the bash scripts for status, validation, notification, and checkpointing. Set up the Telegram bot (this takes about 15 minutes via BotFather). Test that notify.sh successfully sends a message to your phone.
+
+Don't touch Claude Code yet. Get the infrastructure right first.
+
+Week 2: Single-Phase Testing
+
+Test each phase in isolation. Give Claude the master protocol and a trivial task. Watch it go through RESEARCH. Check that it writes research-output.md correctly. Check that it updates current-phase.json. Check that checkpoint works. Then test PLAN in isolation. Then EXECUTE. Fix any protocol wording that the agent misinterprets.
+
+This is where Boris Tane's annotation workflow applies — you're iterating on the protocol document itself, not on the code.
+
+Week 3: End-to-End Loop
+
+Wire the phases together. Run the full protocol on a small real project. Watch for where the agent falls off. The most common failure points will be phase transitions — the agent completing RESEARCH but not advancing to PLAN, or skipping the gate check. Tighten the protocol language at those points.
+
+Add the Ralph loop wrapper. Test overnight runs on mechanical tasks (migrations, test coverage, documentation generation).
+
+Week 4: Multi-Model Preparation
+
+Once the single-model loop is stable, the architecture naturally extends to multiple models. The file-driven state machine doesn't care which model wrote to the file. You could have Opus handle PLAN and REVIEW (where reasoning quality matters) and Sonnet handle EXECUTE (where speed matters). The state files are the coordination layer — exactly like how clawhip coordinated agents without them needing to know about each other.
+
+Now, Adewale — what questions do you have about this implementation? I want to make sure every step is concrete enough for you to actually build this, not just understand it conceptually.
+
+
+Adewale, let me analyze this first principles decomposition against what's actually known about agentic loop failures. Let me search for the specific frameworks and tools mentioned, then give you a proper gap analysis.Now let me look at Anthropic's latest harness design paper which has the most curr
+
+pasted
+
+My developer said this is not quite correct. look at the following.
+
+06:55
+Good — your developer is pushing back on the analysis. Let me read what they've flagged carefully.
+
+Looking at the document, your developer is saying the first principles decomposition I gave you covers about 60-65% of the picture, and they've identified five additional gaps (numbered 6-10) plus two structural observations. Let me work through each one honestly.
+
+Let me search for the specific Anthropic harness research they're referencing to verify the claims.
+
+
+Searched the web
+Searched the web
+Right. I've now read the full Anthropic paper. Your developer is correct on every point. Let me be straight about what I got wrong, what was incomplete, and what the revised architecture should look like.
+
+Where My Analysis Was Incomplete
+Your developer identified five gaps (numbered 6-10) and two structural observations. Having now read Prithvi Rajasekaran's actual paper from Anthropic Labs, here's my honest assessment:
+
+Gap 6 — Context anxiety vs. context saturation: Your developer is right. I lumped these together. They're distinct failure modes with different fixes. Context saturation is when the window genuinely fills up and compaction drops detail. Context anxiety is a behavioural tendency — the agent starts wrapping up prematurely because it believes it's approaching limits, even when it isn't. Anthropic found this was so severe with Sonnet 4.5 that compaction alone couldn't fix it — they needed full context resets. Opus 4.5 largely removed this behaviour on its own, and Opus 4.6 improved further. Since you're on Opus 4.6, you're partially protected, but the distinction still matters because the fix is different: compaction for saturation, clean context resets at phase boundaries for anxiety.
+
+Gap 7 — Self-evaluation bias: Your developer is right, and this is the biggest gap in my original analysis. I proposed a reviewer subagent, but I framed it as "review the plan before coding." The Anthropic paper demonstrates something deeper — the agent that wrote the code genuinely cannot reliably judge the code. It confidently praises mediocre work. In early runs, Anthropic watched their evaluator identify real issues and then talk itself into deciding they weren't important. The fix isn't just "add a review step." It's a structurally separate evaluator agent that uses tools (Playwright MCP in their case) to interact with the running application rather than just reading the code. And that evaluator needs to be independently tuned for scepticism — which took Anthropic several rounds of calibration.
+
+Gap 8 — One-shotting: Your developer is right. I mentioned phase isolation but didn't name this specific pattern. The agent attempts to build everything in one pass, runs out of context mid-implementation, and leaves half-finished features with no documentation. Anthropic's solution was sprint contracts — the generator and evaluator negotiate what "done" looks like for each chunk before any code gets written. This is distinct from my plan-approve-execute model, which was sequential. The contract negotiation is adversarial and bidirectional.
+
+Gap 9 — Compaction vs. clean context reset: Your developer is right. My architecture relied entirely on compaction with file-based checkpointing. The Anthropic paper shows that compaction preserves continuity but doesn't give a clean slate, meaning accumulated context pollution persists. For your skill-building workflows, the protocol should design natural phase boundaries where the agent gets a full context reset with a structured handoff file, not just compaction. The good news: with Opus 4.6, Anthropic found they could drop explicit context resets and rely on automatic compaction for the build phase — but the evaluator still runs as a separate agent with its own clean context.
+
+Gap 10 — Speculative planning cascades: Your developer is right, and this directly contradicts a design choice I made. I proposed a detailed plan file with numbered tasks and acceptance criteria. The Anthropic paper found the opposite — when the planner specifies granular technical details upfront and gets something wrong, errors cascade into implementation. Their planner deliberately stays at the product context and high-level technical design level, avoiding detailed implementation specs. The agents figure out the path as they work. Over-specification at the planning stage is as dangerous as under-specification.
+
+The two structural observations are also correct. I underweighted the amplification effect of uncoordinated agents (relevant for when you go multi-model). And I failed to distinguish between state files (where am I?) and progress notes (what have I learned and decided?) — these are two separate mechanisms that serve different functions.
+
+The Revised Architecture
+Here's what the system should actually look like, integrating the Anthropic paper's findings with your specific constraints (Opus 4.6, Claude Code in VS Code, Telegram bridge, single model for now).
+
+Three-Agent Architecture (matching Anthropic's proven pattern):
+
+Agent 1: Planner Takes your brief directive (from Telegram or directly in VS Code) and expands it into a product-level spec. Critically, this stays high-level. It defines what gets built and why, the feature scope, the user stories, the quality dimensions — but it does NOT specify granular implementation details. It also defines the evaluation criteria the Evaluator will use to grade the work.
+
+Agent 2: Generator (Builder) Works feature-by-feature through the spec. Before each feature, it negotiates a sprint contract with the Evaluator — what "done" looks like for this chunk. It implements, self-tests, and hands off to QA. It has git for version control. It writes progress notes to disk as it works (the claude-progress.md pattern — what it's learned, decided, and built so far).
+
+Agent 3: Evaluator A structurally separate agent — its own context window, its own prompt, independently tuned for scepticism. It doesn't just read the code. It runs the application and interacts with it (using Playwright MCP or appropriate testing tools). It grades against the criteria defined by the Planner and the sprint contract negotiated with the Generator. If any criterion falls below threshold, the sprint fails and the Generator gets specific, actionable feedback.
+
+The file communication layer:
+
+All agent communication flows through files on disk, not through conversation context. This is exactly what Anthropic uses:
+
+.claude/
+├── CLAUDE.md                          # Minimal, universal
+├── agents/
+│   ├── planner.md                     # Planner agent definition
+│   ├── generator.md                   # Generator agent definition
+│   └── evaluator.md                   # Evaluator agent (tuned for scepticism)
+├── specs/
+│   ├── product-spec.md                # Planner output (HIGH-LEVEL, no implementation detail)
+│   └── evaluation-criteria.md         # What the evaluator grades against
+├── contracts/
+│   └── sprint-[n]-contract.md         # Negotiated per-feature contract
+├── state/
+│   ├── current-phase.json             # Where are we?
+│   ├── progress-notes.md              # What has the agent learned/decided/built?
+│   ├── handoff-artifact.md            # For context resets: structured state transfer
+│   └── evaluation-results/
+│       └── sprint-[n]-evaluation.md   # Evaluator findings per sprint
+├── scripts/
+│   ├── validate.sh                    # Deterministic: run tests, lints, type checks
+│   ├── notify-telegram.sh             # Send status to your phone
+│   ├── checkpoint.sh                  # Save state to disk
+│   └── reset-context.sh              # Clean context reset with handoff
+└── commands/
+    ├── start-planner.md               # Invoke planner phase
+    ├── start-sprint.md                # Invoke generator for next feature
+    ├── start-evaluation.md            # Invoke evaluator
+    └── resume.md                      # Resume from handoff artifact
+The key design differences from my first attempt:
+
+Planner stays high-level — no detailed task lists, no step-by-step implementation specs. Product context, feature scope, user stories, evaluation criteria. The Generator figures out the "how."
+Sprint contracts are negotiated, not dictated — before each feature, the Generator proposes what it will build and how success will be verified. The Evaluator reviews that proposal. They iterate until they agree. Only then does code get written.
+The Evaluator interacts with the live output — not just reading code. This catches the class of bugs where code "works" (no syntax errors, no test failures) but doesn't actually do what was asked.
+The Evaluator is independently tuned for scepticism — its prompt explicitly says things like "your default should be to fail a sprint if in doubt" and "do not rationalise away issues you find." Anthropic needed several rounds of calibration to get this right. You will too.
+Progress notes are distinct from state tracking — current-phase.json says "I'm on sprint 3." progress-notes.md says "I discovered that the authentication module needs to handle token refresh, the database schema was modified in sprint 2 to add a sessions table, and the error handling pattern we're using is try/catch with structured error objects." Both are essential. They serve different functions.
+Context resets at natural boundaries — when the Generator finishes a sprint and the Evaluator starts, the Evaluator gets a clean context. When the Generator starts a new sprint after evaluation, it reads the handoff artifact rather than carrying the full previous context. With Opus 4.6, automatic compaction may handle much of this within a sprint, but between sprints, a clean handoff is safer.
+The Telegram bridge works the same way I originally proposed — notify-telegram.sh sends updates via the Telegram Bot API. But now it triggers at better points: when the planner finishes the spec (for your review), when a sprint contract is negotiated (for your awareness), when evaluation fails (for your awareness), and when all sprints pass (for your sign-off).
+
+The Ralph loop wrapper becomes sprint-aware:
+
+bash
+#!/bin/bash
+# run-harness.sh
+PHASE=$(cat .claude/state/current-phase.json | jq -r '.phase')
+
+case $PHASE in
+  "INIT")
+    claude -p "Read .claude/agents/planner.md. Expand the user brief into a product spec. Write to .claude/specs/product-spec.md and .claude/specs/evaluation-criteria.md. Stay high-level — no implementation details."
+    ;;
+  "SPRINT")
+    SPRINT_NUM=$(cat .claude/state/current-phase.json | jq -r '.sprint')
+    claude -p "Read .claude/agents/generator.md. Negotiate sprint $SPRINT_NUM contract with evaluator, then implement. Write progress to .claude/state/progress-notes.md."
+    ;;
+  "EVALUATE")
+    SPRINT_NUM=$(cat .claude/state/current-phase.json | jq -r '.sprint')
+    claude -p "Read .claude/agents/evaluator.md. Grade sprint $SPRINT_NUM against contract and evaluation criteria. Run the application and interact with it. Write results to .claude/state/evaluation-results/sprint-${SPRINT_NUM}-evaluation.md."
+    ;;
+  "COMPLETE")
+    bash .claude/scripts/notify-telegram.sh "All sprints passed evaluation. Ready for your review."
+    ;;
+esac
+What Your Developer's Critique Means For Your Workflow Skills
+The bottom line: my original five failure modes were the visible 60-65%. The missing 35% — context anxiety, self-evaluation bias, one-shotting, compaction limitations, and planning cascades — are where the subtle, hard-to-diagnose failures live. These are the ones that would manifest as "Claude seemed to do fine but the output just... doesn't quite work" or "Claude declared it was done but actually skipped half the features."
+
+The Anthropic paper proves that the three-agent Planner-Generator-Evaluator architecture with file-based communication, sprint contracts, and independent evaluation is the current state of the art. It's what Anthropic themselves use. And critically, as Opus 4.6 gets better, the right move is to simplify the harness — stress-test which pieces are still load-bearing and remove the ones that aren't. The harness should evolve with the model.
+
+What questions do you have about the implementation? I want to make sure the sprint contract negotiation and evaluator tuning are concrete enough for you to build.
+
+Does this enable the agent to remember to follow fine grained instructions? in different skill files that we have created. different protocol files that they must follow every single So for example, finish one bit to go back and check the system so that they make sure that they are not just going around in a negative loop instead of actually applying the solutions that we already know works.
+
+06:58
+That's the right question, and the honest answer is: not yet, not fully. The three-agent architecture solves the macro problem — keeping the overall loop on track across sprints. But it doesn't solve the micro problem you're describing, which is: how do you make the agent follow specific instructions inside your skill files step by step, without skipping, without drifting, and with explicit checkpoints that force it to verify it's actually applying known solutions rather than spinning its wheels.
+
+Let me decompose what's actually happening when the agent "forgets" to follow your skill instructions.
+
+The Real Problem: Instruction Decay Under Context Pressure
+When you load a skill file — say it's 200 lines of detailed protocol — the agent reads it. In that moment, it has the full picture. But here's what happens next:
+
+The agent starts working. Each tool call, each file read, each code generation step adds to the context. Your 200-line protocol is now competing with 500 lines of code output, 300 lines of test results, 150 lines of error messages. The protocol instructions are still technically in context, but they're now a small signal in a lot of noise. The model's attention to those specific instructions degrades proportionally.
+
+This is different from context saturation (where things get compacted away) and different from context anxiety (where the agent rushes to finish). This is instruction dilution — the protocol is still there, but the agent stops attending to it because more recent, more salient information is demanding its attention.
+
+From the clinical protocol angle, you already know this pattern. A trainee therapist reads a session protocol before seeing a client. The protocol says: assess risk, set agenda, review homework, introduce technique, assign new homework, summarise. The trainee starts the session, the client says something unexpected, the trainee follows that thread, and forty minutes later they realise they never assessed risk or reviewed homework. The protocol was in their head. They just stopped attending to it under the pressure of live interaction.
+
+The fix in clinical training isn't "read the protocol harder." It's structured fidelity checks — someone observing the session with a checklist, tapping them on the shoulder at transition points. That's what's missing from the architecture.
+
+What Needs To Change: Protocol Fidelity Enforcement
+Here's what I'd add to the architecture — a mechanism that forces the agent to check back against its protocol at defined intervals, and that catches negative loops (where the agent keeps trying the same failing approach instead of applying a known solution).
+
+Mechanism 1: Inline Protocol Checkpoints
+
+Your skill files shouldn't just list steps. They should embed mandatory checkpoint instructions that force the agent to pause, re-read the relevant protocol section, and verify compliance before proceeding.
+
+Instead of this:
+
+markdown
+## Steps
+1. Analyse the codebase structure
+2. Identify the failing pattern
+3. Apply the fix using the error-boundary pattern from PATTERNS.md
+4. Write tests
+5. Validate
+Write this:
+
+markdown
+## Steps
+
+### Step 1: Analyse
+- Read the codebase structure
+- Write findings to state/step-1-analysis.md
+
+### CHECKPOINT 1
+Before proceeding, re-read this skill file from the top.
+Answer these questions in state/checkpoint-1.md:
+- What step am I on? (must be "completing step 1")
+- What does step 2 require? (copy it verbatim from this file)
+- What known patterns from PATTERNS.md apply? (list them)
+If you cannot answer these, STOP and re-read the skill file.
+
+### Step 2: Identify the failing pattern
+- Read state/step-1-analysis.md
+- Cross-reference against PATTERNS.md
+- Write identified pattern to state/step-2-pattern.md
+
+### CHECKPOINT 2
+Before proceeding, read state/checkpoint-1.md and this skill file.
+Answer in state/checkpoint-2.md:
+- What pattern did I identify?
+- What is the KNOWN FIX for this pattern from PATTERNS.md?
+- Am I about to apply that known fix, or am I improvising?
+- If improvising: WHY? Is the known fix genuinely inapplicable, or am I drifting?
+The key insight: the checkpoints are file-writing operations, not just mental checks. The agent has to write its answers to disk. This does two things — it forces the agent to actually re-read and process the protocol (not just claim it has), and it creates an inspectable audit trail you can review.
+
+Mechanism 2: The Negative Loop Detector
+
+This is the specific problem you named — the agent going around in circles instead of applying known solutions. This needs a deterministic script, not an LLM judgment call.
+
+bash
+#!/bin/bash
+# .claude/scripts/detect-loop.sh
+
+# Check git log for repeated similar changes
+RECENT_COMMITS=$(git log --oneline -10)
+UNIQUE_FILES=$(git log --name-only -10 | sort | uniq -c | sort -rn | head -5)
+
+# Check if the same files are being modified repeatedly
+REPEAT_COUNT=$(echo "$UNIQUE_FILES" | head -1 | awk '{print $1}')
+
+if [ "$REPEAT_COUNT" -gt 4 ]; then
+  echo "WARNING: File modified $REPEAT_COUNT times in last 10 commits."
+  echo "Possible negative loop detected."
+  echo "STOP. Read .claude/protocols/known-fixes.md"
+  echo "Check: is there a known fix for this exact problem?"
+  bash .claude/scripts/notify-telegram.sh "⚠️ Possible negative loop detected. Same files modified $REPEAT_COUNT times. Agent instructed to check known-fixes.md"
+  exit 1
+fi
+
+# Check if test failures are repeating
+LAST_3_FAILURES=$(cat .claude/state/test-results-*.md 2>/dev/null | grep "FAIL" | tail -9)
+UNIQUE_FAILURES=$(echo "$LAST_3_FAILURES" | sort -u | wc -l)
+TOTAL_FAILURES=$(echo "$LAST_3_FAILURES" | wc -l)
+
+if [ "$TOTAL_FAILURES" -gt 6 ] && [ "$UNIQUE_FAILURES" -lt 3 ]; then
+  echo "WARNING: Same failures repeating across runs."
+  echo "STOP. You are not making progress."
+  echo "Read .claude/protocols/known-fixes.md and apply the documented solution."
+  exit 1
+fi
+
+echo "No loop detected. Proceed."
+exit 0
+This script runs as a Claude Code hook — specifically a Stop hook or a pre-commit hook — so it triggers automatically. The agent doesn't need to remember to run it. The infrastructure forces the check.
+
+Mechanism 3: The Known-Fixes Registry
+
+This is the file that prevents the agent from reinventing solutions you've already found. Every time you or the agent discovers a fix that works, it gets logged here in a format the agent can search:
+
+markdown
+# Known Fixes Registry
+# The agent MUST check this file before attempting any fix.
+# If a known fix exists for the current problem, USE IT. Do not improvise.
+
+## FIX-001: React hydration mismatch
+- **Symptom**: "Hydration failed because the initial UI does not match"
+- **Root cause**: Server and client render different content
+- **Fix**: Wrap dynamic content in ClientOnly component
+- **File**: See PATTERNS.md section 3.2
+- **Verified**: 2026-03-15
+
+## FIX-002: API route ordering in FastAPI
+- **Symptom**: 422 error on parameterised routes
+- **Root cause**: Specific routes defined after /{param} catch-all
+- **Fix**: Move specific routes ABOVE parameterised routes
+- **Verified**: 2026-03-20
+
+## FIX-003: Skill file instruction drift
+- **Symptom**: Agent stops following protocol steps after step 3
+- **Root cause**: Context dilution from code output
+- **Fix**: Insert mandatory checkpoint at step 3 that forces re-read of skill file
+- **Verified**: 2026-04-01
+The master protocol's EXECUTE phase gets amended:
+
+markdown
+### Before attempting any fix:
+1. Run `bash .claude/scripts/detect-loop.sh`
+2. If loop detected: STOP. Read .claude/protocols/known-fixes.md
+3. Search known-fixes.md for your current symptom
+4. If match found: apply the documented fix EXACTLY. Do not modify it.
+5. If no match found: proceed with your own approach, but document what you try
+6. After fixing: if your fix works, add it to known-fixes.md using the template above
+Mechanism 4: The Protocol Re-Injection Pattern
+
+This is the most direct solution to instruction decay. Rather than hoping the agent remembers a 200-line skill file across a long session, you break the skill file into phase-specific chunks and re-inject only the relevant chunk at each phase transition.
+
+Your skill file structure changes from one big document to:
+
+.claude/skills/my-workflow/
+├── SKILL.md              # Overview only — 20 lines max
+├── phases/
+│   ├── phase-1-research.md    # Only research instructions
+│   ├── phase-2-plan.md        # Only planning instructions
+│   ├── phase-3-execute.md     # Only execution instructions
+│   ├── phase-4-review.md      # Only review instructions
+│   └── phase-5-verify.md      # Only verification instructions
+└── references/
+    ├── known-fixes.md
+    └── patterns.md
+And the master protocol says:
+
+markdown
+### At each phase transition:
+1. Write current state to state/current-phase.json
+2. Read ONLY the phase file for your NEXT phase
+   - If entering EXECUTE: read phases/phase-3-execute.md
+   - Do NOT re-read the full SKILL.md
+3. Read state/progress-notes.md to remember what you've learned
+4. Proceed with ONLY the current phase's instructions in focus
+This is progressive disclosure applied to protocol fidelity. The agent never has more than one phase's worth of instructions competing for attention. When it enters Phase 3, it reads Phase 3's instructions fresh — they're the newest, most salient thing in context.
+
+Mechanism 5: The Evaluator Checks Protocol Compliance, Not Just Code Quality
+
+This is where the three-agent architecture gets amended. The Evaluator's criteria should include protocol fidelity as a grading dimension, not just whether the code works.
+
+Add to evaluation-criteria.md:
+
+markdown
+## Protocol Compliance (hard gate — must pass)
+- Did the generator write all required checkpoint files?
+- Do checkpoint files show evidence of re-reading the skill file?
+- Were known fixes from known-fixes.md applied where applicable?
+- Is there evidence of a negative loop (same files modified 4+ times)?
+- Did the generator follow the skill file's steps in order?
+
+If protocol compliance fails, the sprint fails regardless of code quality.
+This means a sprint can produce working code and still fail evaluation because the agent didn't follow the protocol. That's intentional. The protocol exists because you've learned what works. Bypassing it — even when the output happens to be okay this time — erodes the system's reliability.
+
+Putting It All Together
+The full system now has these layers:
+
+Layer 1: The three-agent architecture (Planner → Generator → Evaluator) handles macro flow — keeping the overall project on track across features.
+
+Layer 2: Protocol fidelity enforcement handles micro flow — keeping the agent on track within each skill file's steps. This layer consists of: inline checkpoints that force file-writing verification, phase-specific instruction re-injection so the agent only attends to current-phase instructions, and the known-fixes registry that prevents reinventing solutions.
+
+Layer 3: Deterministic guards catch negative loops and protocol violations through bash scripts and hooks — not LLM judgment. The loop detector runs automatically. The evaluator checks protocol compliance as a hard gate.
+
+Layer 4: The Telegram bridge notifies you at three points: when a plan is ready for review, when a negative loop is detected, and when all sprints pass. You're the architect directing from your phone, not the typist sitting at the terminal.
+
+The agent doesn't need to "remember" to follow your skill files. The infrastructure forces compliance through mandatory file-writing checkpoints, automatic loop detection, phase-specific instruction loading, and an evaluator that grades protocol fidelity alongside code quality.
+
+What's your next question? I want to make sure the checkpoint format and the evaluator tuning are specific enough for your skill files.
+
+
+Adewale, I've read through the full document carefully. You're right to be concerned — there's a fundamental tension running through this entire piece. The developer *names* the problem of non-determinism repeatedly, but then keeps handing the solution back to the LLM. Let me break down exactly wher
+
+pasted
+
+The developer pushed back as this.
+
+07:05
+Your developer is right. And this is a precise, well-targeted critique. Let me not dance around it.
+
+The core contradiction they've identified is real: I kept saying "the infrastructure forces compliance" while actually proposing instructions that the LLM can choose to ignore. That's the equivalent of writing "THE THERAPIST MUST ASSESS RISK" in a training manual and calling it a safety system. It's not a system. It's a hope.
+
+Let me rebuild the enforcement layer properly — where every "the agent must..." becomes "a hook/script checks whether the agent did... and blocks if not."
+
+The Fundamental Distinction: Soft vs. Hard Enforcement
+Your developer drew a clean line that I kept blurring. Let me make it explicit:
+
+Soft enforcement = instructions in markdown files that the LLM reads and (hopefully) follows. Works when context is fresh. Degrades under pressure. Is essentially advisory.
+
+Hard enforcement = bash scripts, Claude Code hooks, and harness logic that runs outside the LLM. Works regardless of context pressure. Is actually deterministic.
+
+Harness enforcement = the outer loop that controls what the agent sees, when sessions start and stop, and whether the agent is allowed to proceed. The agent doesn't participate in these decisions.
+
+My previous architecture was heavy on soft, thin on hard, and missing the harness layer almost entirely. Here's what it should actually look like.
+
+The Rebuilt Enforcement System
+1. Phase transitions are harness-controlled, not agent-requested
+
+The agent never decides "I'm done with phase 2, time to load phase 3." Instead:
+
+bash
+#!/bin/bash
+# .claude/hooks/post-tool-use.sh
+# This runs AFTER every tool use — the agent doesn't invoke it
+
+# Check if the agent just wrote a completion marker
+if [ -f .claude/state/phase-complete-marker.md ]; then
+  CURRENT_PHASE=$(cat .claude/state/current-phase.json | jq -r '.phase')
+  NEXT_PHASE=$((CURRENT_PHASE + 1))
+  
+  # Run deterministic validation for the current phase
+  VALIDATION_RESULT=$(bash .claude/scripts/validate-phase.sh $CURRENT_PHASE)
+  
+  if [ $? -ne 0 ]; then
+    # Validation failed — inject failure feedback, don't advance
+    echo "$VALIDATION_RESULT" > .claude/state/phase-feedback.md
+    rm .claude/state/phase-complete-marker.md
+    # Agent's next turn will see the feedback file
+    exit 0
+  fi
+  
+  # Validation passed — harness advances the phase
+  echo "{\"phase\": $NEXT_PHASE, \"timestamp\": \"$(date -Iseconds)\"}" > .claude/state/current-phase.json
+  
+  # Harness loads the next phase's instructions
+  # Agent doesn't choose what to load — infrastructure decides
+  cp .claude/skills/current-workflow/phases/phase-${NEXT_PHASE}.md \
+     .claude/state/active-instructions.md
+  
+  rm .claude/state/phase-complete-marker.md
+  
+  # Notify you
+  bash .claude/scripts/notify-telegram.sh "Phase $CURRENT_PHASE complete. Advancing to phase $NEXT_PHASE."
+fi
+The critical difference: the agent writes a marker saying "I think I'm done." The harness validates whether that's true. If it isn't, the harness writes feedback and the agent keeps working. If it is, the harness advances the phase and loads the next instructions. The agent never runs cat phases/phase-3.md itself.
+
+2. Checkpoint validation is a hook, not an instruction
+
+Instead of my original "write your answers to checkpoint-1.md" approach — which your developer correctly identified as asking the LLM to produce plausible compliance artifacts — the hook validates the actual outputs of each step:
+
+bash
+#!/bin/bash
+# .claude/scripts/validate-phase.sh
+# Called by the harness, not by the agent
+
+PHASE=$1
+
+case $PHASE in
+  1) # Research phase
+    # Check: did the agent actually write research output?
+    if [ ! -f .claude/state/step-1-analysis.md ]; then
+      echo "FAIL: Research output file does not exist."
+      exit 1
+    fi
+    # Check: does research output contain required sections?
+    for section in "## Codebase Structure" "## Identified Issues" "## Applicable Patterns"; do
+      if ! grep -q "$section" .claude/state/step-1-analysis.md; then
+        echo "FAIL: Research output missing required section: $section"
+        exit 1
+      fi
+    done
+    # Check: did the agent consult known-fixes.md?
+    # (We check git log for whether the file was read)
+    if ! grep -q "known-fixes.md" .claude/state/step-1-analysis.md; then
+      echo "FAIL: No evidence that known-fixes.md was consulted."
+      exit 1
+    fi
+    echo "PASS: Phase 1 validation complete."
+    exit 0
+    ;;
+    
+  2) # Plan phase  
+    if [ ! -f .claude/plans/plan.md ]; then
+      echo "FAIL: Plan file does not exist."
+      exit 1
+    fi
+    # Check plan references evaluation criteria
+    if ! grep -q "## Acceptance Criteria" .claude/plans/plan.md; then
+      echo "FAIL: Plan missing acceptance criteria."
+      exit 1
+    fi
+    # Check plan stays high-level (no implementation detail cascade)
+    LINE_COUNT=$(wc -l < .claude/plans/plan.md)
+    if [ "$LINE_COUNT" -gt 100 ]; then
+      echo "WARNING: Plan is $LINE_COUNT lines. Likely over-specified. Review for cascading implementation detail."
+      # Notify you rather than blocking
+      bash .claude/scripts/notify-telegram.sh "⚠️ Plan may be over-specified ($LINE_COUNT lines). Review .claude/plans/plan.md"
+    fi
+    exit 0
+    ;;
+    
+  3) # Execute phase
+    # Run actual tests — deterministic, not LLM judgment
+    bash .claude/scripts/validate.sh
+    if [ $? -ne 0 ]; then
+      echo "FAIL: Tests did not pass."
+      exit 1
+    fi
+    # Check for negative loops
+    bash .claude/scripts/detect-loop.sh
+    if [ $? -ne 0 ]; then
+      echo "FAIL: Negative loop detected."
+      exit 1
+    fi
+    exit 0
+    ;;
+esac
+Notice what's absent: no "please check whether you..." instructions to the LLM. Every check is a file existence test, a grep, a line count, or a test suite run. Binary pass/fail.
+
+3. The negative loop detector blocks execution, not advises
+
+Your developer nailed this — my original loop detector printed a warning and hoped the agent would read it. The rebuilt version:
+
+bash
+#!/bin/bash
+# .claude/scripts/detect-loop.sh
+# Returns exit code 1 if loop detected — harness uses this to BLOCK, not advise
+
+REPEAT_THRESHOLD=4
+
+# Check git for repeated modifications to same files
+MOST_MODIFIED=$(git log --name-only --pretty=format: -10 | sort | uniq -c | sort -rn | head -1)
+REPEAT_COUNT=$(echo "$MOST_MODIFIED" | awk '{print $1}')
+REPEAT_FILE=$(echo "$MOST_MODIFIED" | awk '{print $2}')
+
+if [ "$REPEAT_COUNT" -gt "$REPEAT_THRESHOLD" ]; then
+  # Search known-fixes.md for this file's symptoms
+  KNOWN_FIX=$(grep -A 5 "$REPEAT_FILE" .claude/protocols/known-fixes.md 2>/dev/null)
+  
+  if [ -n "$KNOWN_FIX" ]; then
+    # Known fix exists — write it directly into the agent's next instruction
+    echo "# MANDATORY FIX — DO NOT IMPROVISE" > .claude/state/next-fix.md
+    echo "" >> .claude/state/next-fix.md
+    echo "A negative loop was detected on file: $REPEAT_FILE" >> .claude/state/next-fix.md
+    echo "This has a KNOWN FIX. Apply it exactly:" >> .claude/state/next-fix.md
+    echo "" >> .claude/state/next-fix.md
+    echo "$KNOWN_FIX" >> .claude/state/next-fix.md
+    
+    bash .claude/scripts/notify-telegram.sh "🔄 Loop detected on $REPEAT_FILE. Known fix injected into next-fix.md."
+  else
+    # No known fix — PAUSE and notify you
+    echo "BLOCKED" > .claude/state/agent-blocked.md
+    echo "Negative loop on $REPEAT_FILE. No known fix." >> .claude/state/agent-blocked.md
+    echo "Awaiting human instruction via Telegram." >> .claude/state/agent-blocked.md
+    
+    bash .claude/scripts/notify-telegram.sh "🛑 Loop detected on $REPEAT_FILE. No known fix. Agent PAUSED. Reply with instructions."
+    
+    # Block until you respond
+    while [ ! -f .claude/state/human-response.md ]; do
+      sleep 30
+    done
+    
+    # Your response becomes the agent's next instruction
+    cp .claude/state/human-response.md .claude/state/next-fix.md
+    rm .claude/state/human-response.md
+    rm .claude/state/agent-blocked.md
+  fi
+  
+  exit 1
+fi
+
+exit 0
+Two paths, both deterministic. If there's a known fix, the script writes it directly into a file the agent reads — not "check known-fixes.md" but "here is the fix, apply it." If there's no known fix, the script pauses the agent and waits for your Telegram reply. Your reply gets written to a file that becomes the agent's next instruction. The agent doesn't decide whether to stop. The infrastructure stops it.
+
+4. Known-fixes matching is script-driven, not agent-driven
+
+Your developer said: "The word MUST in a markdown file has zero binding force on an LLM." Exactly right. The rebuilt version:
+
+bash
+#!/bin/bash
+# .claude/hooks/on-test-failure.sh
+# Fires automatically when validate.sh returns non-zero
+
+FAILURE_OUTPUT="$1"
+
+# Search known-fixes.md for matching symptoms
+while IFS= read -r line; do
+  if [[ "$line" == "- **Symptom**:"* ]]; then
+    SYMPTOM="${line#*: }"
+    # Check if failure output contains this symptom
+    if echo "$FAILURE_OUTPUT" | grep -qi "$SYMPTOM"; then
+      # Read the next few lines for the fix
+      FIX_BLOCK=$(grep -A 10 "$SYMPTOM" .claude/protocols/known-fixes.md)
+      
+      # Write fix directly into agent's instruction file
+      echo "# KNOWN FIX FOUND — APPLY EXACTLY" > .claude/state/next-fix.md
+      echo "" >> .claude/state/next-fix.md
+      echo "$FIX_BLOCK" >> .claude/state/next-fix.md
+      echo "" >> .claude/state/next-fix.md
+      echo "After applying, run tests again. Do not modify the fix." >> .claude/state/next-fix.md
+      
+      bash .claude/scripts/notify-telegram.sh "Known fix matched for: $SYMPTOM"
+      exit 0
+    fi
+  fi
+done < .claude/protocols/known-fixes.md
+
+echo "No known fix matched. Agent will attempt its own solution." 
+exit 0
+The agent never searches known-fixes.md. The hook searches it on every test failure and injects the matching fix directly. The agent sees "here's what to apply" — not "go look for a solution."
+
+5. The Evaluator's protocol compliance checks are split: deterministic checks via script, judgment checks via LLM
+
+Your developer correctly pointed out that asking the evaluator LLM to check "does the checkpoint file exist?" is wasteful and unreliable when a bash script can do it with certainty. The split:
+
+bash
+#!/bin/bash
+# .claude/scripts/evaluate-protocol-compliance.sh
+# Runs BEFORE the evaluator agent gets invoked
+# Deterministic checks that don't need LLM judgment
+
+SPRINT=$1
+PASS=true
+
+# File existence checks
+for required_file in \
+  ".claude/state/step-1-analysis.md" \
+  ".claude/plans/plan.md" \
+  ".claude/state/progress-notes.md"; do
+  if [ ! -f "$required_file" ]; then
+    echo "PROTOCOL FAIL: Required file missing: $required_file"
+    PASS=false
+  fi
+done
+
+# Loop check
+bash .claude/scripts/detect-loop.sh
+if [ $? -ne 0 ]; then
+  echo "PROTOCOL FAIL: Negative loop detected"
+  PASS=false
+fi
+
+# Test suite
+bash .claude/scripts/validate.sh
+if [ $? -ne 0 ]; then
+  echo "PROTOCOL FAIL: Tests do not pass"
+  PASS=false
+fi
+
+# Known-fixes compliance: were any triggered?
+if [ -f .claude/state/next-fix.md ]; then
+  # A known fix was injected — check if it was applied
+  FIX_TARGET=$(grep "file:" .claude/state/next-fix.md | head -1)
+  if [ -n "$FIX_TARGET" ]; then
+    # Check git log for whether the specified fix was committed
+    if ! git log --oneline -5 | grep -qi "known.fix\|apply.fix"; then
+      echo "PROTOCOL FAIL: Known fix was injected but not applied"
+      PASS=false
+    fi
+  fi
+fi
+
+if [ "$PASS" = false ]; then
+  echo "PROTOCOL COMPLIANCE: FAIL"
+  echo "Sprint cannot proceed to evaluator until protocol issues are resolved."
+  exit 1
+fi
+
+echo "PROTOCOL COMPLIANCE: PASS — proceeding to evaluator agent"
+exit 0
+The evaluator agent then only handles what actually requires LLM judgment: does the code do what the sprint contract specified? Does the UI make sense? Is the architecture sound? The binary checks are already done before the evaluator ever loads.
+
+6. The Telegram bridge has a response path, not just notifications
+
+Your developer's point: "what you want is 'loop detected, agent paused, awaiting your instruction' — where your Telegram reply actually gets injected as the agent's next prompt."
+
+The polling script that watches for your replies:
+
+bash
+#!/bin/bash
+# .claude/scripts/telegram-poll.sh
+# Runs as a background daemon alongside the harness
+
+TELEGRAM_BOT_TOKEN="your-token"
+TELEGRAM_CHAT_ID="your-chat-id"
+LAST_UPDATE_ID=0
+
+while true; do
+  # Get updates from Telegram
+  RESPONSE=$(curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=30")
+  
+  # Extract messages from your chat
+  MESSAGES=$(echo "$RESPONSE" | jq -r ".result[] | select(.message.chat.id == $TELEGRAM_CHAT_ID)")
+  
+  if [ -n "$MESSAGES" ]; then
+    # Get the latest message
+    LATEST_TEXT=$(echo "$MESSAGES" | jq -r '.message.text' | tail -1)
+    LATEST_ID=$(echo "$MESSAGES" | jq -r '.update_id' | tail -1)
+    LAST_UPDATE_ID=$LATEST_ID
+    
+    # Write your instruction to the response file
+    echo "$LATEST_TEXT" > .claude/state/human-response.md
+    
+    # Acknowledge receipt
+    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+      -d chat_id="${TELEGRAM_CHAT_ID}" \
+      -d text="✅ Received. Injecting into agent." > /dev/null
+  fi
+  
+  sleep 5
+done
+Now the harness loop wrapper becomes:
+
+bash
+#!/bin/bash
+# run-harness.sh — the outer loop
+
+# Start Telegram polling in background
+bash .claude/scripts/telegram-poll.sh &
+POLL_PID=$!
+trap "kill $POLL_PID" EXIT
+
+MAX_ITERATIONS=30
+ITERATION=0
+
+while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+  # Check if agent is blocked
+  if [ -f .claude/state/agent-blocked.md ]; then
+    echo "Agent blocked. Waiting for human input via Telegram..."
+    while [ ! -f .claude/state/human-response.md ]; do
+      sleep 10
+    done
+    # Human response becomes next instruction
+    HUMAN_INPUT=$(cat .claude/state/human-response.md)
+    rm .claude/state/human-response.md
+    rm .claude/state/agent-blocked.md
+  fi
+  
+  PHASE=$(cat .claude/state/current-phase.json | jq -r '.phase')
+  
+  if [ "$PHASE" = "COMPLETE" ]; then
+    bash .claude/scripts/notify-telegram.sh "✅ All phases complete. Ready for final review."
+    exit 0
+  fi
+  
+  # Build the prompt — harness decides what the agent sees
+  ACTIVE_INSTRUCTIONS=$(cat .claude/state/active-instructions.md 2>/dev/null)
+  PROGRESS=$(cat .claude/state/progress-notes.md 2>/dev/null)
+  NEXT_FIX=$(cat .claude/state/next-fix.md 2>/dev/null)
+  
+  PROMPT="## Current Phase Instructions\n${ACTIVE_INSTRUCTIONS}\n\n"
+  PROMPT+="## Your Progress So Far\n${PROGRESS}\n\n"
+  
+  if [ -n "$NEXT_FIX" ]; then
+    PROMPT+="## MANDATORY: Apply This Fix First\n${NEXT_FIX}\n\n"
+    rm .claude/state/next-fix.md
+  fi
+  
+  if [ -n "$HUMAN_INPUT" ]; then
+    PROMPT+="## Human Directive (priority)\n${HUMAN_INPUT}\n\n"
+    HUMAN_INPUT=""
+  fi
+  
+  PROMPT+="Continue working. When you believe this phase is complete, write a file called .claude/state/phase-complete-marker.md explaining what you completed."
+  
+  # Run Claude with constructed prompt
+  echo -e "$PROMPT" | claude --permission-mode auto-accept
+  
+  # Post-session hooks handle phase validation and transition
+  # (via post-tool-use hooks defined above)
+  
+  ITERATION=$((ITERATION + 1))
+done
+The Revised Layer Model
+Your developer said the architecture actually has two layers, not four, and they're not properly separated. Here's the clean separation:
+
+Layer 1 — The Harness (deterministic, outside the LLM)
+
+Controls session lifecycle: start, stop, restart, context reset
+Manages phase transitions via hooks and validation scripts
+Decides what the agent sees (loads active-instructions.md)
+Blocks progression when validation fails
+Handles Telegram communication including your response path
+Runs the Ralph-style outer loop
+Layer 2 — Deterministic Guards (scripts, no LLM)
+
+Phase validation (file existence, required sections, line counts)
+Loop detection (git history analysis)
+Known-fix matching (symptom grep against registry)
+Test execution (test suite, linting, type checking)
+Protocol compliance checks (all binary pass/fail)
+Layer 3 — The Agents (LLM, within the constraints set by Layers 1-2)
+
+Planner: expands brief into high-level spec
+Generator: implements features, writes code
+Evaluator: judges quality, usability, architecture (the stuff that actually needs LLM judgment)
+The rule: never use Layer 3 for something Layer 2 can do. Never use Layer 2 for something Layer 1 should control.
+
+Your developer's critique boils down to: I was using Layer 3 for things that belong in Layer 1 and 2. Every "the agent must..." was a Layer 3 instruction doing a Layer 1 or Layer 2 job. The fix is systematic: go through every instruction in the protocol and ask "can a bash script check this?" If yes, it moves to Layer 2. If it controls session flow, it moves to Layer 1. Only genuine judgment calls stay in Layer 3.
+
+What do you want to drill into next — the specific hook configurations for your Claude Code setup, or the evaluator tuning process?
+
+
+Adewale, this is substantially better — the developer has genuinely listened to the critique and restructured around the hard/soft enforcement distinction. The three-layer model is clean and the rule ("never use Layer 3 for something Layer 2 can do") is the right governing principle. But there ar
+
+pasted
+
+The developer pushed back.
+
+07:10
+Your developer is right again. The architecture is now sound, but the implementation has seven specific engineering gaps. Let me fix each one concretely rather than re-explain the philosophy.
+
+Fix 1: Rich Handoff Artifacts, Not Thin State Files
+The developer correctly identified that piping a new prompt into claude each iteration creates a stateless session with no codebase understanding. The progress-notes.md file I proposed was too thin.
+
+The handoff artifact needs to match Anthropic's pattern — a structured document that gives a fresh session enough context to pick up cleanly:
+
+bash
+#!/bin/bash
+# .claude/scripts/write-handoff.sh
+# Called by the harness at session boundaries, not by the agent
+
+PHASE=$1
+HANDOFF_FILE=".claude/state/handoff-artifact.md"
+
+cat > "$HANDOFF_FILE" << EOF
+# Session Handoff — $(date -Iseconds)
+# Phase: $PHASE
+
+## Completed Features
+$(git log --oneline --since="$(cat .claude/state/session-start-time.txt)" | head -20)
+
+## Current Codebase State
+$(find src/ -name "*.ts" -o -name "*.py" -o -name "*.jsx" 2>/dev/null | head -30)
+
+## Files Modified This Session
+$(git diff --name-only HEAD~5 2>/dev/null)
+
+## Architectural Decisions Made
+$(cat .claude/state/progress-notes.md 2>/dev/null)
+
+## Known Issues / Deferred Work
+$(cat .claude/state/deferred.md 2>/dev/null)
+
+## Active Sprint Contract
+$(cat .claude/contracts/current-contract.md 2>/dev/null)
+
+## Test Status
+$(bash .claude/scripts/validate.sh --summary 2>&1)
+
+## What To Do Next
+Read .claude/state/active-instructions.md for current phase instructions.
+EOF
+The harness then uses this as the session opener — not a thin "continue from phase 3" prompt, but a structured document the agent can orient from. This is the difference between handing a locum therapist a one-line note saying "client is in session 4" versus a proper clinical handover with formulation, risk assessment, and treatment plan.
+
+Fix 2: Scoped Hooks, Not Fire-On-Every-Tool-Use
+The PostToolUse hook should only fire on write operations:
+
+json
+// .claude/settings.json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Write|Edit|str_replace"
+        },
+        "command": "bash .claude/hooks/post-write-check.sh"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "bash .claude/hooks/on-session-end.sh"
+      }
+    ]
+  }
+}
+The phase-complete-marker check only runs after file writes and edits — not after every Read, Glob, Grep, and Bash call. On a session with 200+ tool uses, this is the difference between 200 hook invocations and maybe 30.
+
+Fix 3: Inject Known-Fixes Content, Don't Check If Agent Claims It Looked
+Your developer caught this precisely — grepping for the string "known-fixes.md" in the agent's output is checking for compliance theatre, not actual compliance. The fix:
+
+bash
+#!/bin/bash
+# .claude/hooks/pre-phase-start.sh
+# Harness calls this BEFORE starting any phase
+
+PHASE=$1
+
+# Inject relevant known-fixes content into the agent's context
+# Agent doesn't search for it — harness gives it
+
+if [ "$PHASE" = "1" ] || [ "$PHASE" = "3" ]; then
+  # Identify what domain we're working in from the spec
+  DOMAIN_KEYWORDS=$(grep -oP '(?<=## )\w+' .claude/specs/product-spec.md 2>/dev/null | head -5 | tr '\n' '|')
+  
+  # Extract matching fixes
+  RELEVANT_FIXES=$(grep -B1 -A10 -iE "$DOMAIN_KEYWORDS" .claude/protocols/known-fixes.md 2>/dev/null)
+  
+  if [ -n "$RELEVANT_FIXES" ]; then
+    cat > .claude/state/injected-context.md << EOF
+# Known Fixes Relevant To This Work
+# These are proven solutions. If you encounter these symptoms, apply the fix exactly.
+
+$RELEVANT_FIXES
+EOF
+  fi
+fi
+Then the harness prompt includes injected-context.md alongside active-instructions.md. The agent sees the fixes as part of its briefing material. The validation doesn't check whether the agent claims it looked — the evaluator (Layer 3) judges whether the agent's output conflicts with any of the injected fixes, which is a genuine judgment call.
+
+Fix 4: Verify Fix Application By Diffing Code, Not Commit Messages
+The developer is right — the agent controls its commit messages and can write "applied known fix" without changing anything. The verification needs to check the actual code:
+
+bash
+#!/bin/bash
+# .claude/scripts/verify-fix-applied.sh
+# Called after the agent claims to have applied a known fix
+
+FIX_FILE=".claude/state/next-fix.md"
+
+if [ ! -f "$FIX_FILE" ]; then
+  exit 0  # No fix was pending
+fi
+
+# Extract verification criteria from the fix entry
+# Known-fixes format includes a ## Verify section
+VERIFY_SECTION=$(sed -n '/## Verify/,/## /p' "$FIX_FILE" | head -20)
+
+if [ -z "$VERIFY_SECTION" ]; then
+  echo "WARNING: Fix has no verification criteria. Manual check needed."
+  bash .claude/scripts/notify-telegram.sh "⚠️ Fix applied but no automated verification. Review manually."
+  exit 0
+fi
+
+# Execute each verification command
+PASS=true
+while IFS= read -r line; do
+  # Skip empty lines and headers
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  
+  # Each line is a bash command that should return 0 if fix is correct
+  # Example: "grep -q 'specific_route' src/api/routes.py && grep -n 'specific_route' src/api/routes.py | head -1 | grep -q '^[1-5]:'"
+  # (checks that specific_route appears in first 5 lines, i.e., before catch-all)
+  eval "$line"
+  if [ $? -ne 0 ]; then
+    echo "FAIL: Verification check failed: $line"
+    PASS=false
+  fi
+done <<< "$VERIFY_SECTION"
+
+if [ "$PASS" = false ]; then
+  echo "PROTOCOL FAIL: Known fix was not correctly applied."
+  exit 1
+fi
+
+rm "$FIX_FILE"  # Fix verified, clear pending
+echo "PASS: Known fix verified in code."
+exit 0
+This means the known-fixes registry format needs a ## Verify section with actual bash commands:
+
+markdown
+## FIX-002: API route ordering in FastAPI
+- **Symptom**: 422 error on parameterised routes
+- **Root cause**: Specific routes defined after /{param} catch-all
+- **Fix**: Move specific routes ABOVE parameterised routes
+- **File**: src/api/routes.py
+
+## Verify
+grep -n 'reorder\|specific_endpoint' src/api/routes.py | head -1 | awk -F: '{exit ($1 > 10)}'
+python -c "import ast; tree=ast.parse(open('src/api/routes.py').read()); print('OK')"
+Not every fix can be verified this way. But structural fixes — route ordering, import ordering, config placement, file existence — often can. For fixes that can't be automated, the verification says notify-telegram and you check manually.
+
+Fix 5: Timeout on Human Response, With State Save
+bash
+#!/bin/bash
+# .claude/scripts/wait-for-human.sh
+# Called when agent is blocked and needs your input
+
+TIMEOUT_MINUTES=${1:-30}
+TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
+ELAPSED=0
+
+bash .claude/scripts/notify-telegram.sh "🛑 Agent blocked. Awaiting your instruction. Will auto-save in ${TIMEOUT_MINUTES}m if no response."
+
+while [ ! -f .claude/state/human-response.md ]; do
+  sleep 10
+  ELAPSED=$((ELAPSED + 10))
+  
+  if [ $ELAPSED -ge $TIMEOUT_SECONDS ]; then
+    # Save state and exit cleanly
+    bash .claude/scripts/write-handoff.sh "BLOCKED_TIMEOUT"
+    bash .claude/scripts/notify-telegram.sh "⏰ No response after ${TIMEOUT_MINUTES}m. Session saved. Reply anytime — harness will resume with your instruction."
+    
+    # Write a resume script so your Telegram reply triggers restart
+    cat > .claude/state/resume-on-reply.sh << 'RESUME'
+#!/bin/bash
+# Auto-generated — runs when human-response.md appears
+bash .claude/scripts/run-harness.sh
+RESUME
+    chmod +x .claude/state/resume-on-reply.sh
+    
+    exit 0
+  fi
+  
+  # Reminder every 10 minutes
+  if [ $((ELAPSED % 600)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+    REMAINING=$(( (TIMEOUT_SECONDS - ELAPSED) / 60 ))
+    bash .claude/scripts/notify-telegram.sh "⏳ Still waiting. ${REMAINING}m until auto-save."
+  fi
+done
+
+# Response received
+echo "Human response received after ${ELAPSED}s"
+exit 0
+The Telegram polling daemon also needs a watchdog:
+
+bash
+#!/bin/bash
+# .claude/scripts/telegram-poll.sh (revised)
+
+TELEGRAM_BOT_TOKEN="your-token"
+TELEGRAM_CHAT_ID="your-chat-id"
+LAST_UPDATE_ID=0
+HEARTBEAT_FILE=".claude/state/telegram-poll-heartbeat"
+
+while true; do
+  # Write heartbeat so harness knows we're alive
+  date +%s > "$HEARTBEAT_FILE"
+  
+  RESPONSE=$(curl -s --max-time 35 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=30")
+  
+  # Handle curl failure
+  if [ $? -ne 0 ]; then
+    echo "Telegram API unreachable. Retrying in 30s..."
+    sleep 30
+    continue
+  fi
+  
+  MESSAGES=$(echo "$RESPONSE" | jq -r ".result[] | select(.message.chat.id == $TELEGRAM_CHAT_ID)" 2>/dev/null)
+  
+  if [ -n "$MESSAGES" ]; then
+    LATEST_TEXT=$(echo "$MESSAGES" | jq -r '.message.text' | tail -1)
+    LATEST_ID=$(echo "$MESSAGES" | jq -r '.update_id' | tail -1)
+    LAST_UPDATE_ID=$LATEST_ID
+    
+    echo "$LATEST_TEXT" > .claude/state/human-response.md
+    
+    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+      -d chat_id="${TELEGRAM_CHAT_ID}" \
+      -d text="✅ Received. Injecting into agent." > /dev/null
+    
+    # If there's a resume script waiting, trigger it
+    if [ -f .claude/state/resume-on-reply.sh ]; then
+      bash .claude/state/resume-on-reply.sh &
+      rm .claude/state/resume-on-reply.sh
+    fi
+  fi
+  
+  sleep 5
+done
+And the harness checks the polling daemon's heartbeat:
+
+bash
+# In run-harness.sh, before each iteration:
+HEARTBEAT=$(cat .claude/state/telegram-poll-heartbeat 2>/dev/null)
+NOW=$(date +%s)
+if [ -n "$HEARTBEAT" ] && [ $((NOW - HEARTBEAT)) -gt 120 ]; then
+  echo "Telegram polling daemon appears dead. Restarting..."
+  kill $POLL_PID 2>/dev/null
+  bash .claude/scripts/telegram-poll.sh &
+  POLL_PID=$!
+fi
+Fix 6: Cost/Budget Circuit Breaker
+bash
+#!/bin/bash
+# .claude/scripts/check-budget.sh
+# Called at the start of each harness iteration
+
+BUDGET_FILE=".claude/state/budget.json"
+MAX_COST_USD=${MAX_COST:-50}  # Default $50 cap
+MAX_ELAPSED_HOURS=${MAX_HOURS:-4}  # Default 4 hour cap
+
+# Track elapsed time
+START_TIME=$(cat .claude/state/session-start-time.txt 2>/dev/null)
+if [ -z "$START_TIME" ]; then
+  date +%s > .claude/state/session-start-time.txt
+  START_TIME=$(cat .claude/state/session-start-time.txt)
+fi
+
+NOW=$(date +%s)
+ELAPSED_HOURS=$(( (NOW - START_TIME) / 3600 ))
+
+if [ $ELAPSED_HOURS -ge $MAX_ELAPSED_HOURS ]; then
+  bash .claude/scripts/write-handoff.sh "BUDGET_TIME_LIMIT"
+  bash .claude/scripts/notify-telegram.sh "⏰ Time limit reached (${ELAPSED_HOURS}h). Session saved. Cost: check claude usage."
+  exit 1
+fi
+
+# Track iterations as a proxy for cost
+# (Claude Code doesn't expose token counts directly in bash,
+#  but iteration count × average cost is a reasonable proxy)
+ITERATION_COUNT=$(cat .claude/state/current-phase.json | jq -r '.iteration // 0')
+ESTIMATED_COST=$(echo "$ITERATION_COUNT * 4" | bc)  # ~$4/iteration rough estimate
+
+if [ $(echo "$ESTIMATED_COST > $MAX_COST_USD" | bc) -eq 1 ]; then
+  bash .claude/scripts/write-handoff.sh "BUDGET_COST_LIMIT"
+  bash .claude/scripts/notify-telegram.sh "💰 Budget limit reached (~\$${ESTIMATED_COST}). Session saved."
+  exit 1
+fi
+
+exit 0
+Integrated into the harness loop:
+
+bash
+# In run-harness.sh, before each iteration:
+bash .claude/scripts/check-budget.sh
+if [ $? -ne 0 ]; then
+  echo "Budget limit reached. Exiting."
+  exit 0
+fi
+Fix 7: Explicit Evaluator Invocation In The Harness
+This is the biggest structural gap your developer caught. The harness needs to actually invoke the evaluator as a separate session, not fold it into the generator:
+
+bash
+#!/bin/bash
+# run-harness.sh (revised — showing the full loop with evaluator)
+
+bash .claude/scripts/telegram-poll.sh &
+POLL_PID=$!
+trap "kill $POLL_PID 2>/dev/null" EXIT
+
+date +%s > .claude/state/session-start-time.txt
+MAX_ITERATIONS=30
+ITERATION=0
+
+while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+  bash .claude/scripts/check-budget.sh || exit 0
+  
+  # Check heartbeat
+  HEARTBEAT=$(cat .claude/state/telegram-poll-heartbeat 2>/dev/null || echo "0")
+  NOW=$(date +%s)
+  if [ $((NOW - HEARTBEAT)) -gt 120 ]; then
+    kill $POLL_PID 2>/dev/null
+    bash .claude/scripts/telegram-poll.sh &
+    POLL_PID=$!
+  fi
+  
+  # Check for blocking conditions
+  if [ -f .claude/state/agent-blocked.md ]; then
+    bash .claude/scripts/wait-for-human.sh 30
+    if [ $? -ne 0 ]; then
+      exit 0  # Timed out, state saved
+    fi
+  fi
+  
+  PHASE=$(cat .claude/state/current-phase.json | jq -r '.phase')
+  SPRINT=$(cat .claude/state/current-phase.json | jq -r '.sprint // 0')
+  
+  case $PHASE in
+    "PLAN")
+      # Planner agent — separate session
+      bash .claude/hooks/pre-phase-start.sh 1
+      HANDOFF=$(cat .claude/state/handoff-artifact.md 2>/dev/null)
+      
+      claude --permission-mode plan -p \
+        "You are the PLANNER agent. Read .claude/agents/planner.md for your role.
+         ${HANDOFF:+Previous context: $HANDOFF}
+         Expand the user brief into a product spec. Stay high-level.
+         Write to .claude/specs/product-spec.md and .claude/specs/evaluation-criteria.md
+         When done, write .claude/state/phase-complete-marker.md"
+      ;;
+      
+    "NEGOTIATE")
+      # Contract negotiation — generator proposes, evaluator reviews
+      claude -p \
+        "You are the GENERATOR proposing sprint $SPRINT contract.
+         Read .claude/agents/generator.md and .claude/specs/product-spec.md
+         Propose what you will build and how success will be verified.
+         Write proposal to .claude/contracts/sprint-${SPRINT}-proposal.md
+         When done, write .claude/state/phase-complete-marker.md"
+      
+      # Separate evaluator session reviews the proposal
+      claude -p \
+        "You are the EVALUATOR reviewing sprint $SPRINT proposal.
+         Read .claude/agents/evaluator.md and .claude/specs/evaluation-criteria.md
+         Read .claude/contracts/sprint-${SPRINT}-proposal.md
+         Either approve (write .claude/contracts/sprint-${SPRINT}-contract.md)
+         or reject with feedback (write .claude/contracts/sprint-${SPRINT}-feedback.md)"
+      
+      # Check result
+      if [ -f ".claude/contracts/sprint-${SPRINT}-contract.md" ]; then
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+      elif [ -f ".claude/contracts/sprint-${SPRINT}-feedback.md" ]; then
+        # Re-negotiate — loop back
+        echo "Contract rejected. Re-negotiating..."
+      fi
+      ;;
+      
+    "BUILD")
+      # Generator builds against contract — continuous session with compaction
+      bash .claude/hooks/pre-phase-start.sh 3
+      ACTIVE=$(cat .claude/state/active-instructions.md 2>/dev/null)
+      INJECTED=$(cat .claude/state/injected-context.md 2>/dev/null)
+      NEXT_FIX=$(cat .claude/state/next-fix.md 2>/dev/null)
+      
+      BUILD_PROMPT="You are the GENERATOR. Read .claude/agents/generator.md
+        Sprint contract: .claude/contracts/sprint-${SPRINT}-contract.md
+        ${ACTIVE:+Phase instructions: $ACTIVE}
+        ${INJECTED:+Known fixes to be aware of: $INJECTED}
+        ${NEXT_FIX:+MANDATORY — apply this fix first: $NEXT_FIX}
+        Write progress to .claude/state/progress-notes.md as you work.
+        When sprint is complete, write .claude/state/phase-complete-marker.md"
+      
+      claude --permission-mode auto-accept -p "$BUILD_PROMPT"
+      [ -f .claude/state/next-fix.md ] && rm .claude/state/next-fix.md
+      ;;
+      
+    "EVALUATE")
+      # Deterministic checks FIRST (Layer 2)
+      bash .claude/scripts/evaluate-protocol-compliance.sh "$SPRINT"
+      if [ $? -ne 0 ]; then
+        echo "Protocol compliance failed. Returning to BUILD."
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+        ITERATION=$((ITERATION + 1))
+        continue
+      fi
+      
+      # Verify any pending known-fix application
+      bash .claude/scripts/verify-fix-applied.sh
+      if [ $? -ne 0 ]; then
+        echo "Known fix not properly applied. Returning to BUILD."
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+        ITERATION=$((ITERATION + 1))
+        continue
+      fi
+      
+      # THEN evaluator agent (Layer 3) — separate session, own context
+      claude -p \
+        "You are the EVALUATOR. Read .claude/agents/evaluator.md
+         Read .claude/specs/evaluation-criteria.md
+         Read .claude/contracts/sprint-${SPRINT}-contract.md
+         
+         Use Playwright MCP to interact with the running application.
+         Test every criterion in the sprint contract.
+         Grade: product depth, functionality, visual design, code quality.
+         
+         Write detailed findings to .claude/state/evaluation-results/sprint-${SPRINT}-evaluation.md
+         
+         If ANY criterion falls below threshold:
+           Write .claude/state/evaluation-results/sprint-${SPRINT}-FAIL.md with specific feedback
+         If ALL pass:
+           Write .claude/state/evaluation-results/sprint-${SPRINT}-PASS.md"
+      
+      # Check evaluator result
+      if [ -f ".claude/state/evaluation-results/sprint-${SPRINT}-PASS.md" ]; then
+        NEXT_SPRINT=$((SPRINT + 1))
+        TOTAL_SPRINTS=$(cat .claude/state/total-sprints.txt 2>/dev/null || echo "5")
+        
+        if [ $NEXT_SPRINT -gt $TOTAL_SPRINTS ]; then
+          echo "{\"phase\": \"COMPLETE\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+        else
+          echo "{\"phase\": \"NEGOTIATE\", \"sprint\": $NEXT_SPRINT}" > .claude/state/current-phase.json
+        fi
+        
+        # Write handoff for next sprint
+        bash .claude/scripts/write-handoff.sh "SPRINT_${SPRINT}_COMPLETE"
+        bash .claude/scripts/notify-telegram.sh "✅ Sprint $SPRINT passed evaluation. Moving to sprint $NEXT_SPRINT."
+      else
+        # Evaluation failed — return to build with feedback
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+        # Evaluator's failure details become part of the next build prompt automatically
+        bash .claude/scripts/notify-telegram.sh "❌ Sprint $SPRINT failed evaluation. Generator will iterate."
+      fi
+      ;;
+      
+    "COMPLETE")
+      bash .claude/scripts/write-handoff.sh "COMPLETE"
+      bash .claude/scripts/notify-telegram.sh "✅ All sprints complete. Final output ready for review."
+      exit 0
+      ;;
+  esac
+  
+  ITERATION=$((ITERATION + 1))
+  # Update iteration count in state
+  jq ".iteration = $ITERATION" .claude/state/current-phase.json > tmp.json && mv tmp.json .claude/state/current-phase.json
+done
+
+bash .claude/scripts/notify-telegram.sh "⚠️ Max iterations ($MAX_ITERATIONS) reached. Session saved."
+bash .claude/scripts/write-handoff.sh "MAX_ITERATIONS"
+Summary Of What Changed
+Every fix your developer flagged was an engineering gap, not an architectural flaw. Here's what moved:
+
+Thin handoff → Rich handoff artifact with completed features, modified files, architectural decisions, test status, and deferred work. Matches Anthropic's documented pattern.
+
+Fire-on-every-tool-use → Scoped hooks filtered to Write/Edit operations only. Prevents performance degradation as the hook logic grows.
+
+"Did agent claim it looked?" → Harness injects the content directly. Agent doesn't search known-fixes. Harness searches and injects. Validation moves to Layer 3 where judgment is actually needed.
+
+Trust commit messages → Diff the actual code. Known-fixes registry gets a ## Verify section with bash commands that check the real file state.
+
+Infinite wait → Timeout with state save and auto-resume. Telegram daemon gets a heartbeat monitor. Harness restarts it if it dies.
+
+No cost tracking → Budget circuit breaker on both time and estimated cost. Hard stop with Telegram notification and state save.
+
+Undifferentiated blob → Explicit evaluator invocation. The harness now runs PLAN, NEGOTIATE, BUILD, and EVALUATE as separate Claude sessions with separate prompts. The evaluator gets its own clean context with Playwright MCP. Deterministic checks (Layer 2) run before the evaluator (Layer 3) loads.
+
+The architecture is sound. These seven fixes close the implementation gaps. What do you want to focus on next — building the Telegram bot, writing the evaluator agent prompt, or setting up the hook configurations in your Claude Code project?
+
+
+Adewale, this is now a genuinely solid piece of engineering. The developer has listened, iterated, and addressed each of the seven gaps concretely. The three-layer separation is maintained throughout, and the harness loop is now a real implementation, not a sketch. But there are still issues. The
+
+pasted
+
+pushback
+
+07:15
+Your developer is right. We're now in the final 10-15% — production hardening. The architecture is done. These are engineering punch list items. Let me fix each one concretely.
+
+Fix 1: No eval On Markdown Content — Structured Verification Format
+The eval on lines from known-fixes.md is a genuine security risk. Replacing with a structured format the script interprets:
+
+markdown
+## FIX-002: API route ordering in FastAPI
+- **Symptom**: 422 error on parameterised routes
+- **Root cause**: Specific routes defined after /{param} catch-all
+- **Fix**: Move specific routes ABOVE parameterised routes
+- **File**: src/api/routes.py
+
+## Verify
+- type: file_contains
+  file: src/api/routes.py
+  pattern: "@app.get\(\"/reorder\"\)"
+  before_pattern: "@app.get\(\"/{.*}\"\)"
+
+- type: file_exists
+  file: src/api/routes.py
+
+- type: test_passes
+  command: pytest tests/test_routes.py -x
+And the verification script interprets this without eval:
+
+bash
+#!/bin/bash
+# .claude/scripts/verify-fix-applied.sh (revised — no eval)
+
+FIX_FILE=".claude/state/next-fix.md"
+[ ! -f "$FIX_FILE" ] && exit 0
+
+PASS=true
+CURRENT_TYPE=""
+CURRENT_FILE=""
+CURRENT_PATTERN=""
+CURRENT_BEFORE=""
+
+while IFS= read -r line; do
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  
+  case "$line" in
+    *"type: file_exists"*)
+      CURRENT_TYPE="file_exists" ;;
+    *"type: file_contains"*)
+      CURRENT_TYPE="file_contains" ;;
+    *"type: test_passes"*)
+      CURRENT_TYPE="test_passes" ;;
+    *"file:"*)
+      CURRENT_FILE=$(echo "$line" | sed 's/.*file: //') ;;
+    *"pattern:"*)
+      CURRENT_PATTERN=$(echo "$line" | sed 's/.*pattern: //') ;;
+    *"before_pattern:"*)
+      CURRENT_BEFORE=$(echo "$line" | sed 's/.*before_pattern: //')
+      
+      # Execute the accumulated check
+      case "$CURRENT_TYPE" in
+        "file_exists")
+          if [ ! -f "$CURRENT_FILE" ]; then
+            echo "FAIL: $CURRENT_FILE does not exist"
+            PASS=false
+          fi ;;
+        "file_contains")
+          if [ -n "$CURRENT_BEFORE" ]; then
+            # Check ordering: pattern must appear before before_pattern
+            PATTERN_LINE=$(grep -n "$CURRENT_PATTERN" "$CURRENT_FILE" 2>/dev/null | head -1 | cut -d: -f1)
+            BEFORE_LINE=$(grep -n "$CURRENT_BEFORE" "$CURRENT_FILE" 2>/dev/null | head -1 | cut -d: -f1)
+            if [ -z "$PATTERN_LINE" ] || [ -z "$BEFORE_LINE" ] || [ "$PATTERN_LINE" -gt "$BEFORE_LINE" ]; then
+              echo "FAIL: Pattern ordering wrong in $CURRENT_FILE"
+              PASS=false
+            fi
+          else
+            if ! grep -q "$CURRENT_PATTERN" "$CURRENT_FILE" 2>/dev/null; then
+              echo "FAIL: Pattern not found in $CURRENT_FILE"
+              PASS=false
+            fi
+          fi ;;
+        "test_passes")
+          # Only allow pre-approved test commands
+          ALLOWED_CMDS=("pytest" "npm test" "cargo test" "python -m unittest")
+          CMD=$(echo "$line" | sed 's/.*command: //')
+          CMD_BASE=$(echo "$CMD" | awk '{print $1}')
+          ALLOWED=false
+          for allowed in "${ALLOWED_CMDS[@]}"; do
+            [[ "$CMD_BASE" == "$allowed" || "$CMD" == "$allowed"* ]] && ALLOWED=true
+          done
+          if [ "$ALLOWED" = true ]; then
+            timeout 120 bash -c "$CMD" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+              echo "FAIL: Test command failed: $CMD"
+              PASS=false
+            fi
+          else
+            echo "SKIP: Command not in allowlist: $CMD"
+          fi ;;
+      esac
+      # Reset for next check
+      CURRENT_TYPE="" CURRENT_FILE="" CURRENT_PATTERN="" CURRENT_BEFORE=""
+      ;;
+    *"command:"*)
+      # Handle test_passes type
+      CMD=$(echo "$line" | sed 's/.*command: //')
+      CMD_BASE=$(echo "$CMD" | awk '{print $1}')
+      ALLOWED=false
+      ALLOWED_CMDS=("pytest" "npm test" "cargo test" "python -m unittest")
+      for allowed in "${ALLOWED_CMDS[@]}"; do
+        [[ "$CMD_BASE" == "$allowed" || "$CMD" == "$allowed"* ]] && ALLOWED=true
+      done
+      if [ "$ALLOWED" = true ]; then
+        timeout 120 bash -c "$CMD" > /dev/null 2>&1
+        [ $? -ne 0 ] && echo "FAIL: $CMD" && PASS=false
+      fi
+      CURRENT_TYPE="" ;;
+  esac
+done < <(sed -n '/## Verify/,/## /p' "$FIX_FILE")
+
+[ "$PASS" = false ] && exit 1
+rm "$FIX_FILE"
+exit 0
+Three check types — file_exists, file_contains (with optional ordering via before_pattern), and test_passes (allowlisted commands only, with timeout). No arbitrary shell execution.
+
+Fix 2: Contract Negotiation Retry Limit
+bash
+    "NEGOTIATE")
+      NEGOTIATE_ATTEMPTS=$(cat .claude/state/negotiate-attempts.txt 2>/dev/null || echo "0")
+      MAX_NEGOTIATE=3
+      
+      if [ "$NEGOTIATE_ATTEMPTS" -ge "$MAX_NEGOTIATE" ]; then
+        bash .claude/scripts/notify-telegram.sh "🛑 Contract negotiation failed ${MAX_NEGOTIATE} times for sprint $SPRINT. Agent paused. Reply with guidance or 'skip' to move on."
+        bash .claude/scripts/wait-for-human.sh 30
+        if [ $? -ne 0 ]; then exit 0; fi
+        
+        HUMAN_REPLY=$(cat .claude/state/human-response.md)
+        rm .claude/state/human-response.md
+        
+        if [ "$HUMAN_REPLY" = "skip" ]; then
+          # Use the last proposal as the contract and move on
+          cp ".claude/contracts/sprint-${SPRINT}-proposal.md" ".claude/contracts/sprint-${SPRINT}-contract.md"
+          echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+          echo "0" > .claude/state/negotiate-attempts.txt
+        else
+          # Inject human guidance into next negotiation
+          echo "$HUMAN_REPLY" > .claude/state/injected-context.md
+          echo "0" > .claude/state/negotiate-attempts.txt
+        fi
+        ITERATION=$((ITERATION + 1))
+        continue
+      fi
+      
+      # ... existing negotiation logic ...
+      
+      if [ -f ".claude/contracts/sprint-${SPRINT}-contract.md" ]; then
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+        echo "0" > .claude/state/negotiate-attempts.txt
+      else
+        echo "$((NEGOTIATE_ATTEMPTS + 1))" > .claude/state/negotiate-attempts.txt
+      fi
+      ;;
+Fix 3: Prompts Via File, Not Command-Line Arguments
+bash
+    "BUILD")
+      bash .claude/hooks/pre-phase-start.sh 3
+      
+      # Write prompt to file — avoids shell argument length limits
+      cat > .claude/state/current-prompt.md << PROMPT_EOF
+You are the GENERATOR. Read .claude/agents/generator.md for your role and constraints.
+
+## Sprint Contract
+Read: .claude/contracts/sprint-${SPRINT}-contract.md
+
+## Your Progress So Far
+$(cat .claude/state/progress-notes.md 2>/dev/null || echo "No previous progress.")
+
+## Known Fixes To Be Aware Of
+$(cat .claude/state/injected-context.md 2>/dev/null || echo "None.")
+
+$([ -f .claude/state/next-fix.md ] && echo "## MANDATORY: Apply This Fix First" && cat .claude/state/next-fix.md)
+
+$([ -f ".claude/state/evaluation-results/sprint-${SPRINT}-FAIL.md" ] && echo "## Previous Evaluation Feedback — Address These Issues" && cat ".claude/state/evaluation-results/sprint-${SPRINT}-FAIL.md")
+
+## Instructions
+Write progress to .claude/state/progress-notes.md as you work.
+When this sprint is complete, write .claude/state/phase-complete-marker.md explaining what you completed.
+PROMPT_EOF
+      
+      # Pipe file to claude via stdin
+      cat .claude/state/current-prompt.md | claude --permission-mode auto-accept
+      BUILD_EXIT=$?
+      
+      [ -f .claude/state/next-fix.md ] && rm .claude/state/next-fix.md
+      
+      # Handle session failure
+      if [ $BUILD_EXIT -ne 0 ]; then
+        bash .claude/scripts/write-handoff.sh "SESSION_CRASH_BUILD"
+        bash .claude/scripts/notify-telegram.sh "💥 Build session exited with code $BUILD_EXIT. Retrying in 60s."
+        sleep 60
+        continue
+      fi
+      ;;
+Fix 4: Dev Server Check Before Evaluator
+bash
+    "EVALUATE")
+      # Ensure application is running before evaluator tries to test it
+      bash .claude/scripts/ensure-dev-server.sh
+      if [ $? -ne 0 ]; then
+        bash .claude/scripts/notify-telegram.sh "⚠️ Dev server failed to start. Cannot evaluate. Check manually."
+        echo "BLOCKED" > .claude/state/agent-blocked.md
+        echo "Dev server won't start. Evaluator cannot proceed." >> .claude/state/agent-blocked.md
+        bash .claude/scripts/wait-for-human.sh 30
+        [ $? -ne 0 ] && exit 0
+        continue
+      fi
+      
+      # ... rest of evaluation logic ...
+bash
+#!/bin/bash
+# .claude/scripts/ensure-dev-server.sh
+
+# Detect project type and start server
+if [ -f "package.json" ]; then
+  # Check if already running
+  if curl -s http://localhost:5173 > /dev/null 2>&1 || curl -s http://localhost:3000 > /dev/null 2>&1; then
+    echo "Dev server already running."
+    exit 0
+  fi
+  npm run dev &
+  DEV_PID=$!
+  echo $DEV_PID > .claude/state/dev-server.pid
+elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+  if curl -s http://localhost:8000 > /dev/null 2>&1; then
+    echo "Dev server already running."
+    exit 0
+  fi
+  uvicorn main:app --reload &
+  DEV_PID=$!
+  echo $DEV_PID > .claude/state/dev-server.pid
+fi
+
+# Wait for server to respond
+RETRIES=0
+MAX_RETRIES=30
+while [ $RETRIES -lt $MAX_RETRIES ]; do
+  if curl -s http://localhost:5173 > /dev/null 2>&1 || \
+     curl -s http://localhost:3000 > /dev/null 2>&1 || \
+     curl -s http://localhost:8000 > /dev/null 2>&1; then
+    echo "Dev server responding."
+    exit 0
+  fi
+  sleep 2
+  RETRIES=$((RETRIES + 1))
+done
+
+echo "Dev server failed to start after ${MAX_RETRIES} attempts."
+exit 1
+Fix 5: Session Crash Handling On Every Claude Invocation
+This pattern wraps every claude call:
+
+bash
+#!/bin/bash
+# .claude/scripts/run-claude-safe.sh
+# Wrapper that handles crashes, rate limits, retries
+
+PROMPT_FILE="$1"
+MODE="${2:-auto-accept}"
+MAX_RETRIES=3
+RETRY_DELAY=60
+ATTEMPT=0
+
+while [ $ATTEMPT -lt $MAX_RETRIES ]; do
+  cat "$PROMPT_FILE" | claude --permission-mode "$MODE"
+  EXIT_CODE=$?
+  
+  if [ $EXIT_CODE -eq 0 ]; then
+    exit 0
+  fi
+  
+  ATTEMPT=$((ATTEMPT + 1))
+  
+  if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+    bash .claude/scripts/notify-telegram.sh "💥 Session failed (exit $EXIT_CODE). Retry $ATTEMPT/$MAX_RETRIES in ${RETRY_DELAY}s."
+    sleep $RETRY_DELAY
+    RETRY_DELAY=$((RETRY_DELAY * 2))  # Exponential backoff
+  fi
+done
+
+# All retries exhausted
+bash .claude/scripts/write-handoff.sh "SESSION_CRASH_FINAL"
+bash .claude/scripts/notify-telegram.sh "🛑 Session failed $MAX_RETRIES times. State saved. Agent paused."
+echo "BLOCKED" > .claude/state/agent-blocked.md
+echo "Claude session failed repeatedly. Last exit code: $EXIT_CODE" >> .claude/state/agent-blocked.md
+exit 1
+Every claude -p call in the harness becomes:
+
+bash
+bash .claude/scripts/run-claude-safe.sh .claude/state/current-prompt.md "auto-accept"
+if [ $? -ne 0 ]; then
+  bash .claude/scripts/wait-for-human.sh 30
+  [ $? -ne 0 ] && exit 0
+  continue
+fi
+Fix 6: Concurrency Protection With Lockfile
+At the top of run-harness.sh:
+
+bash
+#!/bin/bash
+LOCKFILE=".claude/state/harness.lock"
+
+# Check for existing instance
+if [ -f "$LOCKFILE" ]; then
+  EXISTING_PID=$(cat "$LOCKFILE")
+  if kill -0 "$EXISTING_PID" 2>/dev/null; then
+    echo "Harness already running (PID $EXISTING_PID)."
+    
+    # If triggered by resume-on-reply, queue the human response instead
+    if [ -f .claude/state/human-response.md ]; then
+      echo "Human response queued for running session."
+    fi
+    exit 1
+  else
+    echo "Stale lockfile found. Cleaning up."
+    rm -f "$LOCKFILE"
+  fi
+fi
+
+# Acquire lock
+echo $$ > "$LOCKFILE"
+trap "rm -f $LOCKFILE; kill $POLL_PID 2>/dev/null" EXIT
+And the resume-on-reply.sh checks before starting:
+
+bash
+#!/bin/bash
+# Auto-generated resume script
+LOCKFILE=".claude/state/harness.lock"
+if [ -f "$LOCKFILE" ] && kill -0 "$(cat $LOCKFILE)" 2>/dev/null; then
+  echo "Harness already running. Response will be picked up by running session."
+  exit 0
+fi
+bash .claude/scripts/run-harness.sh
+Fix 7: Git Auto-Commit At Phase Boundaries
+Added to the phase transition logic in the harness:
+
+bash
+#!/bin/bash
+# .claude/scripts/git-checkpoint.sh
+# Called at every phase boundary
+
+PHASE=$1
+SPRINT=$2
+MESSAGE="harness: ${PHASE} sprint ${SPRINT} [auto-checkpoint]"
+
+# Stage everything
+git add -A
+
+# Only commit if there are changes
+if ! git diff --cached --quiet; then
+  git commit -m "$MESSAGE"
+  echo "Git checkpoint: $MESSAGE"
+else
+  echo "No changes to commit at checkpoint."
+fi
+Called in the harness after every successful phase transition:
+
+bash
+# After phase validation passes and before advancing:
+bash .claude/scripts/git-checkpoint.sh "$PHASE" "$SPRINT"
+Fix 8: Per-Sprint Evaluation Retry Limit
+bash
+    "EVALUATE")
+      EVAL_ATTEMPTS=$(cat ".claude/state/eval-attempts-sprint-${SPRINT}.txt" 2>/dev/null || echo "0")
+      MAX_EVAL_RETRIES=3
+      
+      if [ "$EVAL_ATTEMPTS" -ge "$MAX_EVAL_RETRIES" ]; then
+        bash .claude/scripts/notify-telegram.sh "🛑 Sprint $SPRINT failed evaluation $MAX_EVAL_RETRIES times. Agent paused. Reply with 'accept' to ship as-is, 'skip' to move on, or guidance."
+        bash .claude/scripts/wait-for-human.sh 30
+        [ $? -ne 0 ] && exit 0
+        
+        HUMAN_REPLY=$(cat .claude/state/human-response.md)
+        rm .claude/state/human-response.md
+        
+        case "$HUMAN_REPLY" in
+          "accept")
+            echo "{\"phase\": \"NEGOTIATE\", \"sprint\": $((SPRINT + 1))}" > .claude/state/current-phase.json
+            echo "0" > ".claude/state/eval-attempts-sprint-$((SPRINT + 1)).txt"
+            ;;
+          "skip")
+            echo "{\"phase\": \"NEGOTIATE\", \"sprint\": $((SPRINT + 1))}" > .claude/state/current-phase.json
+            echo "0" > ".claude/state/eval-attempts-sprint-$((SPRINT + 1)).txt"
+            ;;
+          *)
+            echo "$HUMAN_REPLY" > .claude/state/injected-context.md
+            echo "0" > ".claude/state/eval-attempts-sprint-${SPRINT}.txt"
+            echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+            ;;
+        esac
+        ITERATION=$((ITERATION + 1))
+        continue
+      fi
+      
+      # ... existing evaluation logic ...
+      
+      # On failure, increment counter
+      if [ -f ".claude/state/evaluation-results/sprint-${SPRINT}-FAIL.md" ]; then
+        echo "$((EVAL_ATTEMPTS + 1))" > ".claude/state/eval-attempts-sprint-${SPRINT}.txt"
+        echo "{\"phase\": \"BUILD\", \"sprint\": $SPRINT}" > .claude/state/current-phase.json
+      fi
+      ;;
+Fix 9: Crash Recovery / Startup Routine
+bash
+#!/bin/bash
+# .claude/scripts/startup-recovery.sh
+# Run at harness start — detects and recovers from hard crashes
+
+STATE_FILE=".claude/state/current-phase.json"
+
+if [ ! -f "$STATE_FILE" ]; then
+  echo "No previous state found. Starting fresh."
+  echo '{"phase": "PLAN", "sprint": 0, "iteration": 0}' > "$STATE_FILE"
+  exit 0
+fi
+
+PHASE=$(jq -r '.phase' "$STATE_FILE")
+SPRINT=$(jq -r '.sprint // 0' "$STATE_FILE")
+
+echo "Recovering from previous session."
+echo "Last known state: phase=$PHASE, sprint=$SPRINT"
+
+# Clean up stale artifacts from crashed session
+rm -f .claude/state/phase-complete-marker.md
+rm -f .claude/state/agent-blocked.md
+rm -f .claude/state/harness.lock
+
+# Kill any orphaned dev server
+if [ -f .claude/state/dev-server.pid ]; then
+  OLD_PID=$(cat .claude/state/dev-server.pid)
+  kill "$OLD_PID" 2>/dev/null
+  rm .claude/state/dev-server.pid
+fi
+
+# Write a fresh handoff artifact from current disk state
+bash .claude/scripts/write-handoff.sh "CRASH_RECOVERY"
+
+bash .claude/scripts/notify-telegram.sh "🔄 Harness recovering from crash. Resuming at phase $PHASE, sprint $SPRINT."
+
+exit 0
+Called at the top of run-harness.sh:
+
+bash
+#!/bin/bash
+# run-harness.sh (final — top section)
+
+# Recovery check
+bash .claude/scripts/startup-recovery.sh
+
+# Lockfile
+LOCKFILE=".claude/state/harness.lock"
+if [ -f "$LOCKFILE" ]; then
+  EXISTING_PID=$(cat "$LOCKFILE")
+  if kill -0 "$EXISTING_PID" 2>/dev/null; then
+    echo "Harness already running (PID $EXISTING_PID)."
+    exit 1
+  fi
+  rm -f "$LOCKFILE"
+fi
+echo $$ > "$LOCKFILE"
+
+# Start Telegram daemon
+bash .claude/scripts/telegram-poll.sh &
+POLL_PID=$!
+trap "rm -f $LOCKFILE; kill $POLL_PID 2>/dev/null" EXIT
+
+# ... rest of harness loop ...
+Fix 10: CLAUDE.md Kept Minimal, Defers To Harness
+markdown
+# CLAUDE.md
+
+## Project
+[One line describing the project]
+
+## Build & Test
+- Install: `npm install`
+- Test: `npm test`
+- Dev server: `npm run dev`
+
+## Active Task
+Your current instructions are in `.claude/state/active-instructions.md`. Read that file first.
+Your progress notes are in `.claude/state/progress-notes.md`. Update it as you work.
+
+## Constraints
+- Do NOT read the full skill file — only the active instructions file
+- Do NOT decide phase transitions — write .claude/state/phase-complete-marker.md when done
+- Do NOT skip validation steps
+- Commit frequently with descriptive messages
+That's it. Everything else lives in the harness-managed files. CLAUDE.md doesn't contain phase-specific instructions, skill file paths, or anything that could conflict with what the harness dynamically loads. It just points the agent to the right place and sets universal constraints.
+
+Complete File Inventory
+Here's every file in the system, categorised by layer:
+
+Layer 1 — Harness (controls session lifecycle):
+
+run-harness.sh — outer loop with all phases
+scripts/startup-recovery.sh — crash recovery
+scripts/run-claude-safe.sh — retry wrapper for Claude sessions
+scripts/telegram-poll.sh — Telegram daemon with heartbeat
+scripts/wait-for-human.sh — timeout + state save
+scripts/write-handoff.sh — rich handoff artifact
+scripts/ensure-dev-server.sh — pre-evaluator server check
+scripts/notify-telegram.sh — send messages to your phone
+scripts/check-budget.sh — cost/time circuit breaker
+scripts/git-checkpoint.sh — auto-commit at phase boundaries
+hooks/post-write-check.sh — scoped to Write/Edit operations
+hooks/pre-phase-start.sh — inject known-fixes before each phase
+Layer 2 — Deterministic Guards (no LLM):
+
+scripts/validate-phase.sh — file existence, required sections, line counts
+scripts/validate.sh — run test suite, linting, type checks
+scripts/detect-loop.sh — git history analysis, blocks + injects fix
+scripts/verify-fix-applied.sh — structured verification, no eval
+scripts/evaluate-protocol-compliance.sh — all binary checks before evaluator
+Layer 3 — Agents (LLM, within constraints):
+
+agents/planner.md — expand brief to high-level spec
+agents/generator.md — implement features per sprint contract
+agents/evaluator.md — grade quality with Playwright, tuned for scepticism
+State (managed by harness, read by agents):
+
+state/current-phase.json — where are we
+state/progress-notes.md — what has been learned/decided/built
+state/handoff-artifact.md — rich context for session transitions
+state/active-instructions.md — current phase only (loaded by harness)
+state/injected-context.md — known-fixes relevant to current work
+state/next-fix.md — mandatory fix to apply (injected by loop detector)
+state/human-response.md — your Telegram replies
+state/agent-blocked.md — pause marker
+state/harness.lock — concurrency protection
+Protocol & Reference:
+
+CLAUDE.md — minimal, points to active-instructions.md
+protocols/known-fixes.md — registry with structured verify sections
+specs/product-spec.md — planner output
+specs/evaluation-criteria.md — what evaluator grades against
+contracts/sprint-N-contract.md — negotiated per feature
+Your developer said the design work is done and these are punch list items. That's correct. This is the punch list, completed. Shall we start building — Telegram bot first, or the harness scripts?
+
+Can you confirm? if I build this will I have to build this into every single folder or is this just built in a way that all the Claude code sessions on my PC will be able to use this harness especially if I am not working in Telegram.
+
+07:17
+Great question. Let me be straight about this because the answer has two parts and the distinction matters.
+
+How Claude Code Actually Scopes Configuration
+Claude Code reads configuration from three levels, and they cascade:
+
+Level 1 — User-level (global, applies to every session on your machine): Lives in ~/.claude/ on your machine. Anything here applies to every Claude Code session you open, regardless of which project folder you're in. This is where global settings, hooks, and agents go.
+
+Level 2 — Project-level (per repository): Lives in .claude/ at the root of a specific git repository. Only applies when you're working inside that repo. This is where project-specific agents, skills, and commands go.
+
+Level 3 — Conversation-level (per session): What you type, what gets loaded dynamically. Ephemeral.
+
+What This Means For The Harness
+Most of what we've built is infrastructure — bash scripts, hooks, the Telegram daemon, the harness loop, the crash recovery system. This infrastructure doesn't need to be copied into every project. It can live at the user level and work globally.
+
+Here's the split:
+
+Goes in ~/.claude/ (global, built once, works everywhere):
+
+~/.claude/
+├── settings.json          # Hook registrations (scoped to Write/Edit)
+├── scripts/
+│   ├── run-harness.sh          # The outer loop
+│   ├── run-claude-safe.sh      # Retry wrapper
+│   ├── startup-recovery.sh     # Crash recovery
+│   ├── telegram-poll.sh        # Telegram daemon
+│   ├── wait-for-human.sh       # Timeout + state save
+│   ├── notify-telegram.sh      # Send to your phone
+│   ├── check-budget.sh         # Cost circuit breaker
+│   ├── git-checkpoint.sh       # Auto-commit at boundaries
+│   ├── detect-loop.sh          # Negative loop detector
+│   ├── write-handoff.sh        # Rich handoff artifact
+│   ├── ensure-dev-server.sh    # Pre-evaluator server check
+│   └── verify-fix-applied.sh   # Structured fix verification
+├── agents/
+│   ├── planner.md              # Planner agent definition
+│   ├── generator.md            # Generator agent definition
+│   └── evaluator.md            # Evaluator agent (tuned for scepticism)
+└── hooks/
+    ├── post-write-check.sh     # Phase transition detection
+    └── pre-phase-start.sh      # Known-fix injection
+Goes in each project's .claude/ (project-specific, changes per repo):
+
+your-project/.claude/
+├── CLAUDE.md                    # Minimal — points to active-instructions
+├── state/                       # Created automatically by harness
+│   ├── current-phase.json
+│   ├── progress-notes.md
+│   ├── handoff-artifact.md
+│   └── ...
+├── specs/                       # Created by planner per project
+│   ├── product-spec.md
+│   └── evaluation-criteria.md
+├── contracts/                   # Created per sprint
+├── protocols/
+│   └── known-fixes.md          # Project-specific known fixes
+└── skills/                      # Your project-specific skills
+The harness scripts reference state files using relative paths from the project root, so they work in any repo. The harness creates the state/, specs/, and contracts/ directories automatically if they don't exist.
+
+About Telegram Specifically
+You said "especially if I am not working in Telegram." This is important — the Telegram bridge is optional, not structural. It's one notification and input channel. The harness works without it. Here's what changes:
+
+Without Telegram: Every point where the harness would notify you and wait for a response, it instead writes a file and pauses. You check the state files manually when you come back to your machine. The wait-for-human.sh script watches for human-response.md regardless of how that file gets created — you could write it by hand, via a simple local web UI, or even a VS Code extension that watches for blocked states and gives you a dialog box.
+
+With Telegram: You get push notifications on your phone and can reply from anywhere. Your reply becomes human-response.md. That's the only integration point.
+
+With WhatsApp (via Twilio): Same architecture, different API endpoint in notify.sh. The transport is interchangeable.
+
+So the answer to your actual question: you'd build the harness infrastructure once in ~/.claude/, and it applies to every Claude Code session on your machine. Each project gets a minimal .claude/CLAUDE.md that points to the active instructions, and a protocols/known-fixes.md for project-specific fixes. The harness creates everything else automatically.
+
+The one thing you'd need to do per project is run a quick init:
+
+bash
+#!/bin/bash
+# ~/.claude/scripts/init-project.sh
+# Run once in a new project to set up the harness state directory
+
+mkdir -p .claude/state .claude/specs .claude/contracts .claude/protocols
+
+# Create minimal CLAUDE.md if it doesn't exist
+if [ ! -f .claude/CLAUDE.md ]; then
+  cat > .claude/CLAUDE.md << 'EOF'
+# Project
+
+## Build & Test
+- Install: [fill in]
+- Test: [fill in]
+- Dev server: [fill in]
+
+## Active Task
+Your current instructions are in `.claude/state/active-instructions.md`. Read that file first.
+Your progress notes are in `.claude/state/progress-notes.md`. Update it as you work.
+
+## Constraints
+- Read active-instructions.md, not the full skill file
+- Write .claude/state/phase-complete-marker.md when done
+- Commit frequently with descriptive messages
+EOF
+fi
+
+# Create empty known-fixes if it doesn't exist
+if [ ! -f .claude/protocols/known-fixes.md ]; then
+  echo "# Known Fixes Registry" > .claude/protocols/known-fixes.md
+  echo "# Add fixes as they're discovered using the template format." >> .claude/protocols/known-fixes.md
+fi
+
+# Initialise state
+echo '{"phase": "PLAN", "sprint": 0, "iteration": 0}' > .claude/state/current-phase.json
+
+echo "Project initialised for harness. Run 'bash ~/.claude/scripts/run-harness.sh' to start."
+One command, bash ~/.claude/scripts/init-project.sh, and the project is ready. After that, bash ~/.claude/scripts/run-harness.sh starts the autonomous loop from anywhere.
+
+Do you want me to package this into the actual files you can deploy, or do you have more questions about how specific pieces interact with your existing skill files and workflows?
+
+
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.

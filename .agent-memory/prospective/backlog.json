@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-04T09:00:00.000000",
+  "backlog": [
+    {
+      "id": "backlog_001",
+      "title": "Build all 15 harness scripts",
+      "priority": "P0",
+      "status": "not_started",
+      "description": "Implement actual bash scripts in ~/.claude/scripts/ following the specifications in SCRIPT_REGISTRY.json. This is the critical path — nothing works without these.",
+      "subtasks": [
+        {"name": "run-harness.sh", "layer": 1, "complexity": "high", "status": "not_started"},
+        {"name": "run-claude-safe.sh", "layer": 1, "complexity": "low", "status": "not_started"},
+        {"name": "startup-recovery.sh", "layer": 1, "complexity": "medium", "status": "not_started"},
+        {"name": "telegram-poll.sh", "layer": 1, "complexity": "medium", "status": "not_started"},
+        {"name": "wait-for-human.sh", "layer": 1, "complexity": "medium", "status": "not_started"},
+        {"name": "notify.sh", "layer": 1, "complexity": "low", "status": "not_started"},
+        {"name": "write-handoff.sh", "layer": 1, "complexity": "medium", "status": "not_started"},
+        {"name": "check-budget.sh", "layer": 1, "complexity": "low", "status": "not_started"},
+        {"name": "git-checkpoint.sh", "layer": 1, "complexity": "low", "status": "not_started"},
+        {"name": "ensure-dev-server.sh", "layer": 1, "complexity": "medium", "status": "not_started"},
+        {"name": "detect-loop.sh", "layer": 2, "complexity": "medium", "status": "not_started"},
+        {"name": "validate-phase.sh", "layer": 2, "complexity": "medium", "status": "not_started"},
+        {"name": "evaluate-protocol-compliance.sh", "layer": 2, "complexity": "medium", "status": "not_started"},
+        {"name": "verify-fix-applied.sh", "layer": 2, "complexity": "high", "status": "not_started"},
+        {"name": "init-project.sh", "layer": 1, "complexity": "low", "status": "not_started"}
+      ],
+      "depends_on": [],
+      "blocks": ["backlog_003", "backlog_004"]
+    },
+    {
+      "id": "backlog_002",
+      "title": "Write agent definition files (planner, generator, evaluator, cross-examiner)",
+      "priority": "P0",
+      "status": "not_started",
+      "description": "Create the markdown agent definitions in ~/.claude/agents/. These are the Layer 3 prompts that define each agent's role, constraints, and output format.",
+      "subtasks": [
+        {"name": "planner.md", "notes": "High-level only, no implementation detail", "status": "not_started"},
+        {"name": "generator.md", "notes": "TDD-first, sprint contracts, progress notes", "status": "not_started"},
+        {"name": "evaluator.md", "notes": "Tuned for scepticism, uses tools, adversarial", "status": "not_started"},
+        {"name": "cross-examiner.md", "notes": "Layer 6 doubt protocol", "status": "not_started"}
+      ],
+      "depends_on": [],
+      "blocks": ["backlog_004"]
+    },
+    {
+      "id": "backlog_003",
+      "title": "Configure Claude Code hooks in settings.json",
+      "priority": "P0",
+      "status": "not_started",
+      "description": "Register PostToolUse hooks (scoped to Write/Edit) and Stop hooks in ~/.claude/settings.json. Verify exact syntax against Claude Code docs.",
+      "depends_on": ["backlog_001"],
+      "blocks": ["backlog_004"]
+    },
+    {
+      "id": "backlog_004",
+      "title": "End-to-end test on a real project",
+      "priority": "P1",
+      "status": "not_started",
+      "description": "Run the full harness cycle (PLAN -> NEGOTIATE -> BUILD -> EVALUATE -> COMPLETE) on a small real project. Identify failures and tune.",
+      "depends_on": ["backlog_001", "backlog_002", "backlog_003"],
+      "blocks": ["backlog_005"]
+    },
+    {
+      "id": "backlog_005",
+      "title": "Calibrate evaluator agent for scepticism",
+      "priority": "P1",
+      "status": "not_started",
+      "description": "Run evaluator on known-good and known-bad codebases. Adjust prompt until calibration gate consistently catches planted failures. Anthropic needed several rounds.",
+      "depends_on": ["backlog_004"],
+      "blocks": []
+    },
+    {
+      "id": "backlog_006",
+      "title": "Deploy harness across all 17 managed AI systems",
+      "priority": "P2",
+      "status": "not_started",
+      "description": "Once harness is validated, run init-project.sh in each of the 17 managed projects. Adapt known-fixes.md per project.",
+      "depends_on": ["backlog_004"],
+      "blocks": []
+    },
+    {
+      "id": "backlog_007",
+      "title": "Build Telegram/WhatsApp bridge (optional)",
+      "priority": "P3",
+      "status": "not_started",
+      "description": "Set up Telegram Bot via BotFather. Configure token and chat ID. Test notify.sh and telegram-poll.sh. WhatsApp via Twilio as alternative.",
+      "depends_on": ["backlog_001"],
+      "blocks": [],
+      "notes": "OPTIONAL — harness works without it. Human-response.md can be written manually."
+    },
+    {
+      "id": "backlog_008",
+      "title": "Multi-model orchestration testing",
+      "priority": "P3",
+      "status": "not_started",
+      "description": "Test model substitution: Opus for PLAN/EVALUATE, Sonnet for BUILD, Codex for browser tasks. File-driven state machine is model-agnostic by design.",
+      "depends_on": ["backlog_004"],
+      "blocks": []
+    }
+  ]
+}

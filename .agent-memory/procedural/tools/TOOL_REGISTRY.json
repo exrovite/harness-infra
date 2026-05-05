@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-04T09:00:00.000000",
+  "total_tools": 3,
+  "tools": [
+    {
+      "id": "tool_001",
+      "name": "Claude Code CLI",
+      "type": "cli",
+      "purpose": "Primary agent runtime. Invoked by harness for each phase (planner, generator, evaluator sessions). Supports --permission-mode, stdin prompt piping, and MCP integrations.",
+      "usage": "cat prompt.md | claude --permission-mode auto-accept",
+      "notes": "All invocations go through run-claude-safe.sh wrapper for retry logic."
+    },
+    {
+      "id": "tool_002",
+      "name": "Telegram Bot API",
+      "type": "api",
+      "purpose": "Optional notification and response channel. Used by notify.sh and telegram-poll.sh. Human responses injected as human-response.md.",
+      "usage": "curl -s -X POST https://api.telegram.org/bot{TOKEN}/sendMessage -d chat_id={ID} -d text={MSG}",
+      "notes": "OPTIONAL — harness works without it. Transport is interchangeable (Telegram/WhatsApp/local UI)."
+    },
+    {
+      "id": "tool_003",
+      "name": "Playwright MCP",
+      "type": "mcp",
+      "purpose": "Used by evaluator agent to interact with running applications. Tests live UI rather than reading code. Part of the builder/verifier separation.",
+      "usage": "Loaded as MCP server in evaluator agent sessions",
+      "notes": "Only used in EVALUATE phase. Requires dev server running (ensure-dev-server.sh checks this)."
+    }
+  ]
+}

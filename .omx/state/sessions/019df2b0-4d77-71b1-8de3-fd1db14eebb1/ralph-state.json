@@ -1,0 +1,20 @@
+{
+  "active": false,
+  "mode": "ralph",
+  "current_phase": "complete",
+  "started_at": "2026-05-04T11:14:04.136Z",
+  "updated_at": "2026-05-04T11:14:04.136Z",
+  "session_id": "019df2b0-4d77-71b1-8de3-fd1db14eebb1",
+  "turn_id": "019df2b1-fbef-7d73-a75d-5491d5bf5b1a",
+  "iteration": 1,
+  "max_iterations": 50,
+  "context_snapshot_path": ".omx\\context\\sprint-22-ralph-20260504T111426Z.md",
+  "reason": "Stop hook reported session-scoped Ralph still active; collecting fresh verification before terminalizing.",
+  "owner_omx_session_id": "019df2b0-4d77-71b1-8de3-fd1db14eebb1",
+  "run_outcome": "finish",
+  "completed_at": "2026-05-04T12:44:30Z",
+  "lifecycle_outcome": "finished",
+  "fresh_verification": "Git Bash bash -n on-prompt-submit/pre-write/pre-bash all 0; tests/test-ralph-loop.sh 36 passed 0 failed; turn-packet scenarios all passed MaxLen=750",
+  "architect_verdict": "APPROVED",
+  "deslop_pass": "completed"
+}

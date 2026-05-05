@@ -1,0 +1,78 @@
+{
+  "version": "2.0.0",
+  "installed": "2026-04-04T09:00:00.000000",
+  "last_accessed": "2026-05-04T14:39:01+01:00",
+  "agent_identity": "Harness Infrastructure Controller",
+  "mission_summary": "Deploy and enforce the Enhanced Agent Harness across ALL AI models on this machine — three-layer deterministic control (Harness, Deterministic Guards, Agents) with state machine discipline, builder/verifier separation, and evidence-first verification",
+  "architecture": {
+    "layer_1_harness": "Deterministic outer loop — controls session lifecycle, phase transitions, blocking, notifications",
+    "layer_2_guards": "Bash scripts — loop detection, phase validation, known-fix matching, test execution. No LLM.",
+    "layer_3_agents": "LLM agents (Planner, Generator, Evaluator) — operate ONLY within constraints set by Layers 1-2"
+  },
+  "governing_principle": "Never use Layer 3 for something Layer 2 can do. Never use Layer 2 for something Layer 1 should control.",
+  "state_machine": "REQUESTED -> CONTRACT_LOCKED -> IMPLEMENTED -> VERIFIED -> ACCEPTED (with STUCK escalation from any active state)",
+  "expert_domains": [
+    "Context Engineer",
+    "Memory Systems Architect",
+    "Harness Engineer",
+    "Reliability Engineer (SRE)",
+    "Model Behaviorist",
+    "Eval & Feedback Loop Architect",
+    "Skills Architect"
+  ],
+  "managed_models": {
+    "claude_opus_4_6": {
+      "role": "Primary reasoning, planning, complex tasks",
+      "skill_variant": "Base (SKILL.md) — trust inference"
+    },
+    "gpt_5_4_codex": {
+      "role": "Browser automation, literal execution",
+      "failure_patterns": 11,
+      "compensation": "Explicit decision trees, IF/ELSE/THEN"
+    },
+    "minimax_m2_7": {
+      "role": "Summarization, cheap tasks",
+      "failure_patterns": 12,
+      "compensation": "Narration + reality checks + anti-drift guardrails"
+    },
+    "gemma_3_4b": {
+      "role": "Local content generation, NL routing",
+      "failure_patterns": 6,
+      "compensation": "Anti-commentary directives, multi-turn format, Gemma-optimal parameters"
+    }
+  },
+  "enforcement_distinction": {
+    "soft": "Instructions in markdown — advisory, degrades under context pressure",
+    "hard": "Bash scripts and hooks — deterministic, runs outside LLM",
+    "harness": "Outer loop — controls what agent sees, when sessions start/stop, whether agent can proceed"
+  },
+  "source_documents": [
+    "enhanced-agent-harness.md — Complete protocol (Parts 1-11)",
+    "Harness big idea.txt — Architecture evolution through developer pushback",
+    "making th enhanced agent harnes and the new big Idea work together.txt — Integration blueprint"
+  ],
+  "quick_access": {
+    "scripts_count": 15,
+    "tools_count": 0,
+    "active_tasks": 0,
+    "sessions_count": 381,
+    "last_consolidation": null
+  },
+  "hot_paths": [
+    ".agent-memory/procedural/scripts/SCRIPT_REGISTRY.json",
+    ".agent-memory/working/active-tasks.json",
+    ".agent-memory/core/mission.md",
+    ".agent-memory/core/identity.md",
+    ".agent-memory/core/operating-procedure.md",
+    ".agent-memory/core/expert-domains.md",
+    ".agent-memory/core/model-profiles.md"
+  ],
+  "retention_policies": {
+    "working/": "Clear at session end except active-tasks.json",
+    "episodic/sessions/": "Compress after 30 days, keep summaries",
+    "episodic/failures/": "Keep forever (learning material)",
+    "semantic/": "Keep forever, update on new information",
+    "procedural/": "Keep forever, flag unused after 90 days"
+  },
+  "sessions_count": 381
+}

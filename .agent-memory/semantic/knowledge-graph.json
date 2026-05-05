@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-04T09:00:00.000000",
+  "project_name": "Harness Infrastructure Controller",
+  "description": "Three-layer deterministic control system for all AI models on this machine",
+  "architecture": {
+    "philosophy": "Never use Layer 3 for something Layer 2 can do. Never use Layer 2 for something Layer 1 should control.",
+    "layers": {
+      "layer_1_harness": {
+        "nature": "Deterministic, outside the LLM",
+        "responsibilities": [
+          "Session lifecycle (start, stop, restart, context reset)",
+          "Phase transitions via hooks and validation scripts",
+          "Decides what agent sees (loads active-instructions.md)",
+          "Blocks progression when validation fails",
+          "Telegram/WhatsApp communication",
+          "Ralph-style outer loop",
+          "Budget/time circuit breaker",
+          "Crash recovery and startup routine",
+          "Concurrency protection (lockfile)",
+          "Git checkpoints at phase boundaries"
+        ],
+        "script_count": 11,
+        "hook_count": 3
+      },
+      "layer_2_guards": {
+        "nature": "Bash scripts, no LLM, binary pass/fail",
+        "responsibilities": [
+          "Phase validation (file existence, required sections, line counts)",
+          "Loop detection (git history analysis)",
+          "Known-fix matching (symptom grep against registry)",
+          "Test execution (test suite, linting, type checking)",
+          "Protocol compliance checks",
+          "Fix verification (structured format, no eval)"
+        ],
+        "script_count": 4
+      },
+      "layer_3_agents": {
+        "nature": "LLM, within constraints set by Layers 1-2",
+        "agents": {
+          "planner": "High-level spec, NO implementation details",
+          "generator": "TDD implementation, can only move to IMPLEMENTED",
+          "evaluator": "Independent grading with tools, tuned for scepticism",
+          "cross_examiner": "Layer 6 doubt protocol"
+        }
+      }
+    },
+    "state_machine": {
+      "states": ["REQUESTED", "CONTRACT_LOCKED", "IMPLEMENTED", "STUCK", "VERIFIED", "ACCEPTED"],
+      "transitions": {
+        "REQUESTED -> CONTRACT_LOCKED": "Planner creates task.contract.json, harness validates and locks",
+        "CONTRACT_LOCKED -> IMPLEMENTED": "Generator completes work, all self-tests pass",
+        "IMPLEMENTED -> VERIFIED": "Independent verifier passes 7-layer protocol with evidence",
+        "VERIFIED -> ACCEPTED": "Human sign-off",
+        "ANY_ACTIVE -> STUCK": "3 same errors, 5min no progress, env error, confusion",
+        "STUCK -> PREVIOUS_STATE": "After guidance received and applied"
+      },
+      "rules": [
+        "States cannot be skipped — harness enforces",
+        "Builder can ONLY move to IMPLEMENTED",
+        "Done is COMPUTED from evidence, not typed",
+        "Moving backward is allowed (VERIFIED -> IMPLEMENTED)"
+      ]
+    },
+    "harness_phases": {
+      "PLAN": "Planner expands brief to high-level spec. Human gate.",
+      "NEGOTIATE": "Generator proposes, evaluator reviews sprint contract. Max 3 attempts.",
+      "BUILD": "Generator implements per contract. Loop detection active. TDD-first.",
+      "EVALUATE": "Layer 2 compliance first, then evaluator agent with tools. Max 3 attempts.",
+      "COMPLETE": "Handoff written, human notified for sign-off."
+    }
+  },
+  "deployment_topology": {
+    "global": {
+      "location": "~/.claude/",
+      "contains": "scripts/, agents/, hooks/, settings.json",
+      "built_once": true,
+      "applies_to": "Every Claude Code session on this machine"
+    },
+    "per_project": {
+      "location": "project-root/.claude/",
+      "contains": "CLAUDE.md, state/, specs/, contracts/, protocols/known-fixes.md",
+      "created_by": "init-project.sh",
+      "project_specific": true
+    },
+    "memory_equipped": {
+      "location": "project-root/.agent-memory/",
+      "contains": "core/, working/, episodic/, procedural/, semantic/, meta/, prospective/",
+      "replaces": ".claude/state/ (thinner tracking)",
+      "note": "operating-procedure.md contains the full enhanced harness"
+    }
+  },
+  "enforcement_distinction": {
+    "soft_enforcement": {
+      "what": "Instructions in markdown that the LLM reads and hopefully follows",
+      "reliability": "Works when context fresh, degrades under pressure",
+      "nature": "Advisory",
+      "examples": ["MUST in markdown", "Please check...", "Remember to..."]
+    },
+    "hard_enforcement": {
+      "what": "Bash scripts, Claude Code hooks, harness logic running outside LLM",
+      "reliability": "Works regardless of context pressure",
+      "nature": "Deterministic",
+      "examples": ["exit code checks", "grep validation", "file existence tests", "lockfiles"]
+    },
+    "harness_enforcement": {
+      "what": "Outer loop controlling what agent sees and whether it can proceed",
+      "reliability": "Agent doesn't participate in these decisions",
+      "nature": "Structural",
+      "examples": ["Phase transitions", "instruction loading", "session lifecycle"]
+    }
+  },
+  "failure_modes": {
+    "original_5": [
+      {"id": 1, "name": "Context Window Saturation", "fix": "Progressive disclosure, phase-specific loading"},
+      {"id": 2, "name": "No External State Tracking", "fix": "File-driven state machine"},
+      {"id": 3, "name": "No Phase Isolation", "fix": "Explicit gates, harness-controlled transitions"},
+      {"id": 4, "name": "No Verification Gate", "fix": "Builder/verifier separation, 7-layer protocol"},
+      {"id": 5, "name": "No Deterministic Operations", "fix": "Push scriptable work to bash"}
+    ],
+    "developer_additions": [
+      {"id": 6, "name": "Context Anxiety", "fix": "Clean context resets at phase boundaries (distinct from saturation)"},
+      {"id": 7, "name": "Self-Evaluation Bias", "fix": "Structurally separate evaluator with own context"},
+      {"id": 8, "name": "One-Shotting", "fix": "Sprint contracts negotiated per feature"},
+      {"id": 9, "name": "Compaction vs Clean Reset", "fix": "Rich handoff artifacts at sprint boundaries"},
+      {"id": 10, "name": "Speculative Planning Cascades", "fix": "Planner stays high-level, no implementation detail"},
+      {"id": 11, "name": "Phantom TDD", "fix": "Three-layer: evidence collector (Bash hook), TDD cycle validator (red→green gate), harness-executed tests (independent backstop). Agent never self-reports test results."}
+    ]
+  },
+  "verification_protocol": {
+    "layers": [
+      {"layer": 1, "name": "Evidence Before Verdict", "rule": "Verifier NEVER reads builder's code or claims"},
+      {"layer": 2, "name": "Structured Evidence Chain", "rule": "ACTION -> OBSERVED -> EVIDENCE -> VERDICT"},
+      {"layer": 3, "name": "Adversarial Framing", "rule": "Your job is to FIND PROBLEMS"},
+      {"layer": 4, "name": "Calibration Gate", "rule": "Plant failure, verify caught, then trust results"},
+      {"layer": 5, "name": "Independent Environment", "rule": "Verifier gets own fresh environment"},
+      {"layer": 6, "name": "Cross-Examination", "rule": "Assume verifier MISSED something"},
+      {"layer": 7, "name": "Immutable Evidence Archive", "rule": "Evidence saved BEFORE verdict issued"}
+    ]
+  },
+  "protocol_fidelity_mechanisms": {
+    "inline_checkpoints": "Mandatory file-writing operations at defined intervals force re-reading protocol",
+    "negative_loop_detector": "Deterministic script (git + test analysis) that BLOCKS, not advises",
+    "known_fixes_registry": "Symptom-matched fixes injected by scripts, not searched by agents",
+    "protocol_re_injection": "Break skills into phase chunks, load only current phase at transitions",
+    "evaluator_compliance_check": "Protocol fidelity is hard gate — sprint fails regardless of code quality",
+    "tdd_execution_evidence_gate": "Three-layer TDD enforcement: Bash hook collects evidence, validate-tdd.sh checks red→green cycle, harness independently runs tests at BUILD→EVALUATE gate"
+  },
+  "production_hardening": {
+    "no_eval": "Structured verification format (file_exists, file_contains, test_passes) — NEVER eval on markdown",
+    "retry_limits": "Contract negotiation max 3, evaluation max 3, Claude session max 3",
+    "prompts_via_file": "Stdin piping, not command-line arguments (avoids shell length limits)",
+    "scoped_hooks": "PostToolUse fires on Write/Edit (compliance checks) and Bash (TDD evidence collection during BUILD phase) — not every tool use",
+    "crash_recovery": "startup-recovery.sh cleans stale artifacts, kills orphans, writes fresh handoff",
+    "concurrency": "Lockfile with PID check, stale lock detection",
+    "budget_breaker": "Time + cost limits with state save on exit",
+    "telegram_watchdog": "Heartbeat monitoring, auto-restart if daemon dies"
+  }
+}

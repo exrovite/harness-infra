@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/Git/bin/**)",
+      "Read(//c/Program Files/Git/usr/bin/**)",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/notify.sh 'Verification test message')",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/validate-state-transition.sh REQUESTED CONTRACT_LOCKED)",
+      "Bash(echo \"EXIT_RC: $?\")",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/validate-state-transition.sh REQUESTED VERIFIED)",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/validate-state-transition.sh IMPLEMENTED STUCK)",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/validate-state-transition.sh STUCK IMPLEMENTED)",
+      "Bash(bash __TRACKED_VAR__/.claude/scripts/validate-state-transition.sh ACCEPTED REQUESTED)"
+    ]
+  }
+}

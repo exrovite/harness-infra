@@ -1,0 +1,161 @@
+{
+  "env": {
+    "DISABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "100"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Write(*)",
+      "Edit(*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"[HOOK] on-prompt-submit fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/on-prompt-submit.sh'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"[HOOK] post-write-check fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/post-write-check.sh'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"[HOOK] collect-test-evidence fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/collect-test-evidence.sh'"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"[HOOK] agent-call-tracker fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/agent-call-tracker.sh'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"[HOOK] on-session-end fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/on-session-end.sh'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/allow-claude-dir.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/pre-write-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/pre-flight-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/pre-bash-gate.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "codex@openai-codex": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
+  "voiceEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "skipAutoPermissionPrompt": true,
+  "experimental": {
+    "agentTeams": true
+  },
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ]
+    },
+    "screen-view-mcp": {
+      "command": "npx",
+      "args": [
+        "screen-view-mcp@2.0.15"
+      ]
+    },
+    "windows-screenshots": {
+      "command": "npx",
+      "args": [
+        "mcp-windows-screenshots@latest"
+      ]
+    },
+    "computer-control": {
+      "command": "uvx",
+      "args": [
+        "computer-control-mcp@latest"
+      ]
+    },
+    "colab": {
+      "command": "uvx",
+      "args": [
+        "git+https://github.com/googlecolab/colab-mcp"
+      ],
+      "timeout": 30000
+    }
+  },
+  "compactPrompt": "Preserve ALL rules from CLAUDE.md verbatim. Keep: current phase from current-phase.json, watcher slot content, to-do list, file paths, error messages, architectural decisions, and any pending harness instructions (next-fix.md, phase-feedback.md). Do NOT lose the state machine phase or watcher status."
+}

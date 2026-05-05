@@ -1,0 +1,283 @@
+{"ts":"2026-04-06T18:51:40+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-04-06T18:51:59+01:00","file":"C:/Users/exrov/.claude/hooks/collect-test-evidence.sh"}
+{"ts":"2026-04-06T18:52:06+01:00","file":"C:/Users/exrov/.claude/hooks/collect-test-evidence.sh"}
+{"ts":"2026-04-06T18:54:45+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-06T19:36:21+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-06T19:36:36+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-06T19:36:55+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T19:38:02+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-06T19:38:03+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T19:38:59+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-06T19:39:20+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T20:00:50+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-06T20:03:11+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-06T20:46:51+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T20:46:58+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-06T20:47:00+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-06T20:47:24+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T20:49:09+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-06T21:15:40+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-06T21:15:55+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T01:43:26+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T01:43:33+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-07T02:12:16+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-07T02:39:07+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T03:04:50+01:00","file":"G:/harness infra/.claude/contracts/sprint-1-contract.md"}
+{"ts":"2026-04-07T03:05:16+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T03:30:01+01:00","file":"G:/harness infra/.claude/specs/llm-wiki-spec.md"}
+{"ts":"2026-04-07T03:38:15+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-04-07T03:38:33+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-07T03:38:46+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-07T03:39:10+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T03:46:41+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-07T03:46:56+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-07T03:47:08+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-07T03:47:19+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T03:48:19+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T03:52:04+01:00","file":"C:/Users/exrov/.claude/scripts/wiki-init.sh"}
+{"ts":"2026-04-07T03:52:59+01:00","file":"C:/Users/exrov/.claude/scripts/wiki-ingest.sh"}
+{"ts":"2026-04-07T03:53:30+01:00","file":"C:/Users/exrov/.claude/scripts/wiki-ingest.sh"}
+{"ts":"2026-04-07T03:53:42+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T03:54:10+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T03:54:34+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-04-07T03:54:45+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-07T03:55:02+01:00","file":"C:/Users/exrov/.claude/CLAUDE.md"}
+{"ts":"2026-04-07T04:03:01+01:00","file":"G:/harness infra/.claude/specs/obsidian-wiki-spec.md"}
+{"ts":"2026-04-07T05:13:03+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-07T05:13:05+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T05:13:06+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T05:14:35+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-04-07T05:16:19+01:00","file":"G:/harness infra/.claude/specs/agent-wiki-spec.md"}
+{"ts":"2026-04-07T05:17:50+01:00","file":"G:/AgentWiki/_schema/SCHEMA.md"}
+{"ts":"2026-04-07T05:18:04+01:00","file":"G:/AgentWiki/_templates/bug.md"}
+{"ts":"2026-04-07T05:18:06+01:00","file":"G:/AgentWiki/_templates/pattern.md"}
+{"ts":"2026-04-07T05:18:07+01:00","file":"G:/AgentWiki/_templates/decision.md"}
+{"ts":"2026-04-07T05:18:09+01:00","file":"G:/AgentWiki/_templates/setup.md"}
+{"ts":"2026-04-07T05:18:10+01:00","file":"G:/AgentWiki/_templates/model.md"}
+{"ts":"2026-04-07T05:18:12+01:00","file":"G:/AgentWiki/_templates/session.md"}
+{"ts":"2026-04-07T05:18:13+01:00","file":"G:/AgentWiki/_templates/concept.md"}
+{"ts":"2026-04-07T05:19:24+01:00","file":"C:/Users/exrov/.claude/scripts/wiki-dropbox.sh"}
+{"ts":"2026-04-07T05:19:35+01:00","file":"C:/Users/exrov/.claude/hooks/on-session-end.sh"}
+{"ts":"2026-04-07T05:20:38+01:00","file":"G:/AgentWiki/_global/project-map.md"}
+{"ts":"2026-04-07T05:20:47+01:00","file":"G:/AgentWiki/index.md"}
+{"ts":"2026-04-07T05:20:49+01:00","file":"G:/AgentWiki/log.md"}
+{"ts":"2026-04-07T05:21:00+01:00","file":"C:/Users/exrov/.claude/CLAUDE.md"}
+{"ts":"2026-04-07T05:21:58+01:00","file":"G:/AgentWiki/harness-infra/bugs/msys-sed-path-bug.md"}
+{"ts":"2026-04-07T05:22:00+01:00","file":"G:/AgentWiki/harness-infra/bugs/watcher-auto-release-bug.md"}
+{"ts":"2026-04-07T05:22:01+01:00","file":"G:/AgentWiki/harness-infra/bugs/hooks-env-vars-dont-exist.md"}
+{"ts":"2026-04-07T05:22:03+01:00","file":"G:/AgentWiki/harness-infra/patterns/hooks-read-stdin.md"}
+{"ts":"2026-04-07T05:22:04+01:00","file":"G:/AgentWiki/harness-infra/patterns/hooks-stderr-only.md"}
+{"ts":"2026-04-07T05:22:06+01:00","file":"G:/AgentWiki/harness-infra/patterns/sub-agent-stop-hook.md"}
+{"ts":"2026-04-07T05:22:07+01:00","file":"G:/AgentWiki/harness-infra/decisions/remove-watcher-auto-release.md"}
+{"ts":"2026-04-07T05:22:39+01:00","file":"G:/AgentWiki/_global/patterns/msys-path-normalization.md"}
+{"ts":"2026-04-07T05:22:40+01:00","file":"G:/AgentWiki/_global/patterns/claude-code-hook-stdin.md"}
+{"ts":"2026-04-07T05:22:42+01:00","file":"G:/AgentWiki/_global/patterns/bare-pytest-windows.md"}
+{"ts":"2026-04-07T05:22:43+01:00","file":"G:/AgentWiki/_global/bugs/grep-posix-ere-no-backslash-d.md"}
+{"ts":"2026-04-07T05:23:02+01:00","file":"G:/AgentWiki/index.md"}
+{"ts":"2026-04-07T05:23:04+01:00","file":"G:/AgentWiki/log.md"}
+{"ts":"2026-04-07T05:23:19+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T05:40:46+01:00","file":"G:/AgentWiki/_schema/BACKFILL-INSTRUCTIONS.md"}
+{"ts":"2026-04-07T05:46:08+01:00","file":"G:/AgentWiki/_schema/BACKFILL-INSTRUCTIONS.md"}
+{"ts":"2026-04-07T09:18:20+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-07T09:47:42+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-04-07T09:47:57+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-04-07T09:48:24+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T09:48:57+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T09:53:16+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-04-07T09:53:32+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-04-07T09:57:47+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-07T10:05:01+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T11:21:48+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-07T11:42:45+01:00","file":"G:/harness infra/catch-phantom-drift-issues.md"}
+{"ts":"2026-04-07T12:18:35+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-04-07T12:19:14+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-04-07T15:31:26+01:00","file":"G:/harness infra/.claude/specs/phase-write-restrictions-spec.md"}
+{"ts":"2026-04-07T15:31:44+01:00","file":"G:/harness infra/.claude/contracts/sprint-2-contract.md"}
+{"ts":"2026-04-07T15:32:14+01:00","file":"G:/harness infra/evidence/test-phase-gate.sh"}
+{"ts":"2026-04-07T15:32:45+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T15:33:38+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T15:34:48+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T16:05:00+01:00","file":"G:/harness infra/.claude/specs/must-do-gate-diagnostic-spec.md"}
+{"ts":"2026-04-07T16:05:56+01:00","file":"G:/harness infra/.claude/contracts/sprint-7-proposal.md"}
+{"ts":"2026-04-07T16:06:36+01:00","file":"G:/harness infra/.claude/contracts/sprint-7-contract.md"}
+{"ts":"2026-04-07T16:07:25+01:00","file":"G:/harness infra/evidence/test-must-do-gate.sh"}
+{"ts":"2026-04-07T16:09:19+01:00","file":"G:/harness infra/evidence/test-must-do-gate.sh"}
+{"ts":"2026-04-07T16:09:28+01:00","file":"G:/harness infra/evidence/test-must-do-gate.sh"}
+{"ts":"2026-04-07T16:11:48+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T16:17:13+01:00","file":"G:/harness infra/.claude/contracts/sprint-8-contract.md"}
+{"ts":"2026-04-07T16:17:27+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T16:18:12+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T16:18:38+01:00","file":"G:/harness infra/evidence/test-phase-gate.sh"}
+{"ts":"2026-04-07T16:31:06+01:00","file":"G:/harness infra/.claude/contracts/sprint-9-contract.md"}
+{"ts":"2026-04-07T16:31:14+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T16:31:20+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T16:31:29+01:00","file":"G:/harness infra/evidence/test-phase-gate.sh"}
+{"ts":"2026-04-07T17:14:40+01:00","file":"G:/harness infra/.claude/contracts/sprint-10-contract.md"}
+{"ts":"2026-04-07T17:14:51+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-04-07T17:15:01+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-07T17:15:29+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-07T17:17:34+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T17:17:42+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T17:17:53+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-07T17:29:30+01:00","file":"G:/harness infra/harness-strategies-so-far/reports/sprint-transition-deadlock-fix.md"}
+{"ts":"2026-04-08T06:37:33+01:00","file":"G:/harness infra/.claude/contracts/sprint-11-contract.md"}
+{"ts":"2026-04-08T06:38:05+01:00","file":"G:/harness infra/.claude/reports/sprint-11-codex-harness-report.md"}
+{"ts":"2026-04-08T06:41:36+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-08T07:01:24+01:00","file":"G:/harness infra/.claude/reports/harness-bug-catalogue.md"}
+{"ts":"2026-04-08T09:19:56+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T09:20:22+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T09:42:16+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T09:42:56+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T15:05:01+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:05:50+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T15:10:50+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:10:59+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:11:21+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:11:32+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:12:14+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:13:01+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T15:17:00+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:17:17+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-spec.md"}
+{"ts":"2026-04-08T15:17:50+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T15:18:01+01:00","file":"G:/harness infra/.claude/specs/strategy-loop-breaker-eval-criteria.md"}
+{"ts":"2026-04-08T15:57:12+01:00","file":"G:/harness infra/.claude/contracts/sprint-12-proposal.md"}
+{"ts":"2026-04-08T15:57:44+01:00","file":"G:/harness infra/.claude/contracts/sprint-12-contract.md"}
+{"ts":"2026-04-08T16:37:35+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-04-08T16:41:13+01:00","file":"C:/Users/exrov/.claude/hooks/collect-test-evidence.sh"}
+{"ts":"2026-04-08T16:43:38+01:00","file":"C:/Users/exrov/.claude/hooks/collect-test-evidence.sh"}
+{"ts":"2026-04-08T16:46:57+01:00","file":"C:/Users/exrov/.claude/hooks/collect-test-evidence.sh"}
+{"ts":"2026-04-08T16:54:22+01:00","file":"C:/Users/exrov/.claude/scripts/detect-strategy-loop.sh"}
+{"ts":"2026-04-08T17:01:36+01:00","file":"C:/Users/exrov/.claude/scripts/detect-strategy-loop.sh"}
+{"ts":"2026-04-08T17:02:47+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-08T17:03:41+01:00","file":"C:/Users/exrov/.claude/scripts/detect-strategy-loop.sh"}
+{"ts":"2026-04-08T17:04:26+01:00","file":"C:/Users/exrov/.claude/scripts/detect-strategy-loop.sh"}
+{"ts":"2026-04-08T17:04:49+01:00","file":"C:/Users/exrov/.claude/scripts/detect-strategy-loop.sh"}
+{"ts":"2026-04-08T17:06:58+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-08T17:08:51+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-08T17:11:19+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-13T00:06:09+01:00","file":"G:/harness infra/.claude/specs/evidence-checkpoint-spec.md"}
+{"ts":"2026-04-13T00:21:14+01:00","file":"G:/harness infra/.claude/contracts/sprint-13-proposal.md"}
+{"ts":"2026-04-13T00:22:01+01:00","file":"G:/harness infra/.claude/contracts/sprint-13-contract.md"}
+{"ts":"2026-04-13T00:24:03+01:00","file":"G:/harness infra/.claude/specs/evidence-checkpoint-spec.md"}
+{"ts":"2026-04-13T00:27:05+01:00","file":"G:/harness infra/.claude/contracts/sprint-13-contract.md"}
+{"ts":"2026-04-13T00:27:50+01:00","file":"G:/harness infra/.claude/contracts/sprint-13-contract.md"}
+{"ts":"2026-04-13T00:28:19+01:00","file":"G:/harness infra/.claude/contracts/sprint-13-contract.md"}
+{"ts":"2026-04-13T00:29:23+01:00","file":"G:/harness infra/tests/test-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T00:30:39+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T00:32:22+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T00:32:38+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-13T00:32:47+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-13T00:33:08+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-04-13T00:34:14+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T00:34:25+01:00","file":"G:/harness infra/tests/test-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T00:35:09+01:00","file":"G:/harness infra/tests/test-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T00:35:17+01:00","file":"G:/harness infra/tests/test-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T00:42:29+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-13T04:35:49+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T04:36:01+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T04:54:09+01:00","file":"G:/harness infra/.claude/reports/sprint-13-evidence-checkpoint-report.md"}
+{"ts":"2026-04-13T10:41:36+01:00","file":"G:/harness infra/.claude/contracts/sprint-15-contract.md"}
+{"ts":"2026-04-13T10:41:45+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:41:54+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:42:36+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:44:00+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:44:05+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:44:27+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T10:53:24+01:00","file":"G:/harness infra/.claude/contracts/sprint-16-contract.md"}
+{"ts":"2026-04-13T10:56:33+01:00","file":"G:/harness infra/.claude/reports/enforcement-stack-report.md"}
+{"ts":"2026-04-13T12:43:47+01:00","file":"G:/harness infra/.claude/contracts/sprint-17-contract.md"}
+{"ts":"2026-04-13T12:44:03+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T12:44:44+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T12:45:11+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-13T12:45:52+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-13T12:46:06+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T12:48:53+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T13:02:33+01:00","file":"G:/harness infra/.claude/contracts/sprint-18-contract.md"}
+{"ts":"2026-04-13T13:02:50+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-13T13:02:58+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-13T13:03:24+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-13T13:14:27+01:00","file":"G:/harness infra/.claude/contracts/sprint-19-contract.md"}
+{"ts":"2026-04-13T13:14:56+01:00","file":"G:/harness infra/.claude/reports/enforcement-stack-report.md"}
+{"ts":"2026-04-13T13:15:06+01:00","file":"G:/harness infra/.claude/reports/enforcement-stack-report.md"}
+{"ts":"2026-04-13T13:15:25+01:00","file":"G:/harness infra/.claude/reports/enforcement-stack-report.md"}
+{"ts":"2026-04-13T14:42:39+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-13T14:42:48+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-04-13T14:43:07+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-04-13T14:44:09+01:00","file":"G:/harness infra/.claude/reports/enforcement-stack-report.md"}
+{"ts":"2026-04-13T14:52:53+01:00","file":"G:/harness infra/.claude/reports/sprint-13-evidence-checkpoint-report.md"}
+{"ts":"2026-04-13T15:27:13+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-04-13T15:28:35+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/references/new-project.md"}
+{"ts":"2026-04-13T15:28:37+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/references/ongoing-project.md"}
+{"ts":"2026-04-13T15:32:22+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-04-13T15:33:35+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-04-13T15:44:30+01:00","file":"G:/harness infra/.claude/skills/skill-creator/scripts/package_skill.py"}
+{"ts":"2026-04-13T15:51:29+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/references/ongoing-project.md"}
+{"ts":"2026-04-13T15:51:44+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-04-13T15:52:09+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-04-14T10:12:14+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:12:21+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-04-14T10:12:45+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:12:58+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:14:02+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:14:16+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:14:28+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:14:29+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:15:29+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-14T10:15:31+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-04-14T10:15:32+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-04-14T10:15:33+01:00","file":"C:/Users/exrov/.claude/scripts/create-evidence-checkpoint.sh"}
+{"ts":"2026-04-14T10:17:09+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-14T10:17:11+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-04-14T10:17:52+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-14T10:18:03+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-14T10:23:52+01:00","file":"G:/harness infra/.claude/reports/msys-sed-compatibility-report.md"}
+{"ts":"2026-04-18T01:02:33+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:02:57+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-04-18T01:03:29+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:03:50+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-18T01:31:48+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:31:58+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:32:07+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:32:18+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:34:55+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:35:03+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:35:11+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:35:20+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:35:59+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:36:08+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:36:15+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-04-18T01:36:26+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:36:59+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:37:09+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:37:16+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:37:23+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:37:55+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:38:03+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-04-18T01:38:45+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-04-29T14:49:40+01:00","file":"G:/harness infra/.claude/specs/turn-packet-spec.md"}
+{"ts":"2026-04-29T14:50:15+01:00","file":"G:/harness infra/.claude/specs/evaluation-criteria.md"}
+{"ts":"2026-04-29T14:53:51+01:00","file":"G:/harness infra/.claude/specs/product-spec.md"}
+{"ts":"2026-04-29T15:00:19+01:00","file":"G:/harness infra/.claude/contracts/sprint-20-proposal.md"}
+{"ts":"2026-04-29T15:01:31+01:00","file":"G:/harness infra/.claude/contracts/sprint-20-contract.md"}
+{"ts":"2026-04-29T22:26:13+01:00","file":"G:/harness infra/harness-strategies-so-far/reports/turn-packet-cockpit-system.md"}
+{"ts":"2026-05-04T10:29:12+01:00","file":"G:/harness infra/.claude/specs/cognitive-guidance-spec.md"}
+{"ts":"2026-05-04T10:30:11+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T10:34:44+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T10:35:21+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T10:35:53+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T10:36:05+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T10:36:14+01:00","file":"G:/harness infra/.claude/specs/cognitive-guidance-spec.md"}
+{"ts":"2026-05-04T10:40:38+01:00","file":"G:/harness infra/.claude/contracts/sprint-21-contract.md"}
+{"ts":"2026-05-04T11:22:51+01:00","file":"G:/harness infra/harness-strategies-so-far/reports/cognitive-guidance-layer.md"}
+{"ts":"2026-05-04T11:49:46+01:00","file":"G:/harness infra/.claude/specs/ralph-loop-spec.md"}
+{"ts":"2026-05-04T11:50:49+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:57:15+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:57:24+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:57:36+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:57:48+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:58:21+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:58:37+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:58:44+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:59:03+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T11:59:50+01:00","file":"G:/harness infra/.claude/contracts/sprint-22-contract.md"}
+{"ts":"2026-05-04T12:00:43+01:00","file":"G:/harness infra/harness-strategies-so-far/reports/persistent-execution-loop-ralph.md"}

@@ -1,0 +1,214 @@
+Let me read your uploaded file first.Now let me read the truncated middle section:Adewale, this is a seriously well-designed document. Let me be direct about what I'm seeing and then answer your actual question.
+
+## What This Document Is
+
+This is already the harness architecture we've been building towards — and in several respects it's **more mature** than what we designed. The OpenClaw enhanced harness has:
+
+- The same state machine discipline (REQUESTED → CONTRACT_LOCKED → IMPLEMENTED → VERIFIED → ACCEPTED)
+- Builder/Verifier separation that's **stricter** than what we designed — the verifier cannot read the builder's code, notes, or test results. It verifies from scratch
+- A 7-layer verification protocol with a calibration gate (deliberately plant a failure to test whether the verifier catches it before trusting any results)
+- Evidence-first verdicts using "dumb sensors" — grep, curl, exit codes — exactly the Layer 2 deterministic guards
+- An escalation protocol that matches the negative loop detector but is more refined — three triggers, immediate stop, facts not theories
+- Protocol levels (Full / Lightweight / Emergency) so you're not running full ceremony on a one-line config change
+- Multi-model profiles with specific failure taxonomies and compensation strategies for Opus, Codex, MiniMax, Gemma
+- An agent memory system that persists across sessions
+
+## Can You Bake Our Harness Into This?
+
+Yes. And you should. Because this document is the **protocol layer** — the rules and principles — and what we built is the **enforcement layer** — the hooks, scripts, and harness loop that make the protocol deterministic rather than advisory.
+
+Here's how they map together:
+
+**What the OpenClaw document provides that we didn't build:**
+- The agent memory system (`.agent-memory/` with core, working, episodic, semantic, procedural, meta, and prospective layers) — this is richer than our `state/` directory
+- The `task.contract.json` schema — more structured than our sprint contracts
+- The `features.json` and `tests.json` tracking — more granular than our progress notes
+- The 7-layer verification protocol — significantly more rigorous than our evaluator
+- Protocol levels (Full/Lightweight/Emergency) — we had no tiering
+- Multi-model profiles — we deferred this
+- The expert domain taxonomy — seven lenses for diagnosing different failure types
+- The script registry — prevents the agent from reinventing tools that already exist
+
+**What our harness provides that this document doesn't have:**
+- The actual bash scripts that enforce the state machine (hooks, loop detector, phase validation)
+- The harness loop (`run-harness.sh`) that invokes Claude sessions per phase
+- The Telegram/WhatsApp bridge with response injection
+- The budget circuit breaker with time and cost tracking
+- Crash recovery and startup routine
+- Concurrency protection (lockfile)
+- The scoped hooks (fire on Write/Edit only, not every tool use)
+- The `run-claude-safe.sh` retry wrapper with exponential backoff
+- Dev server health check before evaluation
+- Git auto-commit at phase boundaries
+- The known-fixes registry with structured verification (no `eval`)
+
+**In other words:** the OpenClaw document is the constitution. Our scripts are the executive branch that enforces it. They're complementary, not competing.
+
+## The Integrated Architecture
+
+Here's what the combined system looks like. The `.agent-memory/` system from OpenClaw replaces our thinner `.claude/state/` directory. The harness scripts enforce the OpenClaw protocol's state machine rather than our simpler phase model:
+
+```
+~/.claude/                              # GLOBAL — built once
+├── settings.json                       # Hook registrations
+├── scripts/
+│   ├── run-harness.sh                  # Outer loop — drives state machine
+│   ├── run-claude-safe.sh              # Retry wrapper
+│   ├── startup-recovery.sh             # Crash recovery
+│   ├── telegram-poll.sh                # Notification daemon
+│   ├── wait-for-human.sh              # Timeout + state save
+│   ├── notify.sh                       # Telegram/WhatsApp bridge
+│   ├── check-budget.sh                # Cost/time circuit breaker
+│   ├── git-checkpoint.sh              # Auto-commit at state transitions
+│   ├── detect-loop.sh                 # Negative loop → STUCK state
+│   ├── write-handoff.sh              # Rich handoff artifact
+│   ├── ensure-dev-server.sh          # Pre-verification server check
+│   ├── verify-fix-applied.sh         # Structured fix verification
+│   ├── validate-state-transition.sh   # Enforces state machine rules
+│   └── init-project.sh               # One-command project setup
+├── agents/
+│   ├── planner.md                     # CONTRACT_LOCKED phase
+│   ├── generator.md                   # IMPLEMENTED phase
+│   ├── evaluator.md                   # VERIFIED phase (adversarial, calibrated)
+│   └── cross-examiner.md             # Layer 6 doubt protocol
+└── hooks/
+    ├── post-write-check.sh            # Scoped to Write/Edit
+    ├── pre-phase-start.sh             # Inject known-fixes
+    └── on-stuck-detected.sh           # Auto-escalation
+
+project-root/                           # PER PROJECT
+├── .claude/
+│   └── CLAUDE.md                      # Minimal — points to active instructions
+├── .agent-memory/                     # OpenClaw memory system
+│   ├── MEMORY_MANIFEST.json
+│   ├── core/
+│   │   ├── identity.md
+│   │   ├── mission.md
+│   │   ├── expert-domains.md
+│   │   ├── model-profiles.md
+│   │   └── operating-procedure.md     # ← THE ENHANCED HARNESS DOC LIVES HERE
+│   ├── working/
+│   │   ├── session-context.md
+│   │   ├── active-tasks.json
+│   │   └── recent-activity.json
+│   ├── episodic/
+│   │   ├── sessions/
+│   │   └── decisions/
+│   ├── procedural/
+│   │   ├── scripts/
+│   │   │   └── SCRIPT_REGISTRY.json
+│   │   ├── tools/
+│   │   │   └── TOOL_REGISTRY.json
+│   │   └── workflows/
+│   │       └── WORKFLOW_REGISTRY.json
+│   ├── semantic/
+│   │   ├── knowledge-graph.json
+│   │   └── domain/
+│   ├── meta/
+│   │   ├── confidence.json
+│   │   └── knowledge-gaps.json
+│   └── prospective/
+│       └── backlog.json
+├── task.contract.json                  # Per task — locked at creation
+├── features.json                      # Feature tracking
+├── tests.json                         # Test registry
+├── claude-progress.txt                # Human-readable log
+├── evidence/                          # Verification evidence
+└── verification.result.json           # Verifier output
+```
+
+## The Key Integration: State Machine Enforcement
+
+The `run-harness.sh` outer loop now drives the OpenClaw state machine instead of our simpler phase model:
+
+```bash
+# The harness enforces these transitions deterministically:
+# REQUESTED → CONTRACT_LOCKED → IMPLEMENTED → VERIFIED → ACCEPTED
+#                                    ↓
+#                                  STUCK
+#                          (escalate → guided → resume)
+
+case $STATE in
+  "REQUESTED")
+    # Planner agent creates task.contract.json
+    # Harness validates contract exists and is locked
+    # Harness creates features.json and tests.json
+    # → CONTRACT_LOCKED
+    ;;
+    
+  "CONTRACT_LOCKED")
+    # Generator agent implements, TDD-first
+    # Harness runs detect-loop.sh → STUCK if triggered
+    # Harness validates: all features "passing", zero test failures
+    # Builder CANNOT advance past here — harness checks
+    # → IMPLEMENTED
+    ;;
+    
+  "IMPLEMENTED")
+    # Layer 2 deterministic checks first (protocol compliance)
+    # Ensure dev server running
+    # Evaluator agent runs 7-layer verification:
+    #   Layer 1: Evidence before verdict (no reading builder's code)
+    #   Layer 2: Structured evidence chain per assertion
+    #   Layer 3: Adversarial framing
+    #   Layer 4: Calibration gate (plant failure, verify caught)
+    #   Layer 5: Independent environment
+    #   Layer 6: Cross-examination (second prompt)
+    #   Layer 7: Immutable evidence archive
+    # → VERIFIED (or back to CONTRACT_LOCKED with feedback)
+    ;;
+    
+  "VERIFIED")
+    # Notify you on Telegram with evidence bundle
+    # Wait for your sign-off
+    # → ACCEPTED
+    ;;
+    
+  "STUCK")
+    # Harness auto-detected (loop detector or escalation triggers)
+    # Notify Telegram with facts, not theories
+    # Block until your response
+    # Inject guidance, resume from pre-STUCK state
+    ;;
+    
+  "ACCEPTED")
+    # Git checkpoint, session summary, update memory manifest
+    # Done
+    ;;
+esac
+```
+
+## The CLAUDE.md Stays Minimal
+
+```markdown
+# CLAUDE.md
+
+## Startup
+Read `.agent-memory/MEMORY_MANIFEST.json` and follow the Session Startup Protocol
+in `.agent-memory/core/operating-procedure.md`.
+
+## Active Task
+Your current instructions are managed by the harness.
+Read `.agent-memory/working/session-context.md` for current state.
+
+## Constraints
+- Follow the state machine: REQUESTED → CONTRACT_LOCKED → IMPLEMENTED → VERIFIED → ACCEPTED
+- You CANNOT move a task past IMPLEMENTED
+- You CANNOT modify task.contract.json after it's locked
+- Write .agent-memory/working/session-context.md as you work
+- When stuck: write STUCK state to claude-progress.txt and STOP
+```
+
+Everything else — the full protocol, the expert domains, the model profiles, the verification layers — lives in `.agent-memory/core/operating-procedure.md` where the harness can control when and how much of it gets loaded.
+
+## To Answer Your Direct Question
+
+**You build the global scripts once in `~/.claude/`.** They work across every project.
+
+**You run `init-project.sh` once per new project.** It creates the `.agent-memory/` structure and the minimal CLAUDE.md.
+
+**The enhanced agent harness document becomes `.agent-memory/core/operating-procedure.md`** — the protocol that the agent reads at session start, with the harness scripts enforcing compliance deterministically.
+
+**You do NOT need Telegram.** The harness works without it. When the agent hits STUCK or needs ACCEPTED sign-off, it writes state to disk and pauses. You check when you're back at your machine. Telegram just lets you do that from your phone.
+
+Shall I build the actual `init-project.sh` script that sets up the full integrated structure, or do you want to work through any of the integration points first?

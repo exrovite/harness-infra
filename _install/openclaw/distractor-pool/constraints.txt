@@ -1,0 +1,60 @@
+Do not modify the database schema
+Avoid changing the public API contract
+Do not touch the authentication middleware
+Never modify production configuration files
+Avoid refactoring unrelated code
+Do not add new dependencies without approval
+Never skip writing tests for new features
+Avoid modifying the CI pipeline
+Do not change the logging format
+Never use eval on user input
+Avoid breaking backward compatibility
+Do not modify shared utility functions
+Never commit secrets or API keys
+Avoid changing the build system
+Do not modify the deployment scripts
+Never bypass input validation
+Avoid changing error code formats
+Do not modify the rate limiting rules
+Never skip code review requirements
+Avoid changing the database connection pool
+Do not touch the caching layer
+Never modify the session handling
+Avoid changing the file storage paths
+Do not modify third-party integrations
+Never skip security scanning
+Avoid changing the notification templates
+Do not modify the queue configuration
+Never bypass feature flags
+Avoid changing the monitoring alerts
+Do not modify the backup procedures
+Never skip accessibility requirements
+Avoid changing the internationalization keys
+Do not modify the permission model
+Never bypass audit logging
+Avoid changing the webhook payload format
+Do not modify the search index mapping
+Never skip performance regression tests
+Avoid changing the SSL configuration
+Do not modify the health check endpoints
+Never bypass content security policy
+Avoid changing the data retention rules
+Do not modify the migration scripts
+Never skip load testing before release
+Avoid changing the error handling strategy
+Do not modify the routing configuration
+Never bypass rate limits in testing
+Avoid changing the compression settings
+Do not modify the CORS whitelist
+Never skip documentation updates
+Avoid changing the test fixtures
+Do not modify the container orchestration
+Never bypass the approval workflow
+Avoid changing the retry configuration
+Do not modify the circuit breaker thresholds
+Never skip integration testing
+Avoid changing the metric collection intervals
+Do not modify the DNS configuration
+Never bypass the rollback procedure
+Avoid adding unnecessary abstractions
+Do not modify the service discovery settings

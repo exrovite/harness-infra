@@ -1,0 +1,22 @@
+# Session-specific state (recreated each session)
+.claude/state/write-count.txt
+.claude/state/checkpoint-counter.json
+.claude/state/must-do-injection-log.jsonl
+.claude/state/unverified-writes.jsonl
+.claude/scheduled_tasks.lock
+
+# Agent memory working files (session-specific)
+.agent-memory/working/recent-activity.jsonl
+
+# Lock files
+*.lock
+!.claude/scheduled_tasks.lock
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temp files
+/tmp/
+*.tmp

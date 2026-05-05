@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-04T09:00:00.000000",
+  "confidence_levels": {
+    "three_layer_architecture": {
+      "level": "high",
+      "basis": "Evolved through 4+ rounds of developer pushback. Architecture is sound. Production hardening items addressed.",
+      "validated_by": "Developer critique + Anthropic paper alignment"
+    },
+    "state_machine_design": {
+      "level": "high",
+      "basis": "REQUESTED -> CONTRACT_LOCKED -> IMPLEMENTED -> VERIFIED -> ACCEPTED is proven pattern from OpenClaw and Anthropic's own agent harness.",
+      "validated_by": "OpenClaw production use + Anthropic paper"
+    },
+    "builder_verifier_separation": {
+      "level": "high",
+      "basis": "Core principle from Anthropic paper. Evaluator cannot read builder's code. Uses tools to test live output.",
+      "validated_by": "Anthropic paper by Prithvi Rajasekaran"
+    },
+    "model_profiles_opus": {
+      "level": "high",
+      "basis": "Extensive direct experience across all managed systems",
+      "validated_by": "Production use across 17 agents"
+    },
+    "model_profiles_codex": {
+      "level": "medium",
+      "basis": "11 failure patterns documented. Need more production validation.",
+      "validated_by": "OpenClaw experience + community reports"
+    },
+    "model_profiles_minimax": {
+      "level": "medium",
+      "basis": "12 failure patterns documented from browser automation use.",
+      "validated_by": "OpenClaw browser automation experience"
+    },
+    "model_profiles_gemma": {
+      "level": "high",
+      "basis": "6 failure patterns with proven compensations. Optimal parameters discovered empirically.",
+      "validated_by": "PCW production use across 14 content modules"
+    },
+    "harness_scripts": {
+      "level": "low",
+      "basis": "Fully designed but NOT YET BUILT. Zero production runs. Scripts exist as specifications only.",
+      "validated_by": "Design review only — no execution evidence"
+    },
+    "telegram_bridge": {
+      "level": "low",
+      "basis": "Designed but not implemented. Optional component.",
+      "validated_by": "Design only"
+    },
+    "enforcement_mechanisms": {
+      "level": "medium",
+      "basis": "Principles are solid (hard > soft). Specific implementations need testing.",
+      "validated_by": "Architecture review through developer pushback"
+    },
+    "protocol_fidelity": {
+      "level": "medium",
+      "basis": "5 mechanisms designed. Phase re-injection and known-fix injection patterns are from proven systems. Calibration gate is from Anthropic.",
+      "validated_by": "Design + external validation from Anthropic paper"
+    },
+    "failure_modes": {
+      "level": "high",
+      "basis": "10 failure modes comprehensively documented with fixes. Original 5 from first principles. Gaps 6-10 from developer + Anthropic paper.",
+      "validated_by": "First principles analysis + Anthropic paper + developer critique"
+    }
+  }
+}
