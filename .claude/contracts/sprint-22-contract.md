@@ -1,182 +1,166 @@
-# Sprint 22 Contract: Persistent Execution Loop ($ralph)
+# Sprint 22 Contract: Compound Reliability Foundations
 
-## Scope
+## Goal
 
-Add a user-activated persistent execution loop that forces the agent through implement → verify → fix cycles until an independent verifier approves or an iteration ceiling triggers terminal failure. The agent cannot skip verification, cannot self-certify, and cannot deactivate the loop. Three Layer 2 gate enforcement points make this unbypassable.
+Add a compound reliability layer inside the existing enforcement framework: role prompts for agent decomposition, an iteration loop with real test feedback during BUILD, a codebase context snapshot mechanism, and structured verification feedback. These are the highest-impact foundations — adversarial planning consensus and parallel dispatch follow in sprint 23+.
 
 ## Deliverables
 
-### D1: Keyword Detection + State Creation (on-prompt-submit.sh)
+### D1: Role Prompt Files (`.claude/roles/`)
 
-Add `PROMPT_INPUT=$(cat)` at the top of on-prompt-submit.sh to capture user prompt from stdin JSON. Extract prompt text with `PROMPT_TEXT=$(printf '%s' "$PROMPT_INPUT" | jq -r '.prompt // ""' 2>/dev/null | tr -d '\r')`. If jq fails or returns empty, `PROMPT_TEXT` is empty (safe no-op — no ralph activation).
+5 focused role prompts, each self-contained with identity, constraints, output format, and explicit "does NOT do" boundary:
 
-**Phase guard**: Only activate ralph when current phase is BUILD. If `$ralph` appears during PLAN/NEGOTIATE/EVALUATE/COMPLETE, inject a warning into the turn packet: `[RALPH IGNORED] $ralph only activates in BUILD phase.` Do not create ralph-mode.json.
+- `planner.md` — Explores codebase, writes specs. Never writes code.
+- `critic.md` — Challenges specs/plans adversarially. Never writes specs or code.
+- `executor.md` — Implements one focused task. Never plans or reviews itself.
+- `verifier.md` — Reads code + test output, returns structured verdicts. Never implements.
+- `explorer.md` — Reads target codebase, produces bounded context snapshot. Read-only.
 
-When phase is BUILD and prompt contains `$ralph` (case-insensitive, word-boundary match via `grep -qi '\$ralph'`):
+### D2: Iteration Loop State
 
-1. If `.claude/state/ralph-mode.json` does not exist or has `"active": false`, create it:
-```json
-{
-  "active": true,
-  "activated_by": "user_prompt",
-  "activated_at": "<ISO8601>",
-  "iteration": 1,
-  "max_iterations": 5,
-  "last_verdict": null,
-  "last_verdict_at": null,
-  "failed_criteria": [],
-  "sprint": <current_sprint>
-}
-```
-2. If it already exists with `"active": true`, do nothing (preserve current iteration state).
+New state file `.claude/state/build-iteration.json` tracking:
+- Current feature being implemented
+- Iteration count (0-based, max 5 default)
+- Verbatim last test output (stdout/stderr)
+- Last test exit code
+- Status: running | passed | stuck
 
-`max_iterations` default is 5. User can override by writing `$ralph:N` (e.g., `$ralph:3` sets max to 3).
+### D3: Turn Packet BUILD Guidance
 
-### D2: Turn Packet Ralph Section (on-prompt-submit.sh)
+`on-prompt-submit.sh` enhanced with a BUILD-phase-only guidance block:
+- Instructs agent to spawn executor sub-agent with role prompt
+- Instructs test-after-every-change with output capture
+- Injects verbatim last_test_output from build-iteration.json on failure
+- Emits STUCK escalation at max iterations
+- Emits "proceed to next feature" on pass
+- References context snapshot for first BUILD entry
+- Does NOT fire during PLAN/NEGOTIATE/EVALUATE/COMPLETE
 
-When ralph-mode.json is active, inject a `RALPH LOOP:` section into the turn packet after GUIDANCE and before READ FIRST:
+### D4: Structured Verification Feedback
 
-**When last_verdict is null (first iteration):**
-```
-RALPH LOOP: Iteration 1/5 | Implement, then spawn verifier sub-agent. You CANNOT complete until verifier returns PASS.
-```
+`validate-phase.sh` writes structured phase-feedback.md:
+- Verdict line (PASS/FAIL) — backward compatible with existing readers
+- Specific failures: file paths, line numbers, error type
+- Verbatim test output section
+- Expected vs found comparison
 
-**When last_verdict is FAIL:**
-```
-RALPH LOOP: Iteration 2/5 | FAIL — fix failures in evidence-verdict.json, then spawn verifier. Cannot complete until PASS.
-```
+### D5: Context Snapshot Mechanism
 
-**When last_verdict is PASS:**
-```
-RALPH LOOP: PASSED at iteration 2. Write phase-complete-marker.md to finish.
-```
+New state file `.claude/state/context-snapshot.md`:
+- Turn packet guidance instructs context exploration before first BUILD implementation
+- Explorer sub-agent reads target files, identifies patterns/tests/dependencies
+- Writes bounded summary (~100 lines max)
+- Snapshot path injected into executor sub-agent context
 
-**When iteration > max_iterations:**
-```
-RALPH LOOP: STUCK — 5 iterations exhausted without PASS. STOP. Write stuck-report.md. WAIT for user.
-```
+## Files Modified
 
-### D3: Completion Gate (pre-write-gate.sh)
+| File | Change Type |
+|------|------------|
+| `.claude/roles/planner.md` | NEW |
+| `.claude/roles/critic.md` | NEW |
+| `.claude/roles/executor.md` | NEW |
+| `.claude/roles/verifier.md` | NEW |
+| `.claude/roles/explorer.md` | NEW |
+| `.claude/state/build-iteration.json` | NEW (state) |
+| `.claude/state/context-snapshot.md` | NEW (state) |
+| `on-prompt-submit.sh` | MODIFIED — new BUILD guidance block |
+| `validate-phase.sh` | MODIFIED — structured feedback output |
 
-When ralph-mode.json exists with `"active": true`:
+## Files NOT Modified (Backward Compatibility)
 
-**Block phase-complete-marker.md** writes UNLESS:
-- `evidence-verdict.json` exists AND
-- Its `verdict` field is `"PASS"` AND
-- Its timestamp is newer than `ralph-mode.json`'s `last_verdict_at` from the previous iteration (prevents reusing stale verdicts)
+- pre-write-gate.sh
+- pre-bash-gate.sh
+- pre-flight-gate.sh
+- generate-pre-flight-challenge.sh
+- validate-pre-flight.sh
+- lib-helpers.sh
+- on-session-end.sh
+- startup-recovery.sh
+- create-evidence-checkpoint.sh
 
-Block message: `BLOCKED: Ralph loop active — verifier must return PASS before completion. Spawn a verifier sub-agent, get PASS verdict in evidence-verdict.json, then retry.`
+## Acceptance Criteria (32 items)
 
-### D4: Ralph State Protection (pre-write-gate.sh + pre-bash-gate.sh)
+### D1: Role Prompts (7)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC1 | `.claude/roles/planner.md` exists with identity, constraints, output format | File read |
+| AC2 | `.claude/roles/critic.md` exists with adversarial review focus | File read |
+| AC3 | `.claude/roles/executor.md` exists with implementation-only scope | File read |
+| AC4 | `.claude/roles/verifier.md` exists with structured verdict output format | File read |
+| AC5 | `.claude/roles/explorer.md` exists with read-only snapshot output format | File read |
+| AC6 | Each role prompt explicitly states what it does NOT do | Grep for "NOT" / "Never" / "does not" in each file |
+| AC7 | No role prompt exceeds 100 lines | `wc -l` on each file |
 
-Block any agent write to `ralph-mode.json`:
-- In `pre-write-gate.sh`: if target path matches `ralph-mode.json`, exit 2 with message: `BLOCKED: ralph-mode.json is user-controlled. Only the user can activate/deactivate ralph mode.`
-- In `pre-bash-gate.sh`: add `ralph-mode.json` to the file-write detection patterns. Same block message.
+### D2: Iteration Loop State (3)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC8 | build-iteration.json schema includes: feature, iteration, max_iterations, last_test_output, last_test_exit_code, status | File read / schema doc |
+| AC9 | Default max_iterations is 5 | Grep in on-prompt-submit.sh |
+| AC10 | Status enum is: running, passed, stuck | Grep in guidance output or schema |
 
-Exception: `on-prompt-submit.sh` creates the file via atomic_write — hooks don't gate hook scripts, only agent tool calls.
+### D3: Turn Packet BUILD Guidance (9)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC11 | on-prompt-submit.sh emits iteration loop guidance when phase is BUILD | Read source, trace BUILD branch |
+| AC12 | Guidance references role prompt file paths (`.claude/roles/executor.md` etc.) | Grep in on-prompt-submit.sh |
+| AC13 | Guidance instructs running tests and capturing output | Grep for test/capture instructions |
+| AC14 | Guidance instructs writing test output to build-iteration.json | Grep for build-iteration.json reference |
+| AC15 | When build-iteration.json exists and shows failure, guidance includes verbatim last_test_output | Read source, trace failure branch |
+| AC16 | When iteration >= max_iterations, guidance includes STUCK escalation | Read source, trace max branch |
+| AC17 | When status is passed, guidance includes "proceed to next feature" | Read source, trace pass branch |
+| AC18 | BUILD guidance block is gated by `[[ "$CURRENT_PHASE" == "BUILD" ]]` | Read source |
+| AC19 | Guidance references context-snapshot.md for first BUILD entry | Grep for context-snapshot reference |
 
-### D5: Iteration Accounting (on-prompt-submit.sh)
+### D4: Structured Feedback (5)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC20 | validate-phase.sh writes structured feedback with verdict line | Read source |
+| AC21 | Structured format includes specific failures section | Read source |
+| AC22 | Structured format includes verbatim test output section | Read source |
+| AC23 | Structured format includes expected vs found section | Read source |
+| AC24 | pre-write-gate.sh still detects FAIL from structured format (backward compatible) | Read pre-write-gate.sh — FAIL detection must match new format |
 
-On each prompt when ralph-mode is active:
+### D5: Context Snapshot (3)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC25 | Turn packet references context-snapshot.md path | Grep in on-prompt-submit.sh |
+| AC26 | Guidance specifies snapshot content: files, patterns, test structure, dependencies | Read guidance output |
+| AC27 | Guidance specifies ~100 line bound | Grep for bound instruction |
 
-1. Read `evidence-verdict.json`. If it has a newer timestamp than `last_verdict_at`:
-   - If verdict is PASS: set `last_verdict: "PASS"`, set `active: false`, update `last_verdict_at`. Ralph auto-deactivates — completion gate now allows phase-complete-marker.md.
-   - If verdict is FAIL: increment `iteration`, set `last_verdict: "FAIL"`, update `last_verdict_at`, capture failed criteria list. Delete `evidence-verdict.json` to force a fresh verification cycle.
-2. If `iteration > max_iterations` and `last_verdict != "PASS"`: inject STUCK block (terminal).
-3. Sprint mismatch (current sprint != ralph-mode sprint): auto-deactivate ralph mode (task changed).
+### Backward Compatibility (5)
+| # | Criterion | Verify By |
+|---|-----------|-----------|
+| AC28 | pre-write-gate.sh has zero diff | `git diff` on file |
+| AC29 | pre-bash-gate.sh has zero diff | `git diff` on file |
+| AC30 | pre-flight-gate.sh has zero diff | `git diff` on file |
+| AC31 | generate-pre-flight-challenge.sh has zero diff | `git diff` on file |
+| AC32 | create-evidence-checkpoint.sh has zero diff | `git diff` on file |
 
-### D6: Verifier Brief Auto-Generation (on-prompt-submit.sh)
+## Risks + Mitigations
 
-When ralph-mode is active and the agent has made writes since the last verdict, auto-generate `evidence-checkpoint.json` (reusing existing evidence checkpoint infrastructure) to give the verifier sub-agent a brief. This bridges ralph with the existing evidence checkpoint system rather than duplicating it.
-
-## NOT In Scope
-
-- Changing the EVALUATE phase behavior (ralph operates within BUILD phase)
-- Team/multi-agent parallel execution (ralph is single-agent)
-- Auto-spawning the verifier (agent still spawns it; harness blocks completion until it does)
-- Visual verdict integration
-- PRD/test-spec hard gates (future sprint)
-
-## Acceptance Criteria (42 items)
-
-### Keyword Detection (8)
-1. User prompt containing `$ralph` during BUILD phase activates ralph-mode.json with active:true.
-2. User prompt containing `$ralph:3` sets max_iterations to 3.
-3. User prompt containing `$RALPH` (uppercase) also activates (case-insensitive).
-4. User prompt without `$ralph` does not create ralph-mode.json.
-5. If ralph-mode.json already active, `$ralph` in prompt does not reset iteration count.
-6. Ralph activation only creates the file — does not modify any other state files.
-7. `$ralph` during PLAN/NEGOTIATE/EVALUATE/COMPLETE injects warning but does NOT create ralph-mode.json.
-8. Malformed or empty stdin (jq parse failure) results in no activation (safe no-op).
-
-### Turn Packet (5)
-9. Active ralph with null verdict shows iteration count and "spawn verifier" instruction.
-10. Active ralph with FAIL verdict shows iteration count and "fix failures" instruction.
-11. Active ralph with PASS verdict shows "PASSED" and "write phase-complete-marker" instruction.
-12. Active ralph past max_iterations shows STUCK message with stuck-report.md instruction.
-13. Inactive/missing ralph-mode.json injects no RALPH LOOP section (zero overhead).
-
-### Completion Gate (5)
-14. With ralph active, writes to phase-complete-marker.md are BLOCKED when no evidence-verdict.json exists.
-15. With ralph active, writes to phase-complete-marker.md are BLOCKED when evidence-verdict.json has verdict FAIL.
-16. With ralph active, writes to phase-complete-marker.md are ALLOWED when evidence-verdict.json has verdict PASS with fresh timestamp.
-17. Without ralph active, phase-complete-marker.md writes are unaffected (existing behavior preserved).
-18. Block message names the specific resolution path (spawn verifier, get PASS).
-
-### State Protection (4)
-19. Agent Write to ralph-mode.json is BLOCKED with exit 2.
-20. Agent Edit to ralph-mode.json is BLOCKED with exit 2.
-21. Agent Bash write (echo/cat/python) targeting ralph-mode.json is BLOCKED.
-22. Block message states ralph-mode.json is user-controlled.
-
-### Iteration Accounting (9)
-23. Fresh FAIL verdict increments iteration count in ralph-mode.json.
-24. Fresh PASS verdict sets last_verdict to PASS AND sets active to false (auto-deactivation).
-25. Stale verdict (same timestamp as last_verdict_at) does not increment.
-26. Iteration exceeding max_iterations triggers STUCK block in turn packet.
-27. STUCK state blocks all source code writes (same as strategy loop STUCK).
-28. Sprint mismatch auto-deactivates ralph mode (sets active:false).
-29. After processing a FAIL verdict, evidence-verdict.json is deleted to force fresh verification.
-30. After auto-deactivation on PASS, subsequent turns inject no RALPH LOOP section.
-31. Timestamp comparison uses lexicographic ISO8601 fallback when `date -d` fails.
-
-### Evidence Bridge (3)
-32. When ralph is active and writes have occurred since last verdict, evidence-checkpoint.json is created/updated.
-33. Evidence checkpoint contains the sprint contract path and ralph iteration number.
-34. Existing evidence checkpoint behavior is preserved when ralph is inactive.
-
-### Safety (4)
-35. lib-helpers.sh existing functions unchanged.
-36. Existing pre-write-gate.sh phase gate, watcher gate, contract gate, must-do gate, evidence gate, strategy loop gate behavior is preserved.
-37. Existing pre-bash-gate.sh behavior is preserved (ralph protection is additive).
-38. Existing on-prompt-submit.sh features preserved: guidance, protocol, verifier rules, must-do, evidence, strategy loop, watcher cockpit.
-
-### Quality (4)
-39. RALPH LOOP section is placed before READ FIRST in the packet assembly — early enough to survive truncation.
-40. In a simulated worst-case packet (BUILD + ralph + guidance + all blocks + watcher cockpit + must-do), the RALPH LOOP section is NOT truncated by the 2000-char cap.
-41. Steady-state BUILD packet with ralph active and no blocks stays under 800 chars.
-42. `bash -n` syntax check passes on all changed files.
-
-## Verification
-
-Independent verifier must:
-1. Syntax-check all changed shell files with `bash -n`.
-2. Simulate $ralph activation from user prompt and confirm ralph-mode.json creation.
-3. Simulate iteration cycle: null → FAIL → FAIL → PASS and confirm state transitions.
-4. Simulate max_iterations exceeded and confirm STUCK block.
-5. Attempt to write phase-complete-marker.md without PASS verdict — confirm BLOCKED.
-6. Attempt to write ralph-mode.json as agent — confirm BLOCKED in both Write and Bash.
-7. Confirm sprint mismatch deactivation.
-8. Measure packet sizes with ralph section.
-9. Verify all 42 criteria with explicit pass/fail and evidence.
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Turn packet bloat | Agent ignores long packets | Keep BUILD guidance concise; conditional emission (only relevant iteration state) |
+| Sub-agent hook conflicts | Sub-agents blocked by pre-write-gate | Sub-agents operate within same phase/sprint — existing exemptions apply |
+| Stale build-iteration.json across sessions | Confusing guidance from old state | startup-recovery.sh cleanup is sprint 23 scope; low risk since sessions are typically continuous |
+| validate-phase.sh format change | Breaks FAIL detection | AC24 explicitly verifies backward compatibility of FAIL detection |
 
 ## Implementation Constraints
 
-- `on-prompt-submit.sh` does NOT currently read stdin. Add `PROMPT_INPUT=$(cat)` at the very top (before any other logic) to capture user prompt JSON. All ralph keyword detection uses `PROMPT_TEXT` extracted from this.
-- Gate scripts (`pre-write-gate.sh`, `pre-bash-gate.sh`) already read stdin into `INPUT_DATA` at their top. Ralph protection checks in gates use the existing `INPUT_DATA` variable.
-- Ralph state file writes use `atomic_write` from lib-helpers.sh.
-- Timestamp comparison via `date -d` for ISO8601 parsing. MSYS fallback: if `date -d` fails, compare raw ISO8601 strings lexicographically (`[[ "$NEW_TS" > "$OLD_TS" ]]`). This works because ISO8601 is lexicographically sortable.
-- `sed 's|\\|/|g'` crashes on MSYS — use `tr '\\' '/'`.
+- `on-prompt-submit.sh` already reads stdin via `HOOK_INPUT=$(cat)`. BUILD guidance block added after existing packet assembly logic.
+- validate-phase.sh output change is FORMAT only — pass/fail determination logic unchanged.
+- Gate scripts already read stdin into `INPUT_DATA` — no changes needed to gates.
+- `sed 's|\\|/|g'` crashes on MSYS — use `tr '\\\\' '/'`.
 - Strip Windows jq CR with `tr -d '\r'`.
 - `while IFS= read -r` loops need `|| [ -n "$var" ]`.
-- Ralph protection pattern in pre-bash-gate.sh follows same structure as existing file-write detection.
+
+## Verification Plan
+
+Independent verifier sub-agent checks all 32 criteria:
+1. Read each role prompt file — verify identity, constraints, output format, boundary statements
+2. Read on-prompt-submit.sh — trace BUILD guidance block, confirm phase gating
+3. Read validate-phase.sh — confirm structured feedback format
+4. Read pre-write-gate.sh — confirm FAIL detection still works with new format
+5. Run `git diff` on all "NOT modified" files — confirm zero changes
+6. Run `wc -l` on role prompts — confirm under 100 lines
+7. Run `bash -n` syntax check on modified shell files

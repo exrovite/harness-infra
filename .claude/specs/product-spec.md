@@ -1,71 +1,57 @@
-# Turn Packet System — Product Spec
+# Product Spec: Compound Reliability System (Sprint 22+)
 
-## Problem
+## Problem Statement
 
-The harness has many independent gates that block writes. Agents discover them by trial and error: act, get blocked, read stderr, adapt, hit the next block. This wastes tokens and caused the sprint transition deadlock.
+The harness enforces process compliance (phase gates, pre-flight MCQ, write blocking) but does not enable the conditions that produce working code. Analysis of oh-my-codex (OMX) reveals that 90% working-code rates come from compound reliability — iteration loops, agent decomposition, codebase context grounding, and actionable verification feedback — not from enforcement alone.
 
-The current `on-prompt-submit.sh` injects status, but not the full operating frame: required setup, read-first files, blockers, exempt paths, current step, and what done looks like.
+The same model (GPT-5.4, Claude Opus) produces dramatically better results under OMX's structural patterns than under raw invocation. The quality gain comes from focused context per agent, retry-with-feedback loops, and adversarial planning review — not from model routing or cheaper models.
 
-## Solution
+## What We're Building
 
-Evolve `on-prompt-submit.sh` into a **turn packet assembler**. Before the agent acts, it sees a concise cockpit packet that makes correct behavior the path of least resistance.
+A compound reliability layer that sits INSIDE our existing enforcement framework. The gates stay. We add a drivetrain between them.
 
-The gates stay as safety nets. They should rarely fire because the agent already knows the correct path.
+### Capability 1: Iteration Loop with Real Feedback
 
-## What The Turn Packet Contains
+During BUILD phase, the agent enters a persist-until-done loop:
+- Execute one feature/fix
+- Run tests, capture ACTUAL stdout/stderr
+- If tests fail: feed the exact error output back, re-enter execution
+- If tests pass: proceed to next feature
+- Max N iterations before STUCK escalation
 
-**Section 1: State summary**
-- Phase, sprint, iteration, write count, watcher status.
+### Capability 2: Context Snapshot Before Work
 
-**Section 2: Read first**
-- Existing sprint contract when present.
-- Must-do index/source docs when summary is missing.
+Before any BUILD work begins, the agent explores the target codebase and writes a grounded context snapshot.
 
-**Section 3: Action queue**
-- Numbered actions required before code writes, in dependency order.
-- Each action states the tool and target path.
+### Capability 3: Agent Decomposition via Sub-Agents (Same Model)
 
-**Section 4: Blocked-by**
-- Hard blockers with exact resolution path.
-- Includes phase-feedback FAIL, evidence checkpoint sub-states, and strategy loop tier 2.
-- Strategy tier 1 is a warning, not a hard block.
+Focused sub-agents: Planner, Critic, Executor, Verifier. Same model, different role prompts.
 
-**Section 5: Exempt paths**
-- Infrastructure paths that remain writable when tools are locked.
+### Capability 4: Verification With Actionable Feedback
 
-**Section 6: Watcher cockpit**
-- Current unchecked step.
-- SCOPE.
-- MISTAKES TO AVOID.
-- DONE WHEN / COMPLETION CRITERIA.
+Replace binary PASS/FAIL with structured feedback including exact error output.
 
-## Gate-to-Packet Mapping
+### Capability 5: Planning Consensus (Adversarial Review)
 
-| Gate condition | Turn packet behavior |
-|---|---|
-| No watcher claimed | Queue `Claim watcher` via Bash |
-| No cron reminder | Queue `Start reminder` via CronCreate |
-| Wrong phase for code | Show writes-locked/mode guidance |
-| No sprint contract | Queue contract write in NEGOTIATE or BUILD |
-| Phase-feedback FAIL | `BLOCKED BY: phase-feedback FAIL` |
-| Must-do summary missing | Read must-do docs and queue summary write |
-| Evidence checkpoint pending | `BLOCKED BY` with exact sub-state guidance |
-| Strategy loop detected | Tier 1 warning or tier 2 `BLOCKED BY` |
-| Pre-flight MCQ due | Note that MCQ fires on next gated write |
+Adversarial sub-agent review during NEGOTIATE. Critic challenges specs.
 
-## Design Constraints
+### Capability 6: Parallel Sub-Agent Dispatch
 
-1. **Token budget**: steady watcher cockpit under 600 chars; full blocked packet under 1500 chars.
-2. **No gate changes**: pre-write, pre-bash, and pre-flight gates are untouched.
-3. **Touchpoints**: `on-prompt-submit.sh` plus helper additions in `lib-helpers.sh`.
-4. **Dependency ordering**: watcher > cron > contract > must-do > MCQ.
-5. **Read-only packet assembly**: packet condition checks do not enforce and exit 0.
-6. **Preserve existing features**: must-do injection/log, evidence checkpoint guidance, strategy loop state behavior.
+Independent sub-agents fire simultaneously.
 
-## What Success Looks Like
+## What We Are NOT Building
 
-- Fresh session sees exactly what to do before writing code, in order.
-- Active watcher session sees current step and done criteria before acting.
-- Agent knows what to read first instead of discovering it from a gate.
-- Sprint transition deadlock cannot recur: missing contract is surfaced in NEGOTIATE before BUILD work.
-- Gates become guardrails instead of the primary teaching mechanism.
+- No model routing — same model everywhere
+- No MCP state server — file-based state continues
+- No Node.js hook rewrite — bash hooks stay
+
+## Success Criteria
+
+The compound reliability system is successful when:
+1. BUILD phase uses an iteration loop that retries with real test feedback
+2. A context snapshot exists before implementation starts
+3. Planner/Critic/Executor/Verifier roles run as independent sub-agents
+4. Verification feedback includes exact error output, not just PASS/FAIL
+5. NEGOTIATE uses adversarial critic review, not self-review
+6. Independent sub-agent tasks can fire in parallel
+7. All existing enforcement gates continue to function unchanged
