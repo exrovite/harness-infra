@@ -16,6 +16,33 @@ if [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   exit 0
 fi
 
+source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+
+
+# Shared phase context for early Ralph guards and later Bash write gates.
+CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null)
+CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
+PHASE_CTX="[Phase: ${CURRENT_PHASE} | Sprint: ${CURRENT_SPRINT}]"
+
+print_evidence_gate_note() {
+  printf "This gate applies to ALL tasks regardless of complexity. Simple tasks drift too.\n" >&2
+  printf "This cannot be shortcut.\n\n" >&2
+}
+
+print_gates_ahead() {
+  if type compute_pending_gates >/dev/null 2>&1; then
+    local PROJECT_PATH PENDING_GATES
+    PROJECT_PATH=$(pwd -W 2>/dev/null || pwd)
+    PENDING_GATES=$(compute_pending_gates "$CURRENT_PHASE" "$CURRENT_SPRINT" "$PROJECT_PATH")
+    printf "\nGATES AHEAD (after you clear this):\n" >&2
+    if [ -n "$PENDING_GATES" ]; then
+      printf "%s" "$PENDING_GATES" >&2
+    else
+      printf " -> all clear - write freely\n" >&2
+    fi
+  fi
+}
+
 # --- Detect file-writing patterns in command ---
 WRITES_FILES=false
 
@@ -63,7 +90,8 @@ fi
 
 # Ralph state writes are never allowed from agent Bash, even though .claude/state is otherwise exempt.
 if printf '%s' "$COMMAND" | grep -qiF 'ralph-mode.json'; then
-  printf "BLOCKED: ralph-mode.json is user-controlled. Only the user can activate/deactivate ralph mode.\n" >&2
+  printf "[ADMIN GATE] BLOCKED: ralph-mode.json is user-controlled. Only the user can activate/deactivate ralph mode.\n" >&2
+  print_gates_ahead
   exit 2
 fi
 
@@ -93,7 +121,9 @@ if printf '%s' "$COMMAND" | grep -qiF 'phase-complete-marker.md'; then
       fi
     fi
     if [ "$RALPH_ALLOW_COMPLETE" != true ]; then
-      printf "BLOCKED: Ralph loop active - verifier must return PASS before completion. Spawn a verifier sub-agent, get PASS verdict in evidence-verdict.json, then retry.\n" >&2
+      printf "[EVIDENCE GATE] BLOCKED: Ralph loop active - verifier must return PASS before completion. Spawn a verifier sub-agent, get PASS verdict in evidence-verdict.json, then retry.\n" >&2
+      print_evidence_gate_note
+      print_gates_ahead
       exit 2
     fi
   fi
@@ -113,9 +143,6 @@ if printf '%s' "$COMMAND" | grep -qiF 'agentwiki/'; then exit 0; fi
 # --- File-writing detected — apply same enforcement as Write/Edit ---
 
 # Check 0: Phase gate — only BUILD allows source code writes via Bash
-CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null)
-CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
-PHASE_CTX="[Phase: ${CURRENT_PHASE} | Sprint: ${CURRENT_SPRINT}]"
 if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   # Markdown files are documentation, not source code — allow in all phases
   if printf '%s' "$COMMAND" | grep -qiE '\.md(\s|"|'"'"'|$)'; then
@@ -123,21 +150,22 @@ if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   fi
   case "$CURRENT_PHASE" in
     PLAN)
-      printf "BLOCKED: You are in PLAN phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
+      printf "[ADMIN GATE] BLOCKED: You are in PLAN phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
       printf "Write your spec to .claude/specs/, then advance through NEGOTIATE to BUILD.\n" >&2
       ;;
     NEGOTIATE)
-      printf "BLOCKED: You are in NEGOTIATE phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
+      printf "[ADMIN GATE] BLOCKED: You are in NEGOTIATE phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
       printf "Write your sprint contract, then advance to BUILD.\n" >&2
       ;;
     EVALUATE)
-      printf "BLOCKED: You are in EVALUATE phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
+      printf "[ADMIN GATE] BLOCKED: You are in EVALUATE phase. Source code writes (including via Bash) are not allowed.\n\n" >&2
       printf "Spawn an independent verifier — don't write code yourself.\n" >&2
       ;;
     *)
-      printf "BLOCKED: Phase '%s' does not allow source code writes via Bash.\n" "$CURRENT_PHASE" >&2
+      printf "[ADMIN GATE] BLOCKED: Phase '%s' does not allow source code writes via Bash.\n" "$CURRENT_PHASE" >&2
       ;;
   esac
+  print_gates_ahead
   exit 2
 fi
 
@@ -150,7 +178,9 @@ if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/d
   if ! printf '%s' "$RALPH_ITER" | grep -qE '^[0-9]+$'; then RALPH_ITER=1; fi
   if ! printf '%s' "$RALPH_MAX" | grep -qE '^[0-9]+$'; then RALPH_MAX=5; fi
   if [ "$RALPH_ITER" -gt "$RALPH_MAX" ] && [ "$RALPH_LAST" != "PASS" ]; then
-    printf "BLOCKED: Ralph loop STUCK - %s iterations exhausted without PASS. Write .claude/state/stuck-report.md and wait for user.\n" "$RALPH_MAX" >&2
+    printf "[EVIDENCE GATE] BLOCKED: Ralph loop STUCK - %s iterations exhausted without PASS. Write .claude/state/stuck-report.md and wait for user.\n" "$RALPH_MAX" >&2
+    print_evidence_gate_note
+    print_gates_ahead
     exit 2
   fi
 fi
@@ -158,11 +188,13 @@ fi
 # Check 1: Phase feedback FAIL — hard block
 PHASE_FB="${STATE_DIR}/phase-feedback.md"
 if [ -f "$PHASE_FB" ] && grep -qF "FAIL" "$PHASE_FB" 2>/dev/null; then
-  printf "BLOCKED: %s Phase validation FAILED — file writes via Bash are also blocked.\n\n" "$PHASE_CTX" >&2
+  printf "[EVIDENCE GATE] BLOCKED: %s Phase validation FAILED — file writes via Bash are also blocked.\n\n" "$PHASE_CTX" >&2
+  print_evidence_gate_note
   printf "You cannot bypass Write/Edit hooks by writing files through shell commands.\n" >&2
   printf "Use the proper Write/Edit tools after fixing the failure.\n\n" >&2
   printf "READ: .claude/state/phase-feedback.md\n" >&2
   printf "FIX the failure, then use Write to create phase-complete-marker.md.\n" >&2
+  print_gates_ahead
   exit 2
 fi
 
@@ -228,7 +260,8 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
       rm -f "$SLB_ACK_FILE" 2>/dev/null
       : > "$SLB_FAILURE_LOG" 2>/dev/null
     else
-      printf "BLOCKED: %s Strategy loop detected — file-writing Bash commands are locked (Tier 2).\n\n" "$PHASE_CTX" >&2
+      printf "[EVIDENCE GATE] BLOCKED: %s Strategy loop detected — file-writing Bash commands are locked (Tier 2).\n\n" "$PHASE_CTX" >&2
+      print_evidence_gate_note
       if [ -f "$SLB_ACK_FILE" ] && [ -n "$SLB_ACK_REASON" ]; then
         printf "Your strategy-ack.md is INVALID: %s\n\n" "$SLB_ACK_REASON" >&2
       fi
@@ -244,6 +277,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
       else
         printf "\n(No must-do folder found — just describe your new approach.)\n" >&2
       fi
+      print_gates_ahead
       exit 2
     fi
   fi
@@ -297,18 +331,23 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
       elif [ "$EC_B_RESULT" = "FAIL" ]; then
         EC_B_REMED2="${STATE_DIR}/evidence-remediation.md"
         if [ ! -f "$EC_B_REMED2" ] || [ "$(wc -c < "$EC_B_REMED2" 2>/dev/null | tr -d ' ')" -lt 200 ]; then
-          printf "BLOCKED: %s Evidence checkpoint FAILED — remediation plan required.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint FAILED — remediation plan required.\n\n" "$PHASE_CTX" >&2
+          print_evidence_gate_note
           printf "You cannot bypass the evidence checkpoint via shell commands.\n" >&2
           printf "Read the must-do docs and write a remediation plan to .claude/state/evidence-remediation.md first.\n" >&2
         else
-          printf "BLOCKED: %s Evidence checkpoint FAILED — remediation plan accepted.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint FAILED — remediation plan accepted.\n\n" "$PHASE_CTX" >&2
+          print_evidence_gate_note
           printf "Produce evidence in .claude/evidence/, then delete .claude/state/evidence-verdict.json to re-verify.\n" >&2
         fi
+        print_gates_ahead
         exit 2
       fi
     else
-      printf "BLOCKED: %s Evidence checkpoint active — file-writing Bash commands locked.\n\n" "$PHASE_CTX" >&2
+      printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint active — file-writing Bash commands locked.\n\n" "$PHASE_CTX" >&2
+      print_evidence_gate_note
       printf "Spawn a verifier sub-agent. Brief at .claude/state/evidence-checkpoint.json\n" >&2
+      print_gates_ahead
       exit 2
     fi
   fi
@@ -329,9 +368,10 @@ if [ "$WRITES" -ge 2 ]; then
       "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
 
     if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
-      printf "BLOCKED: %s File-writing Bash command detected but no watcher is active for this project.\n\n" "$PHASE_CTX" >&2
+      printf "[ADMIN GATE] BLOCKED: %s File-writing Bash command detected but no watcher is active for this project.\n\n" "$PHASE_CTX" >&2
       printf "You cannot bypass Write/Edit hooks by writing files through shell commands.\n" >&2
       printf "Claim a watcher and set up a cron first, then use the Write/Edit tools.\n" >&2
+      print_gates_ahead
       exit 2
     fi
   fi

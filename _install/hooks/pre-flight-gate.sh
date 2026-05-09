@@ -24,6 +24,30 @@ fi
 
 # --- HARD BLOCK: Phase validation failed — agent MUST address before continuing ---
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null)
+CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
+
+
+print_evidence_gate_note() {
+  printf "This gate applies to ALL tasks regardless of complexity. Simple tasks drift too.\n" >&2
+  printf "This cannot be shortcut.\n\n" >&2
+}
+
+print_gates_ahead() {
+  if type compute_pending_gates >/dev/null 2>&1; then
+    local PROJECT_PATH PENDING_GATES
+    PROJECT_PATH=$(pwd -W 2>/dev/null || pwd)
+    PENDING_GATES=$(compute_pending_gates "$CURRENT_PHASE" "$CURRENT_SPRINT" "$PROJECT_PATH")
+    printf "\nGATES AHEAD (after you clear this):\n" >&2
+    if [ -n "$PENDING_GATES" ]; then
+      printf "%s" "$PENDING_GATES" >&2
+    else
+      printf " -> all clear - write freely\n" >&2
+    fi
+  fi
+}
+
 PHASE_FB="${STATE_DIR}/phase-feedback.md"
 if [ -f "$PHASE_FB" ] && grep -qF "FAIL" "$PHASE_FB" 2>/dev/null; then
   # Allow writes to harness infrastructure paths (needed for phase transitions)
@@ -33,11 +57,13 @@ if [ -f "$PHASE_FB" ] && grep -qF "FAIL" "$PHASE_FB" 2>/dev/null; then
     fi
   done
   # Block source code writes until feedback is addressed
-  printf "BLOCKED: Phase validation FAILED. You MUST fix the issue before writing more code.\n\n" >&2
+  printf "[EVIDENCE GATE] BLOCKED: Phase validation FAILED. You MUST fix the issue before writing more code.\n\n" >&2
+  print_evidence_gate_note
   printf "READ this file NOW:  .claude/state/phase-feedback.md\n\n" >&2
   cat "$PHASE_FB" >&2
   printf "\n\nTo unblock: fix the failure, then write phase-complete-marker.md to re-trigger validation.\n" >&2
   printf "The gate will re-validate. If it passes, phase-feedback.md is removed and writes resume.\n" >&2
+  print_gates_ahead
   exit 2
 fi
 
@@ -129,7 +155,8 @@ if printf '%s' "$TARGET_NORM" | grep -qF '.openclaw/watchers/slot-'; then
   fi
 
   # No match or type mismatch — block with prescription
-  printf "BLOCKED: You cannot mark this step complete without independent verification.\n" >&2
+  printf "[EVIDENCE GATE] BLOCKED: You cannot mark this step complete without independent verification.\n" >&2
+  print_evidence_gate_note
   printf "Step: %s\n\n" "$STEP_TEXT" >&2
   # Include prescriptive file list if available
   if [ -f "${STATE_DIR}/unverified-writes.jsonl" ]; then
@@ -146,6 +173,7 @@ if printf '%s' "$TARGET_NORM" | grep -qF '.openclaw/watchers/slot-'; then
   fi
   printf "Spawn a subagent with the appropriate verification type.\n" >&2
   printf "  Include 'verify' + specific method (test, screenshot, curl, etc.) in the prompt.\n" >&2
+  print_gates_ahead
   exit 2
 fi
 
@@ -253,7 +281,8 @@ fi
 bash "$HOME/.claude/scripts/generate-pre-flight-challenge.sh" "$TARGET_FILE" 2>/dev/null
 
 if [ -f "$CHALLENGE_FILE" ]; then
-  printf "BLOCKED: Pre-flight check required before writing.\n\n" >&2
+  printf "[EVIDENCE GATE] BLOCKED: Pre-flight check required before writing.\n\n" >&2
+  print_evidence_gate_note
   printf "Before you can write to: %s\n\n" "$TARGET_FILE" >&2
   printf "1. READ your challenge: .claude/pre-flight/challenge.md\n" >&2
   printf "2. WRITE your answers to: .claude/pre-flight/response.md\n" >&2
@@ -264,7 +293,8 @@ if [ -f "$CHALLENGE_FILE" ]; then
   printf "   Q4: D\n\n" >&2
   printf "3. Then retry your Write/Edit — the gate will validate and allow if correct.\n" >&2
 else
-  printf "BLOCKED: Pre-flight challenge generation failed. Check watcher slot.\n" >&2
+  printf "[ADMIN GATE] BLOCKED: Pre-flight challenge generation failed. Check watcher slot.\n" >&2
 fi
 
+print_gates_ahead
 exit 2

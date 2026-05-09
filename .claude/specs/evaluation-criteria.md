@@ -1,28 +1,36 @@
-# Turn Packet System — Evaluation Criteria
+# Smoother Agent Journey — Evaluation Criteria (Sprint 23)
 
-## Spec Quality (PLAN/NEGOTIATE phase)
+## Gate Labels (Change 1)
+- EC1: Every BLOCKED message in pre-write-gate.sh has `[ADMIN GATE]` or `[EVIDENCE GATE]` prefix
+- EC2: Every BLOCKED message in pre-bash-gate.sh has `[ADMIN GATE]` or `[EVIDENCE GATE]` prefix
+- EC3: Every BLOCKED message in pre-flight-gate.sh has `[ADMIN GATE]` or `[EVIDENCE GATE]` prefix
+- EC4: Evidence gate blocks include "This cannot be shortcut" or equivalent messaging
+- EC5: Labels match the classification in the spec (admin gates labelled admin, evidence gates labelled evidence)
 
-1. Spec/contract defines what the turn packet contains, not just implementation mechanics.
-2. Spec covers ordered actions, hard blockers, exempt paths, watcher context, read-first files, and done criteria.
-3. Spec covers all 8+ gate conditions from the existing harness gates.
-4. Spec explicitly keeps gates untouched as safety nets.
-5. Spec defines token budgets: steady watcher cockpit under 600 chars, full blocked packet under 1500 chars.
-6. Spec defines dependency ordering: watcher > cron > contract > must-do > MCQ.
-7. Spec addresses the sprint transition deadlock by surfacing missing contract in NEGOTIATE and BUILD.
-8. Spec aligns with the courtroom-to-cockpit / turn-kernel shift in `big -harness-fix.md`.
+## Forward Visibility (Change 2)
+- EC6: Admin gate blocks include a "GATES AHEAD" section listing upcoming gates
+- EC7: Evidence gate blocks include a "GATES AHEAD" section listing upcoming gates
+- EC8: Gates already cleared (e.g. contract exists) are NOT listed in "GATES AHEAD"
+- EC9: Gates that don't apply (e.g. no must-do folder) are NOT listed in "GATES AHEAD"
+- EC10: Gate type ([ADMIN] or [EVIDENCE]) shown for each upcoming gate
 
-## Implementation Criteria (BUILD phase)
+## Turn Packet (Change 3)
+- EC11: on-prompt-submit.sh injects a PENDING line showing uncompleted gates
+- EC12: Cleared gates drop from the PENDING line
+- EC13: When all gates clear, line shows "all clear" or equivalent
+- EC14: PENDING line only appears during BUILD phase
 
-9. Only `on-prompt-submit.sh` and helper additions in `lib-helpers.sh` are modified.
-10. Gate scripts are untouched.
-11. State summary is always present.
-12. Read-first artifacts appear when relevant.
-13. Blocked/fresh agents see a numbered action queue in dependency order.
-14. Action queue items specify tool and target path.
-15. Hard blocks appear as `BLOCKED BY` with resolution.
-16. Exempt paths are listed when tools are locked.
-17. Watcher cockpit shows current step, scope, mistakes, and done criteria when watcher active.
-18. Full packet stays under 1500 chars.
-19. Steady watcher packet stays under 600 chars.
-20. New packet assembly reads state and exits 0; preserved legacy injection/strategy writes remain allowed.
-21. Existing must-do injection/log, evidence checkpoint guidance, and strategy loop behavior are preserved.
+## No-Shortcut Messaging (Change 4)
+- EC15: Turn packet includes process-applies-to-all-tasks note
+- EC16: Evidence gate blocks include "applies to ALL tasks regardless of complexity" or equivalent
+
+## Shared Function (Implementation Quality)
+- EC17: lib-helpers.sh contains a compute_pending_gates() or equivalent shared function
+- EC18: Gate-check logic is NOT duplicated across scripts — scripts call the shared function
+- EC19: bash -n passes on all modified files (no syntax errors)
+
+## No Regressions
+- EC20: No gate evaluation order changed
+- EC21: No gate pass/fail logic changed
+- EC22: No exemption lists changed
+- EC23: All existing block messages still contain their original instructions (labels/visibility are additions, not replacements)

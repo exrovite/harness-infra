@@ -628,6 +628,23 @@ if [ -n "$RALPH_LOOP_LINE" ]; then
 ${RALPH_LOOP_LINE}"
 fi
 
+
+# --- BUILD PIPELINE STATUS ---
+# Sprint 23: show pending gates proactively during BUILD only.
+if [ "$PHASE" = "BUILD" ] && type compute_pending_gates >/dev/null 2>&1; then
+  GATE_PENDING=$(compute_pending_gates "$PHASE" "$SPRINT" "$CURRENT_PROJECT")
+  if [ -n "$GATE_PENDING" ]; then
+    GATE_PENDING_ONE_LINE=$(printf '%s' "$GATE_PENDING" | tr '\012' ' ' | sed 's/^[[:space:]]*->[[:space:]]*//; s/[[:space:]][[:space:]]*/ /g; s/[[:space:]]*$//')
+    CONTEXT_MSG="${CONTEXT_MSG}
+PENDING: ${GATE_PENDING_ONE_LINE}"
+  else
+    CONTEXT_MSG="${CONTEXT_MSG}
+GATES: all clear - write freely"
+  fi
+  CONTEXT_MSG="${CONTEXT_MSG}
+PROCESS NOTE: Every task follows the full gate sequence - no exceptions for \"simple\" edits. The process IS the work; gates catch drift in simple tasks too."
+fi
+
 # --- BUILD ITERATION GUIDANCE ---
 # Injects compound reliability guidance during BUILD phase.
 if [ "$PHASE" = "BUILD" ]; then
@@ -713,9 +730,9 @@ MISTAKES TO AVOID: ${WATCHER_MISTAKES}"; fi
   if [ -n "$WATCHER_DONE" ]; then CONTEXT_MSG="${CONTEXT_MSG}
 DONE WHEN: ${WATCHER_DONE}"; fi
 fi
-if [ -n "$PENDING_ITEMS" ]; then
+if [ "$PHASE" = "BUILD" ] && [ -n "$PENDING_ITEMS" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
-PENDING: ${PENDING_ITEMS}"
+PENDING ITEMS: ${PENDING_ITEMS}"
 fi
 
 # --- MUST-DO SUMMARY INJECTION ---

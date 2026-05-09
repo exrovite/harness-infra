@@ -24,6 +24,27 @@ CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/nu
 CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
 PHASE_CTX="[Phase: ${CURRENT_PHASE} | Sprint: ${CURRENT_SPRINT}]"
 
+
+print_evidence_gate_note() {
+  printf "This gate applies to ALL tasks regardless of complexity. Simple tasks drift too.\n" >&2
+  printf "This cannot be shortcut.\n\n" >&2
+}
+
+print_gates_ahead() {
+  if type compute_pending_gates >/dev/null 2>&1; then
+    local PROJECT_PATH PENDING_GATES
+    PROJECT_PATH=$(pwd -W 2>/dev/null || pwd)
+    PENDING_GATES=$(compute_pending_gates "$CURRENT_PHASE" "$CURRENT_SPRINT" "$PROJECT_PATH")
+    printf "\nGATES AHEAD (after you clear this):\n" >&2
+    if [ -n "$PENDING_GATES" ]; then
+      printf "%s" "$PENDING_GATES" >&2
+    else
+      printf " -> all clear - write freely\n" >&2
+    fi
+  fi
+}
+
+
 # RALPH STATE PROTECTION + COMPLETION GATE
 RALPH_STATE_FILE="${STATE_DIR}/ralph-mode.json"
 RALPH_TARGET=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
@@ -46,7 +67,8 @@ iso_newer_than() {
 }
 
 if printf '%s' "$RALPH_TARGET_NORM" | grep -qiF 'ralph-mode.json'; then
-  printf "BLOCKED: ralph-mode.json is user-controlled. Only the user can activate/deactivate ralph mode.\n" >&2
+  printf "[ADMIN GATE] BLOCKED: ralph-mode.json is user-controlled. Only the user can activate/deactivate ralph mode.\n" >&2
+  print_gates_ahead
   exit 2
 fi
 
@@ -68,7 +90,9 @@ if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/d
   done
 
   if [ "$RALPH_ITER" -gt "$RALPH_MAX" ] && [ "$RALPH_LAST" != "PASS" ] && [ "$RALPH_EXEMPT" = false ]; then
-    printf "BLOCKED: Ralph loop STUCK - %s iterations exhausted without PASS. Write .claude/state/stuck-report.md and wait for user.\n" "$RALPH_MAX" >&2
+    printf "[EVIDENCE GATE] BLOCKED: Ralph loop STUCK - %s iterations exhausted without PASS. Write .claude/state/stuck-report.md and wait for user.\n" "$RALPH_MAX" >&2
+    print_evidence_gate_note
+    print_gates_ahead
     exit 2
   fi
 
@@ -83,7 +107,9 @@ if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/d
       fi
     fi
     if [ "$RALPH_ALLOW_COMPLETE" != true ]; then
-      printf "BLOCKED: Ralph loop active - verifier must return PASS before completion. Spawn a verifier sub-agent, get PASS verdict in evidence-verdict.json, then retry.\n" >&2
+      printf "[EVIDENCE GATE] BLOCKED: Ralph loop active - verifier must return PASS before completion. Spawn a verifier sub-agent, get PASS verdict in evidence-verdict.json, then retry.\n" >&2
+      print_evidence_gate_note
+      print_gates_ahead
       exit 2
     fi
   fi
@@ -110,31 +136,32 @@ if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   if [ "$PG_EXEMPT" = false ]; then
     case "$CURRENT_PHASE" in
       PLAN)
-        printf "BLOCKED: You are in PLAN phase. Source code writes are not allowed.\n\n" >&2
+        printf "[ADMIN GATE] BLOCKED: You are in PLAN phase. Source code writes are not allowed.\n\n" >&2
         printf "In PLAN, you may only write specs and harness state.\n" >&2
         printf "  1. Write your spec to .claude/specs/\n" >&2
         printf "  2. Advance to NEGOTIATE to write a sprint contract\n" >&2
         printf "  3. Advance to BUILD to unlock code writes\n" >&2
         ;;
       NEGOTIATE)
-        printf "BLOCKED: You are in NEGOTIATE phase. Source code writes are not allowed.\n\n" >&2
+        printf "[ADMIN GATE] BLOCKED: You are in NEGOTIATE phase. Source code writes are not allowed.\n\n" >&2
         printf "In NEGOTIATE, you may only write contracts and specs.\n" >&2
         printf "  1. Write your sprint contract to .claude/contracts/\n" >&2
         printf "  2. Advance to BUILD to unlock code writes\n" >&2
         ;;
       EVALUATE)
-        printf "BLOCKED: You are in EVALUATE phase. Source code writes are not allowed.\n\n" >&2
+        printf "[ADMIN GATE] BLOCKED: You are in EVALUATE phase. Source code writes are not allowed.\n\n" >&2
         printf "In EVALUATE, spawn an independent verifier — don't write code yourself.\n" >&2
         printf "If verification passes, advance to COMPLETE or next sprint.\n" >&2
         ;;
       COMPLETE)
-        printf "BLOCKED: Task is COMPLETE. Source code writes are not allowed.\n\n" >&2
+        printf "[ADMIN GATE] BLOCKED: Task is COMPLETE. Source code writes are not allowed.\n\n" >&2
         printf "Start a new sprint if more work is needed.\n" >&2
         ;;
       *)
-        printf "BLOCKED: Unknown phase '%s'. Source code writes are not allowed.\n" "$CURRENT_PHASE" >&2
+        printf "[ADMIN GATE] BLOCKED: Unknown phase '%s'. Source code writes are not allowed.\n" "$CURRENT_PHASE" >&2
         ;;
     esac
+    print_gates_ahead
     exit 2
   fi
   fi
@@ -160,7 +187,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
     if printf '%s' "$TARGET_NORM" | grep -qiF '.claude/pre-flight/'; then exit 0; fi
     if printf '%s' "$TARGET_NORM" | grep -qiF '.claude/evidence/'; then exit 0; fi
     if printf '%s' "$TARGET_NORM" | grep -qiF 'agentwiki/'; then exit 0; fi
-    printf "BLOCKED: BUILD phase requires a contract for sprint %s.\n\n" "$CURRENT_SPRINT" >&2
+    printf "[ADMIN GATE] BLOCKED: BUILD phase requires a contract for sprint %s.\n\n" "$CURRENT_SPRINT" >&2
     printf "No contract found at .claude/contracts/sprint-%s-contract.md\n\n" "$CURRENT_SPRINT" >&2
     printf "You MUST complete the NEGOTIATE phase first:\n" >&2
     printf "  1. Write a sprint proposal to .claude/contracts/sprint-%s-proposal.md\n" "$CURRENT_SPRINT" >&2
@@ -168,6 +195,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
     printf "  3. Write the final contract to .claude/contracts/sprint-%s-contract.md\n" "$CURRENT_SPRINT" >&2
     printf "  4. Then BUILD is unlocked.\n\n" >&2
     printf "Without a contract, there is no scope boundary and work will drift.\n" >&2
+    print_gates_ahead
     exit 2
   fi
 fi
@@ -259,7 +287,8 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
         # Block cleared — fall through to remaining gates
       else
         # Block the write
-        printf "BLOCKED: %s Strategy loop detected — writes are locked (Tier 2).\n\n" "$PHASE_CTX" >&2
+        printf "[EVIDENCE GATE] BLOCKED: %s Strategy loop detected — writes are locked (Tier 2).\n\n" "$PHASE_CTX" >&2
+        print_evidence_gate_note
         if [ -f "$SLB_ACK_FILE" ] && [ -n "$SLB_ACK_REASON" ]; then
           printf "Your strategy-ack.md is INVALID: %s\n\n" "$SLB_ACK_REASON" >&2
         fi
@@ -283,6 +312,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
         else
           printf "\n(No must-do folder found — just describe your new approach.)\n" >&2
         fi
+        print_gates_ahead
         exit 2
       fi
     fi
@@ -392,21 +422,22 @@ if [ -n "$MUST_DO_MD" ]; then
       # Diagnostic header based on reason
       case "$NEED_REASON" in
         no_file)
-          printf "BLOCKED: %s No must-do summary found at .claude/state/must-do-summary.md\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s No must-do summary found at .claude/state/must-do-summary.md\n\n" "$PHASE_CTX" >&2
           ;;
         stale_step)
-          printf "BLOCKED: %s Must-do summary is stale — watcher step changed.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary is stale — watcher step changed.\n\n" "$PHASE_CTX" >&2
           printf "  Watcher is on: %s\n" "$CURRENT_STEP_MD" >&2
           printf "  Summary was for: %s\n\n" "$SAVED_STEP" >&2
           printf "Rewrite your summary AND update .claude/state/must-do-summary-step.txt\n\n" >&2
           ;;
         too_short)
-          printf "BLOCKED: %s Must-do summary is too short (%d chars, minimum 200).\n\n" "$PHASE_CTX" "$SUMMARY_LEN" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary is too short (%d chars, minimum 200).\n\n" "$PHASE_CTX" "$SUMMARY_LEN" >&2
           ;;
         no_mentions)
-          printf "BLOCKED: %s Must-do summary doesn't reference any required file basenames.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary doesn't reference any required file basenames.\n\n" "$PHASE_CTX" >&2
           ;;
       esac
+      print_evidence_gate_note
       printf "Files listed in %s:\n\n" "$MUST_DO_MD" >&2
       while IFS= read -r mdl || [ -n "$mdl" ]; do
         mdl=$(printf '%s' "$mdl" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -420,6 +451,7 @@ if [ -n "$MUST_DO_MD" ]; then
       printf "  3. The summary must be at least 200 characters\n" >&2
       printf "  4. The summary must reference the files you read (use their filenames)\n" >&2
       printf "\nOnly then will code writes be unlocked.\n" >&2
+      print_gates_ahead
       exit 2
     fi
 
@@ -586,7 +618,8 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
         EC_FINDINGS=$(jq -r '.findings[]? | select(.evidence_file == null or .quality == "insufficient") | "  - " + .phase + ": " + (.note // "missing")' "$EC_VERDICT" 2>/dev/null | tr -d '\r')
 
         if [ "$EC_REMED_VALID" = true ]; then
-          printf "BLOCKED: %s Evidence checkpoint FAILED — remediation plan accepted.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint FAILED — remediation plan accepted.\n\n" "$PHASE_CTX" >&2
+          print_evidence_gate_note
           printf "Verifier summary: %s\n\n" "$EC_SUMMARY" >&2
           if [ -n "$EC_FINDINGS" ]; then
             printf "Missing/insufficient evidence:\n%s\n\n" "$EC_FINDINGS" >&2
@@ -595,7 +628,8 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
           printf "  - Delete .claude/state/evidence-verdict.json to re-verify\n" >&2
           printf "  - Or write paths to .claude/state/evidence-paths.json, then delete verdict\n" >&2
         else
-          printf "BLOCKED: %s Evidence checkpoint FAILED — remediation plan required.\n\n" "$PHASE_CTX" >&2
+          printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint FAILED — remediation plan required.\n\n" "$PHASE_CTX" >&2
+          print_evidence_gate_note
           printf "Verifier summary: %s\n\n" "$EC_SUMMARY" >&2
           if [ -n "$EC_FINDINGS" ]; then
             printf "Missing/insufficient evidence:\n%s\n\n" "$EC_FINDINGS" >&2
@@ -621,17 +655,20 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
             done < "${EC_RMD_DIR}/must-do.md"
           fi
         fi
+        print_gates_ahead
         exit 2
       fi
     else
       # No verdict yet — block and tell agent to spawn verifier
-      printf "BLOCKED: %s Evidence checkpoint active — writes locked until verifier completes.\n\n" "$PHASE_CTX" >&2
+      printf "[EVIDENCE GATE] BLOCKED: %s Evidence checkpoint active — writes locked until verifier completes.\n\n" "$PHASE_CTX" >&2
+      print_evidence_gate_note
       printf "A checkpoint was triggered after sustained work. You must verify process compliance.\n\n" >&2
       printf "Spawn a verifier sub-agent. Do NOT tell it what to check — the brief is already\n" >&2
       printf "in its environment at .claude/state/evidence-checkpoint.json\n\n" >&2
       printf "IMPORTANT: Tell the verifier to write its verdict to .claude/state/evidence-verdict.json\n" >&2
       printf "Verdict format: {\"verdict\":\"PASS|FAIL\",\"findings\":[{\"phase\":\"X\",\"evidence_file\":\"path|null\",\n" >&2
       printf "\"quality\":\"substantive|insufficient|null\",\"note\":\"details\"}],\"summary\":\"text\"}\n" >&2
+      print_gates_ahead
       exit 2
     fi
   fi
@@ -664,7 +701,7 @@ if [ -f "$WATCHER_REGISTRY" ]; then
   if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
     # Show available slots so agent knows which to claim
     AVAIL_SLOTS=$(jq -r '[.watchers[] | select(.status == "available") | .slot] | join(", ")' "$WATCHER_REGISTRY" 2>/dev/null)
-    printf "BLOCKED: %s Write/Edit/Agent tools are LOCKED after %s writes.\n\n" "$PHASE_CTX" "$WRITES" >&2
+    printf "[ADMIN GATE] BLOCKED: %s Write/Edit/Agent tools are LOCKED after %s writes.\n\n" "$PHASE_CTX" "$WRITES" >&2
     if [ -n "$AVAIL_SLOTS" ]; then
       printf "Available watcher slots: %s\n\n" "$AVAIL_SLOTS" >&2
     fi
@@ -687,11 +724,12 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     printf '  registry_unlock\n\n' >&2
     printf "All 4 steps required. Tools stay locked until both watcher AND cron are active FOR THIS PROJECT.\n" >&2
     printf "CRITICAL: claimed_at MUST be a current timestamp. Stale watchers (>4h old) are auto-cleaned.\n" >&2
+    print_gates_ahead
     exit 2
   fi
 
   if [ "$ACTIVE_CRON" -eq 0 ]; then
-    printf "BLOCKED: %s Watcher is claimed but NO CRON REMINDER is set up.\n\n" "$PHASE_CTX" >&2
+    printf "[ADMIN GATE] BLOCKED: %s Watcher is claimed but NO CRON REMINDER is set up.\n\n" "$PHASE_CTX" >&2
     printf "Without the cron, you will forget your to-do list and drift.\n\n" >&2
     printf "Set up the 3-minute cron (use CronCreate tool):\n" >&2
     printf '  CronCreate with cron "*/3 * * * *" and prompt "WATCHER REMINDER - Read your watcher slot NOW. Which step am I on? Am I on task? Am I stuck?"\n\n' >&2
@@ -701,6 +739,7 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     printf '  "$HOME/.openclaw/watchers/REGISTRY.json" > /tmp/reg.tmp && mv /tmp/reg.tmp "$HOME/.openclaw/watchers/REGISTRY.json" && \\\n' >&2
     printf '  registry_unlock\n\n' >&2
     printf "Tools stay locked until cron is active.\n" >&2
+    print_gates_ahead
     exit 2
   fi
 fi
