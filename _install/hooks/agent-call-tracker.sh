@@ -45,7 +45,7 @@ fi
 
 # Classify verification type from prompt keywords
 VTYPE="review"
-if printf '%s' "$PROMPT" | grep -qiE 'screenshot|vision|visual|look at|render|UI|inspect.*layout'; then
+if printf '%s' "$PROMPT" | grep -qiE 'screenshot|vision|visual|look at|render|\bUI\b|inspect.*layout'; then
   VTYPE="vision"
 elif printf '%s' "$PROMPT" | grep -qiE 'browser|navigate|page|open.*url|website|localhost'; then
   VTYPE="browser"
@@ -89,7 +89,7 @@ SNIPPET=$(printf '%s' "$PROMPT" | head -c 100 | sed 's/\\/\\\\/g; s/"/\\"/g' | t
 # Append to verification ledger
 mkdir -p "$STATE_DIR" 2>/dev/null
 SAFE_STEP=$(printf '%s' "$CURRENT_STEP" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 200)
-ENTRY=$(printf '{"ts":"%s","step":"%s","phase":"%s","sprint":%s,"prompt_snippet":"%s","verification_type":"%s"}' \
+ENTRY=$(printf '{"ts":"%s","step":"%s","phase":"%s","sprint":"%s","prompt_snippet":"%s","verification_type":"%s"}' \
   "$TS" "$SAFE_STEP" "$PHASE" "$SPRINT" "$SNIPPET" "$VTYPE")
 
 if type append_jsonl >/dev/null 2>&1; then

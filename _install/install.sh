@@ -4,11 +4,12 @@
 #
 # What it does:
 #   1. Copies hooks to ~/.claude/hooks/
-#   2. Copies scripts to ~/.claude/scripts/
-#   3. Copies settings.json to ~/.claude/settings.json
-#   4. Copies CLAUDE.md to ~/.claude/CLAUDE.md
-#   5. Sets up ~/.openclaw/watchers/ with blank registry
-#   6. Sets up ~/.openclaw/distractor-pool/ with MCQ distractors
+#   2. Copies role prompts to ~/.claude/roles/
+#   3. Copies scripts to ~/.claude/scripts/
+#   4. Copies settings.json to ~/.claude/settings.json
+#   5. Copies CLAUDE.md to ~/.claude/CLAUDE.md
+#   6. Sets up ~/.openclaw/watchers/ with blank registry
+#   7. Sets up ~/.openclaw/distractor-pool/ with MCQ distractors
 #
 # Prerequisites: bash, jq
 
@@ -26,26 +27,32 @@ echo "Target:  $CLAUDE_DIR"
 echo ""
 
 # --- Step 1: Create directories ---
-echo "[1/6] Creating directories..."
+echo "[1/7] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"
 mkdir -p "$CLAUDE_DIR/scripts"
+mkdir -p "$CLAUDE_DIR/roles"
 mkdir -p "$OPENCLAW_DIR/watchers"
 mkdir -p "$OPENCLAW_DIR/distractor-pool"
 
 # --- Step 2: Copy hooks ---
-echo "[2/6] Installing hooks..."
+echo "[2/7] Installing hooks..."
 cp "$SCRIPT_DIR/hooks/"* "$CLAUDE_DIR/hooks/"
 chmod +x "$CLAUDE_DIR/hooks/"*
 echo "  -> $(ls "$SCRIPT_DIR/hooks/" | wc -l) hooks installed"
 
-# --- Step 3: Copy scripts ---
-echo "[3/6] Installing scripts..."
+# --- Step 3: Copy role prompts ---
+echo "[3/7] Installing role prompts..."
+cp "$SCRIPT_DIR/roles/"* "$CLAUDE_DIR/roles/"
+echo "  -> $(ls "$SCRIPT_DIR/roles/" | wc -l) roles installed"
+
+# --- Step 4: Copy scripts ---
+echo "[4/7] Installing scripts..."
 cp "$SCRIPT_DIR/scripts/"* "$CLAUDE_DIR/scripts/"
 chmod +x "$CLAUDE_DIR/scripts/"*
 echo "  -> $(ls "$SCRIPT_DIR/scripts/" | wc -l) scripts installed"
 
-# --- Step 4: Copy settings.json ---
-echo "[4/6] Installing settings.json..."
+# --- Step 5: Copy settings.json ---
+echo "[5/7] Installing settings.json..."
 if [ -f "$CLAUDE_DIR/settings.json" ]; then
   BACKUP="$CLAUDE_DIR/settings.json.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/settings.json" "$BACKUP"
@@ -53,8 +60,8 @@ if [ -f "$CLAUDE_DIR/settings.json" ]; then
 fi
 cp "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
 
-# --- Step 5: Copy CLAUDE.md ---
-echo "[5/6] Installing global CLAUDE.md..."
+# --- Step 6: Copy CLAUDE.md ---
+echo "[6/7] Installing global CLAUDE.md..."
 if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
   BACKUP="$CLAUDE_DIR/CLAUDE.md.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/CLAUDE.md" "$BACKUP"
@@ -62,8 +69,8 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
 fi
 cp "$SCRIPT_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
 
-# --- Step 6: Set up openclaw infrastructure ---
-echo "[6/6] Installing openclaw infrastructure..."
+# --- Step 7: Set up openclaw infrastructure ---
+echo "[7/7] Installing openclaw infrastructure..."
 cp "$SCRIPT_DIR/openclaw/distractor-pool/"* "$OPENCLAW_DIR/distractor-pool/" 2>/dev/null || true
 
 # Create blank watcher registry if none exists
@@ -96,6 +103,7 @@ echo "=== Installation Complete ==="
 echo ""
 echo "Installed:"
 echo "  Hooks:      $CLAUDE_DIR/hooks/ ($(ls "$CLAUDE_DIR/hooks/" | wc -l) files)"
+echo "  Roles:      $CLAUDE_DIR/roles/ ($(ls "$CLAUDE_DIR/roles/" | wc -l) files)"
 echo "  Scripts:    $CLAUDE_DIR/scripts/ ($(ls "$CLAUDE_DIR/scripts/" | wc -l) files)"
 echo "  Settings:   $CLAUDE_DIR/settings.json"
 echo "  CLAUDE.md:  $CLAUDE_DIR/CLAUDE.md"

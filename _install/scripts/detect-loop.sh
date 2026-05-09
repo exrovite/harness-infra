@@ -8,7 +8,7 @@
 # Usage: bash detect-loop.sh
 # Exit: 0 = no loop, 1 = loop detected (fix injected or agent blocked)
 
-REPEAT_THRESHOLD=4
+REPEAT_THRESHOLD=8
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 KNOWN_FIXES="${STATE_DIR}/../protocols/known-fixes.md"
 

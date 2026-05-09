@@ -91,6 +91,7 @@ WRITES=${WRITES:-0}
 RALPH_STATE_FILE="${STATE_DIR}/ralph-mode.json"
 RALPH_LOOP_LINE=""
 RALPH_WARNING_LINE=""
+RALPH_AUTO_TRANSITIONED=false
 RALPH_JUST_ACTIVATED=false
 RALPH_PASSED_THIS_TURN=false
 RALPH_ACTIVE=false
@@ -123,6 +124,19 @@ if [ "$RALPH_ACTIVE" = "true" ] && [ -n "$RALPH_SPRINT" ] && [ "$RALPH_SPRINT" !
 fi
 
 if printf '%s' "$PROMPT_TEXT" | grep -qi '\$ralph'; then
+  # Auto-transition: if not in BUILD but a sprint contract exists, advance to BUILD
+  if [ "$PHASE" != "BUILD" ] && [ -f ".claude/contracts/sprint-${SPRINT}-contract.md" ]; then
+    if [ "$PHASE" = "NEGOTIATE" ] || [ "$PHASE" = "COMPLETE" ] || [ "$PHASE" = "PLAN" ]; then
+      mkdir -p "${STATE_DIR}" 2>/dev/null
+      RALPH_TRANS_TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+      printf '# Phase Complete: %s (Sprint %s)\n\nAuto-transitioned to BUILD by $ralph at %s\n' "$PHASE" "$SPRINT" "$RALPH_TRANS_TS" > "${STATE_DIR}/phase-complete-marker.md"
+      printf '{"phase":"BUILD","sprint":%s,"iteration":0}' "${SPRINT:-0}" > "${STATE_DIR}/current-phase.json"
+      PHASE="BUILD"
+      rm -f "${STATE_DIR}/phase-feedback.md" 2>/dev/null
+      RALPH_AUTO_TRANSITIONED=true
+    fi
+  fi
+
   if [ "$PHASE" = "BUILD" ]; then
     if ! ralph_active_from_file; then
       RALPH_OVERRIDE=$(printf '%s' "$PROMPT_TEXT" | grep -oiE '\$ralph:[0-9]+' | head -1 | sed 's/.*://')
@@ -146,7 +160,8 @@ if printf '%s' "$PROMPT_TEXT" | grep -qi '\$ralph'; then
       RALPH_SPRINT="$SPRINT"
     fi
   else
-    RALPH_WARNING_LINE='[RALPH IGNORED] $ralph only activates in BUILD phase.'
+    # No contract exists for this sprint — can't auto-transition
+    RALPH_WARNING_LINE='[RALPH BLOCKED] $ralph requires a sprint contract. Write .claude/contracts/sprint-'${SPRINT}'-contract.md first.'
   fi
 fi
 
@@ -600,6 +615,10 @@ if [ -n "$VERIFIER_RULES" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
 ${VERIFIER_RULES}"
 fi
+if [ "$RALPH_AUTO_TRANSITIONED" = "true" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG}
+[RALPH] Auto-transitioned to BUILD phase. Contract: .claude/contracts/sprint-${SPRINT}-contract.md"
+fi
 if [ -n "$RALPH_WARNING_LINE" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
 ${RALPH_WARNING_LINE}"
@@ -607,6 +626,58 @@ fi
 if [ -n "$RALPH_LOOP_LINE" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
 ${RALPH_LOOP_LINE}"
+fi
+
+# --- BUILD ITERATION GUIDANCE ---
+# Injects compound reliability guidance during BUILD phase.
+if [ "$PHASE" = "BUILD" ]; then
+  BUILD_ITER_FILE="${STATE_DIR}/build-iteration.json"
+  BUILD_ITER_GUIDANCE=""
+
+  if [ -f "$BUILD_ITER_FILE" ] && jq '.' "$BUILD_ITER_FILE" >/dev/null 2>&1; then
+    BI_STATUS=$(jq -r '.status // "running"' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_ITERATION=$(jq -r '.iteration // 0' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_MAX=$(jq -r '.max_iterations // 5' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_FEATURE=$(jq -r '.feature // ""' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_EXIT_CODE=$(jq -r '.last_test_exit_code // ""' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_TEST_OUT=$(jq -r '.last_test_output // ""' "$BUILD_ITER_FILE" 2>/dev/null | tr -d '\r')
+    BI_FEATURE_TAG=""
+    [ -n "$BI_FEATURE" ] && [ "$BI_FEATURE" != "null" ] && BI_FEATURE_TAG=" [${BI_FEATURE}]"
+
+    # Threshold check: iteration >= max triggers STUCK regardless of status field
+    if ! printf '%s' "$BI_ITERATION" | grep -qE '^[0-9]+$'; then BI_ITERATION=0; fi
+    if ! printf '%s' "$BI_MAX" | grep -qE '^[0-9]+$'; then BI_MAX=5; fi
+    if [ "$BI_ITERATION" -ge "$BI_MAX" ] && [ "$BI_STATUS" != "passed" ]; then
+      BUILD_ITER_GUIDANCE="BUILD LOOP: STUCK${BI_FEATURE_TAG} — ${BI_ITERATION}/${BI_MAX} iterations exhausted without passing. STOP and escalate to user with exact errors."
+    elif [ "$BI_STATUS" = "stuck" ]; then
+      BUILD_ITER_GUIDANCE="BUILD LOOP: STUCK${BI_FEATURE_TAG} at iteration ${BI_ITERATION}/${BI_MAX}. STOP and escalate to user with exact errors."
+    elif [ "$BI_STATUS" = "passed" ]; then
+      BUILD_ITER_GUIDANCE="BUILD LOOP: Tests PASSED${BI_FEATURE_TAG} at iteration ${BI_ITERATION}. Proceed to next feature or spawn verifier."
+    elif [ -n "$BI_EXIT_CODE" ] && [ "$BI_EXIT_CODE" != "0" ] && [ "$BI_EXIT_CODE" != "null" ]; then
+      # Test failed — inject error feedback (truncated to 500 chars to stay in budget)
+      BI_TRUNCATED=$(printf '%s' "$BI_TEST_OUT" | head -c 500)
+      if [ -n "$BI_TRUNCATED" ]; then
+        BUILD_ITER_GUIDANCE="BUILD LOOP: Iteration ${BI_ITERATION}/${BI_MAX}${BI_FEATURE_TAG} — tests FAILED (exit ${BI_EXIT_CODE}). Fix this error then rerun:
+${BI_TRUNCATED}"
+      else
+        BUILD_ITER_GUIDANCE="BUILD LOOP: Iteration ${BI_ITERATION}/${BI_MAX}${BI_FEATURE_TAG} — tests FAILED (exit ${BI_EXIT_CODE}). Run tests, read output, fix."
+      fi
+    fi
+  fi
+
+  # First BUILD entry or no iteration file — show setup guidance
+  if [ -z "$BUILD_ITER_GUIDANCE" ]; then
+    BUILD_ITER_GUIDANCE="BUILD LOOP: After each code change — run tests, capture output to .claude/state/build-iteration.json, fix failures. Roles: .claude/roles/executor.md (implement), .claude/roles/verifier.md (verify)."
+    if [ ! -f "${STATE_DIR}/context-snapshot.md" ]; then
+      BUILD_ITER_GUIDANCE="${BUILD_ITER_GUIDANCE}
+CONTEXT: Before implementing, explore the target codebase and write a ~100 line snapshot to .claude/state/context-snapshot.md (files, patterns, test structure, dependencies)."
+    fi
+  fi
+
+  if [ -n "$BUILD_ITER_GUIDANCE" ]; then
+    CONTEXT_MSG="${CONTEXT_MSG}
+${BUILD_ITER_GUIDANCE}"
+  fi
 fi
 
 if [ -n "$READS" ]; then

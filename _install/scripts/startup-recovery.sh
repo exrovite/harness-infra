@@ -49,8 +49,8 @@ if [ -f "$PHASE_FB" ]; then
     NOW=$(date +%s)
     FB_AGE=$(( NOW - FB_MTIME ))
   fi
-  if [ "$FB_AGE" -gt 7200 ]; then
-    printf "startup-recovery: Clearing stale phase-feedback.md (age: %ss). Agent can re-trigger validation.\n" "$FB_AGE" >&2
+  if [ "$FB_AGE" -gt 1800 ]; then
+    printf "startup-recovery: Clearing stale phase-feedback.md (age: %ss, threshold: 30min). Agent can re-trigger validation.\n" "$FB_AGE" >&2
     rm -f "$PHASE_FB" 2>/dev/null
   else
     printf "startup-recovery: phase-feedback.md exists (age: %ss). Agent must address it.\n" "$FB_AGE" >&2

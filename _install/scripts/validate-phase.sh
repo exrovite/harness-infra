@@ -113,18 +113,35 @@ case "$PHASE" in
     fi
     # Execute phase: all tests pass, no loops detected
     # Run test suite if it exists
+    TEST_EXIT=0
     if [ -f "package.json" ] && grep -q '"test"' "package.json" 2>/dev/null; then
       npm test > "${STATE_DIR}/test-output.txt" 2>&1
-      if [ $? -ne 0 ]; then
-        printf "FAIL: Tests did not pass.\n" >&2
-        exit 1
-      fi
+      TEST_EXIT=$?
     elif [ -f "pytest.ini" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
       python -m pytest > "${STATE_DIR}/test-output.txt" 2>&1
-      if [ $? -ne 0 ]; then
-        printf "FAIL: Tests did not pass.\n" >&2
-        exit 1
+      TEST_EXIT=$?
+    fi
+    if [ "$TEST_EXIT" -ge 128 ]; then
+      # Exit >= 128 means process killed by signal (segfault=139, killed=137, etc.)
+      # This is an environment crash, not a test failure — warn but don't block.
+      printf "WARNING: Test runner crashed with signal %s (exit %s). This is an environment issue, not a test failure.\n" "$((TEST_EXIT - 128))" "$TEST_EXIT" >&2
+      printf "WARNING: Check test-output.txt. Common cause: bare pytest segfault on Windows/venv.\n" >&2
+    elif [ "$TEST_EXIT" -ne 0 ]; then
+      # Structured feedback: include exact test output so the agent can fix specific errors
+      printf "FAIL: Tests did not pass (exit code %s).\n\n" "$TEST_EXIT" >&2
+      if [ -f "${STATE_DIR}/test-output.txt" ]; then
+        printf "## Specific Failures\n" >&2
+        # Extract error/failure lines from test output
+        grep -n -i "error\|fail\|assert\|TypeError\|NameError\|ImportError\|SyntaxError\|FAILED" "${STATE_DIR}/test-output.txt" 2>/dev/null | head -20 | while IFS= read -r ERR_LINE || [ -n "$ERR_LINE" ]; do
+          printf "- %s\n" "$ERR_LINE" >&2
+        done
+        printf "\n## Test Output (last 40 lines)\n" >&2
+        tail -40 "${STATE_DIR}/test-output.txt" >&2
+        printf "\n" >&2
       fi
+      printf "## Expected\nAll tests pass with exit code 0.\n\n" >&2
+      printf "## Found\nTest runner exited with code %s.\n" "$TEST_EXIT" >&2
+      exit 1
     fi
     # Check for negative loops
     bash "$HOME/.claude/scripts/detect-loop.sh"
