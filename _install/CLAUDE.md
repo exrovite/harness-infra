@@ -13,7 +13,7 @@ The harness hooks keep them updated automatically — you are reading CURRENT st
 4. **Read** `.agent-memory/working/session-context.md` (if exists) — last known session state with modified files
 5. If `.claude/state/injected-context.md` exists: read it — these are known fixes relevant to your work
 6. If `.claude/state/watcher-self-check.md` exists: **READ IT** — the harness detected sustained work without a watcher
-7. **Read** `G:\AgentWiki\index.md` — scan for wiki pages relevant to your current task. Read relevant pages from `G:\AgentWiki\{project-slug}\`. Check `G:\AgentWiki\_dropbox\` for unprocessed session data — if any exist, process them following `G:\AgentWiki\_schema\SCHEMA.md`.
+7. If `~/AgentWiki/index.md` exists: **Read** it — scan for wiki pages relevant to your current task. Read relevant pages from `~/AgentWiki/{project-slug}/`. Check `~/AgentWiki/_dropbox/` for unprocessed session data — if any exist, process them following `~/AgentWiki/_schema/SCHEMA.md`.
 
 If NONE of these files exist: the harness will auto-initialize on your first file write — just proceed normally.
 
@@ -27,11 +27,11 @@ The watcher keeps you on task. It fires every 3 minutes and forces you to check 
 
 The harness hook will prompt you after 5+ file writes if no watcher is claimed. Answer its self-check questions honestly.
 
-**Location**: `C:\Users\exrov\.openclaw\watchers\`
+**Location**: `~/.openclaw/watchers/`
 There are 5 reusable slots (`slot-1.md` through `slot-5.md`).
 
 ### When you receive a multi-step task:
-1. **Read** `C:\Users\exrov\.openclaw\watchers\REGISTRY.json` — find an available slot
+1. **Read** `~/.openclaw/watchers/REGISTRY.json` — find an available slot
 2. **Claim the slot** — update REGISTRY.json status to "active", write your name and timestamp
 3. **Fill the slot** with:
    - What task you're doing
