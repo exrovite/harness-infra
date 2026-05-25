@@ -51,7 +51,7 @@ print_gates_ahead() {
 PHASE_FB="${STATE_DIR}/phase-feedback.md"
 if [ -f "$PHASE_FB" ] && grep -qF "FAIL" "$PHASE_FB" 2>/dev/null; then
   # Allow writes to harness infrastructure paths (needed for phase transitions)
-  for FB_PAT in '.claude/state/' '.openclaw/watchers/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.agent-memory/' 'agentwiki/'; do
+  for FB_PAT in '.claude/state/' '.openclaw/watchers/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.agent-memory/' 'agentwiki/' '.claude/evidence/'; do
     if printf '%s' "$TARGET_NORM" | grep -qiF "$FB_PAT"; then
       exit 0
     fi
