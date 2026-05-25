@@ -62,7 +62,7 @@ case "$PHASE" in
     CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
     SPRINT_ENTRIES=0
     if [ -f "$LEDGER" ]; then
-      SPRINT_ENTRIES=$(grep '"phase":"BUILD"' "$LEDGER" | grep -c "\"sprint\":${CURRENT_SPRINT}" 2>/dev/null) || SPRINT_ENTRIES=0
+      SPRINT_ENTRIES=$(grep '"phase":"BUILD"' "$LEDGER" | grep -cE "\"sprint\":\"?${CURRENT_SPRINT}\"?" 2>/dev/null) || SPRINT_ENTRIES=0
     fi
     if [ "$SPRINT_ENTRIES" -eq 0 ]; then
       printf "FAIL: Phase completion requires at least one independent verification during BUILD (sprint %s).\n" "$CURRENT_SPRINT" >&2
@@ -84,7 +84,7 @@ case "$PHASE" in
     # Verification type check: strongest type must satisfy classifier requirements
     if [ -f "${STATE_DIR}/unverified-writes.jsonl" ]; then
       BEST_VTYPE="review"
-      for VT in $(grep '"phase":"BUILD"' "$LEDGER" | grep "\"sprint\":${CURRENT_SPRINT}" | jq -r '.verification_type // "review"' 2>/dev/null); do
+      for VT in $(grep '"phase":"BUILD"' "$LEDGER" | grep -E "\"sprint\":\"?${CURRENT_SPRINT}\"?" | jq -r '.verification_type // "review"' 2>/dev/null); do
         case "$VT" in
           browser)    BEST_VTYPE="browser" ;;
           vision)     [ "$BEST_VTYPE" != "browser" ] && BEST_VTYPE="vision" ;;
@@ -159,7 +159,7 @@ case "$PHASE" in
     CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)
     SPRINT_ENTRIES=0
     if [ -f "$LEDGER" ]; then
-      SPRINT_ENTRIES=$(grep '"phase":"EVALUATE"' "$LEDGER" | grep -c "\"sprint\":${CURRENT_SPRINT}" 2>/dev/null) || SPRINT_ENTRIES=0
+      SPRINT_ENTRIES=$(grep '"phase":"EVALUATE"' "$LEDGER" | grep -cE "\"sprint\":\"?${CURRENT_SPRINT}\"?" 2>/dev/null) || SPRINT_ENTRIES=0
     fi
     if [ "$SPRINT_ENTRIES" -eq 0 ]; then
       printf "FAIL: Phase completion requires at least one independent verification during EVALUATE (sprint %s).\n" "$CURRENT_SPRINT" >&2
