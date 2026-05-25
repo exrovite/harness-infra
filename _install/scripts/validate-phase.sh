@@ -133,7 +133,7 @@ case "$PHASE" in
         printf "## Specific Failures\n" >&2
         # Extract error/failure lines from test output
         grep -n -i "error\|fail\|assert\|TypeError\|NameError\|ImportError\|SyntaxError\|FAILED" "${STATE_DIR}/test-output.txt" 2>/dev/null | head -20 | while IFS= read -r ERR_LINE || [ -n "$ERR_LINE" ]; do
-          printf "- %s\n" "$ERR_LINE" >&2
+          printf -- "- %s\n" "$ERR_LINE" >&2
         done
         printf "\n## Test Output (last 40 lines)\n" >&2
         tail -40 "${STATE_DIR}/test-output.txt" >&2
