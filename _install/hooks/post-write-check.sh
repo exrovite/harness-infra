@@ -293,6 +293,47 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_SUMMARY_FILE" ]; then
   fi
 fi
 
+# --- RALPH AUTO-DEACTIVATION ON VERIFIER PASS ---
+# When evidence-verdict.json is written with PASS while ralph is active,
+# update ralph state immediately (don't wait for next UserPromptSubmit).
+RALPH_STATE_FILE="${STATE_DIR}/ralph-mode.json"
+VERDICT_NORM=$(printf '%s' "$TOOL_FILE_PATH" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
+if printf '%s' "$VERDICT_NORM" | grep -qF 'evidence-verdict.json'; then
+  if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/dev/null 2>&1; then
+    RALPH_V=$(jq -r '.verdict // ""' "${STATE_DIR}/evidence-verdict.json" 2>/dev/null | tr -d '\r')
+    if [ "$RALPH_V" = "PASS" ]; then
+      RALPH_VTS=$(jq -r '.timestamp // .checked_at // .verdict_at // .created_at // .ts // ""' "${STATE_DIR}/evidence-verdict.json" 2>/dev/null | tr -d '\r')
+      RALPH_LAST_AT=$(jq -r '.last_verdict_at // ""' "$RALPH_STATE_FILE" 2>/dev/null | tr -d '\r')
+      # Timestamp freshness check (same logic as on-prompt-submit.sh)
+      RALPH_IS_FRESH=false
+      if [ -z "$RALPH_LAST_AT" ] || [ "$RALPH_LAST_AT" = "null" ]; then
+        RALPH_IS_FRESH=true
+      elif [ -n "$RALPH_VTS" ]; then
+        R_NEW=$(date -d "$RALPH_VTS" +%s 2>/dev/null) || R_NEW=""
+        R_OLD=$(date -d "$RALPH_LAST_AT" +%s 2>/dev/null) || R_OLD=""
+        if [ -n "$R_NEW" ] && [ -n "$R_OLD" ]; then
+          [ "$R_NEW" -gt "$R_OLD" ] && RALPH_IS_FRESH=true
+        elif [[ "$RALPH_VTS" > "$RALPH_LAST_AT" ]]; then
+          RALPH_IS_FRESH=true
+        fi
+      fi
+      if [ "$RALPH_IS_FRESH" = true ]; then
+        RALPH_UPDATED=$(jq -c --arg ts "$RALPH_VTS" \
+          '.last_verdict="PASS" | .active=false | .last_verdict_at=$ts | .failed_criteria=[]' \
+          "$RALPH_STATE_FILE" 2>/dev/null | tr -d '\r')
+        if [ -n "$RALPH_UPDATED" ]; then
+          if type atomic_write >/dev/null 2>&1; then
+            atomic_write "$RALPH_UPDATED" "$RALPH_STATE_FILE"
+          else
+            printf '%s' "$RALPH_UPDATED" > "$RALPH_STATE_FILE"
+          fi
+          echo "ralph: auto-deactivated on verifier PASS" >&2
+        fi
+      fi
+    fi
+  fi
+fi
+
 # --- CHECK FOR PENDING ACTIONS ---
 PENDING=""
 if [ -f "${STATE_DIR}/phase-feedback.md" ]; then
