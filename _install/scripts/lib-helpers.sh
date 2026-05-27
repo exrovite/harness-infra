@@ -253,6 +253,104 @@ compute_pending_gates() {
   printf '%s' "$PENDING"
 }
 
+# test_lock_acquire — Acquire exclusive test execution lock (GPU mutex)
+# Usage: test_lock_acquire "harness|agent" "python -m pytest"
+# Returns: 0 on success, 1 if already locked
+test_lock_acquire() {
+  local SOURCE="${1:-harness}"
+  local COMMAND="${2:-unknown}"
+  local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+  local LOCKDIR="${STATE_DIR}/.test-lock"
+  local LOCKFILE="${STATE_DIR}/test-lock.json"
+
+  # Attempt atomic mkdir
+  if ! mkdir "$LOCKDIR" 2>/dev/null; then
+    # Lock exists — check if stale
+    if test_lock_check 2>/dev/null; then
+      # Lock is valid (PID alive + fresh) — cannot acquire
+      return 1
+    fi
+    # Stale lock was auto-released by test_lock_check — retry once
+    if ! mkdir "$LOCKDIR" 2>/dev/null; then
+      return 1
+    fi
+  fi
+
+  # Write lock metadata
+  local TS
+  TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  local SAFE_CMD
+  SAFE_CMD=$(printf '%s' "$COMMAND" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 200)
+  printf '{"pid":%d,"started_at":"%s","command":"%s","source":"%s"}' \
+    "$$" "$TS" "$SAFE_CMD" "$SOURCE" > "$LOCKFILE" 2>/dev/null
+  return 0
+}
+
+# test_lock_release — Release test execution lock
+# Usage: test_lock_release
+test_lock_release() {
+  local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+  rm -f "${STATE_DIR}/test-lock.json" 2>/dev/null
+  rm -rf "${STATE_DIR}/.test-lock" 2>/dev/null
+  return 0
+}
+
+# test_lock_check — Check if test lock is currently held and valid
+# Usage: test_lock_check
+# Returns: 0 if locked (PID alive + not stale), 1 if unlocked or stale
+# Side effect: auto-releases stale locks
+test_lock_check() {
+  local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+  local LOCKDIR="${STATE_DIR}/.test-lock"
+  local LOCKFILE="${STATE_DIR}/test-lock.json"
+
+  # No lock dir or no lock file = unlocked
+  if [ ! -d "$LOCKDIR" ] || [ ! -f "$LOCKFILE" ]; then
+    return 1
+  fi
+
+  # Read lock metadata
+  local LOCK_PID LOCK_TS
+  LOCK_PID=$(jq -r '.pid // 0' "$LOCKFILE" 2>/dev/null | tr -d '\r')
+  LOCK_TS=$(jq -r '.started_at // ""' "$LOCKFILE" 2>/dev/null | tr -d '\r')
+
+  if ! printf '%s' "$LOCK_PID" | grep -qE '^[0-9]+$'; then
+    LOCK_PID=0
+  fi
+
+  # Check 1: PID alive?
+  if [ "$LOCK_PID" -gt 0 ]; then
+    if ! kill -0 "$LOCK_PID" 2>/dev/null; then
+      # PID dead — stale lock, auto-release
+      test_lock_release
+      return 1
+    fi
+  else
+    # No valid PID — stale
+    test_lock_release
+    return 1
+  fi
+
+  # Check 2: Timestamp freshness (default 120s max)
+  if [ -n "$LOCK_TS" ] && [ "$LOCK_TS" != "null" ]; then
+    local LOCK_EPOCH NOW_EPOCH
+    LOCK_EPOCH=$(date -d "$LOCK_TS" +%s 2>/dev/null) || LOCK_EPOCH=""
+    NOW_EPOCH=$(date +%s 2>/dev/null) || NOW_EPOCH=""
+    if [ -n "$LOCK_EPOCH" ] && [ -n "$NOW_EPOCH" ]; then
+      local AGE=$((NOW_EPOCH - LOCK_EPOCH))
+      local MAX_AGE="${TEST_LOCK_MAX_AGE:-120}"
+      if [ "$AGE" -gt "$MAX_AGE" ]; then
+        # Too old — stale, auto-release
+        test_lock_release
+        return 1
+      fi
+    fi
+  fi
+
+  # Lock is valid
+  return 0
+}
+
 # check_watcher_for_project Ã¢â‚¬â€ Return active watcher slot for a project, or empty string
 # Usage: check_watcher_for_project "G:/path" [registry_path]
 check_watcher_for_project() {

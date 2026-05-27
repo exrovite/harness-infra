@@ -351,8 +351,24 @@ fi
 # Strip leading " | "
 PENDING="${PENDING# | }"
 
+# --- HARNESS TEST RESULT INJECTION (C3: AC10) ---
+HARNESS_TEST_STATUS=""
+HARNESS_RESULT_FILE="${STATE_DIR}/harness-test-result.json"
+if [ -f "$HARNESS_RESULT_FILE" ] && jq '.' "$HARNESS_RESULT_FILE" >/dev/null 2>&1; then
+  HT_PASSED=$(jq -r '.passed // false' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+  HT_EXIT=$(jq -r '.exit_code // ""' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+  if [ "$HT_PASSED" = "true" ]; then
+    HARNESS_TEST_STATUS="HARNESS_TESTS: PASSED"
+  else
+    HARNESS_TEST_STATUS="HARNESS_TESTS: FAILED (exit ${HT_EXIT})"
+  fi
+fi
+
 # --- BUILD THE additionalContext STRING ---
 CONTEXT_MSG="[HARNESS] Phase: ${PHASE} | Sprint: ${SPRINT} | Iter: ${ITERATION} | Writes: ${WRITES} | Watcher: ${WATCHER_STATUS}"
+if [ -n "$HARNESS_TEST_STATUS" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG} | ${HARNESS_TEST_STATUS}"
+fi
 if [ -n "$PENDING" ]; then
   CONTEXT_MSG="${CONTEXT_MSG} | PENDING: ${PENDING}"
 fi

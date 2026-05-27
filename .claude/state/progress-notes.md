@@ -1,27 +1,29 @@
 # Progress Notes — Harness Infrastructure
 
-## Current: Sprint 26 COMPLETE — Ralph Auto-Deactivation on Verifier PASS
+## Current: Sprint 27 BUILD COMPLETE — GPU Test Coordination Protocol
 
 ### Problem
-ralph-mode.json stayed active:true after verifier returned PASS because the only hook processing verdicts (on-prompt-submit.sh) only fires on user prompts, not during autonomous agent turns.
+Harness auto-runs `python -m pytest` in validate-phase.sh (Phantom TDD defense). This caused: GPU contention (two test processes load models), agent unawareness (doesn't know harness tests run), duplicate runs, no timeout/cleanup.
 
-### What Was Built
-- Added ralph auto-deactivation section to `post-write-check.sh` (PostToolUse hook)
-- When evidence-verdict.json is written with PASS while ralph active, immediately sets active:false
-- Timestamp freshness check (epoch + ISO lexicographic fallback)
-- atomic_write with printf fallback
-- Both live and install copies synced and identical
+### What Was Built (5 components)
+- **C1** (lib-helpers.sh): test_lock_acquire/release/check — mkdir atomic mutex, PID-alive check, staleness auto-release
+- **C2** (pre-bash-gate.sh): Agent test blocking — detects pytest/npm test/jest, checks test-lock.json, blocks with GPU GATE if harness holds lock
+- **C3** (post-write-check.sh + on-prompt-submit.sh): Result injection — reads harness-test-result.json, injects PASSED/FAILED status into context
+- **C4** (validate-phase.sh + on-prompt-submit.sh): Deduplication — skips re-run if fresh PASS exists (<5min) or agent just ran tests; dedup guidance tells agent to skip re-run
+- **C5** (validate-phase.sh): Timeout/cleanup — GNU timeout wraps test command, test-config.json for custom cmd/timeout, pyproject.toml addopts passthrough
 
-### What Was NOT Changed
-- on-prompt-submit.sh verdict processing (kept as fallback)
-- pre-write-gate.sh ralph blocks
-- pre-bash-gate.sh ralph blocks
-- Phase validation, evidence checkpoint, write tracking sections
+### Files Modified (5 files, 10 copies)
+- `lib-helpers.sh` — 3 new functions (test_lock_acquire/release/check)
+- `validate-phase.sh` — replaced test section with dedup+lock+timeout+result-write
+- `pre-bash-gate.sh` — test command detection + lock check before allow
+- `post-write-check.sh` — harness test result injection into CONTEXT_MSG
+- `on-prompt-submit.sh` — harness test result + dedup guidance into turn packet
+- All synced to `_install/` copies, all 10 pass `bash -n`
 
-### Verification
-- Independent sub-agent: 15/15 PASS
-- bash -n: both copies pass
-- git diff: no changes to on-prompt-submit.sh, pre-write-gate.sh, pre-bash-gate.sh
+### Awaiting Verification
+- Independent sub-agent needed for 33 acceptance criteria
+
+## Previous: Sprint 26 COMPLETE — Ralph Auto-Deactivation on Verifier PASS
 
 ## Previous: Sprint 22 COMPLETE — Compound Reliability Foundations
 ## Previous: Sprint 21 COMPLETE — Segfault Detection + Stale Timeout

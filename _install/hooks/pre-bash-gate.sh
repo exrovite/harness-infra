@@ -83,6 +83,35 @@ if printf '%s' "$COMMAND" | grep -qE '\b(cp|mv)\b\s+.+\s+[a-zA-Z."$]'; then
   WRITES_FILES=true
 fi
 
+# --- TEST LOCK CHECK (C2: GPU mutex enforcement) ---
+# Block test commands when harness holds the test lock.
+# Must run BEFORE the WRITES_FILES exit — test commands don't write files.
+IS_TEST_CMD=false
+if printf '%s' "$COMMAND" | grep -qE '(^|\s|&&|\|\||;)(python\s+-m\s+)?pytest(\s|$)'; then
+  IS_TEST_CMD=true
+elif printf '%s' "$COMMAND" | grep -qE '(^|\s|&&|\|\||;)npm\s+test(\s|$)'; then
+  IS_TEST_CMD=true
+elif printf '%s' "$COMMAND" | grep -qE '(^|\s|&&|\|\||;)npx\s+jest(\s|$)'; then
+  IS_TEST_CMD=true
+fi
+
+if [ "$IS_TEST_CMD" = true ]; then
+  TEST_LOCK_FILE="${STATE_DIR}/test-lock.json"
+  if [ -f "$TEST_LOCK_FILE" ] && jq '.' "$TEST_LOCK_FILE" >/dev/null 2>&1; then
+    TL_SOURCE=$(jq -r '.source // ""' "$TEST_LOCK_FILE" 2>/dev/null | tr -d '\r')
+    TL_PID=$(jq -r '.pid // 0' "$TEST_LOCK_FILE" 2>/dev/null | tr -d '\r')
+    if ! printf '%s' "$TL_PID" | grep -qE '^[0-9]+$'; then TL_PID=0; fi
+    # Only block if locked by harness AND PID is alive
+    if [ "$TL_SOURCE" = "harness" ] && [ "$TL_PID" -gt 0 ] && kill -0 "$TL_PID" 2>/dev/null; then
+      printf "${PHASE_CTX} [GPU GATE] BLOCKED: HARNESS TESTS RUNNING (PID %s). Wait for harness test completion before running your own tests.\n" "$TL_PID" >&2
+      printf "The harness is independently verifying test results. This prevents GPU contention.\n" >&2
+      printf "Check .claude/state/harness-test-result.json for results when done.\n" >&2
+      print_gates_ahead
+      exit 2
+    fi
+  fi
+fi
+
 # If no file-writing detected, allow
 if [ "$WRITES_FILES" = false ]; then
   exit 0

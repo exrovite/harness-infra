@@ -645,6 +645,35 @@ GATES: all clear - write freely"
 PROCESS NOTE: Every task follows the full gate sequence - no exceptions for \"simple\" edits. The process IS the work; gates catch drift in simple tasks too."
 fi
 
+# --- HARNESS TEST RESULT INJECTION (C3: AC11) + DEDUP GUIDANCE (C4: AC13) ---
+if [ "$PHASE" = "BUILD" ]; then
+  HARNESS_RESULT_FILE="${STATE_DIR}/harness-test-result.json"
+  if [ -f "$HARNESS_RESULT_FILE" ] && jq '.' "$HARNESS_RESULT_FILE" >/dev/null 2>&1; then
+    HT_PASSED=$(jq -r '.passed // false' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+    HT_EXIT=$(jq -r '.exit_code // ""' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+    HT_RAN_AT=$(jq -r '.ran_at // ""' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+    HT_COUNT=$(jq -r '.test_count // 0' "$HARNESS_RESULT_FILE" 2>/dev/null | tr -d '\r')
+    if [ "$HT_PASSED" = "true" ]; then
+      CONTEXT_MSG="${CONTEXT_MSG}
+[HARNESS TESTS: PASSED] ${HT_COUNT} tests passed (ran at ${HT_RAN_AT}). Tests verified by harness — skip re-run unless you changed code since."
+    else
+      HT_OUTPUT=""
+      HT_OUTPUT_FILE="${STATE_DIR}/test-output.txt"
+      if [ -f "$HT_OUTPUT_FILE" ]; then
+        HT_OUTPUT=$(tail -20 "$HT_OUTPUT_FILE" 2>/dev/null | head -c 500)
+      fi
+      if [ -n "$HT_OUTPUT" ]; then
+        CONTEXT_MSG="${CONTEXT_MSG}
+[HARNESS TESTS: FAILED] exit ${HT_EXIT} (ran at ${HT_RAN_AT}). Fix these failures:
+${HT_OUTPUT}"
+      else
+        CONTEXT_MSG="${CONTEXT_MSG}
+[HARNESS TESTS: FAILED] exit ${HT_EXIT} (ran at ${HT_RAN_AT}). Run tests to see errors."
+      fi
+    fi
+  fi
+fi
+
 # --- BUILD ITERATION GUIDANCE ---
 # Injects compound reliability guidance during BUILD phase.
 if [ "$PHASE" = "BUILD" ]; then

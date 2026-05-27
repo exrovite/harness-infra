@@ -112,26 +112,149 @@ case "$PHASE" in
       rm -f "$BUILD_CLS_TMP"
     fi
     # Execute phase: all tests pass, no loops detected
-    # Run test suite if it exists
-    TEST_EXIT=0
-    if [ -f "package.json" ] && grep -q '"test"' "package.json" 2>/dev/null; then
-      npm test > "${STATE_DIR}/test-output.txt" 2>&1
-      TEST_EXIT=$?
-    elif [ -f "pytest.ini" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
-      python -m pytest > "${STATE_DIR}/test-output.txt" 2>&1
-      TEST_EXIT=$?
+    # Load helpers for test lock
+    source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+
+    # --- DEDUPLICATION: skip if fresh test result exists ---
+    TEST_SKIP=false
+    RESULT_FILE="${STATE_DIR}/harness-test-result.json"
+    DEDUP_WINDOW="${TEST_DEDUP_WINDOW:-300}"
+
+    # Check harness-test-result.json freshness (C4: AC12)
+    if [ -f "$RESULT_FILE" ] && jq '.' "$RESULT_FILE" >/dev/null 2>&1; then
+      HR_PASSED=$(jq -r '.passed // false' "$RESULT_FILE" 2>/dev/null | tr -d '\r')
+      HR_RAN_AT=$(jq -r '.ran_at // ""' "$RESULT_FILE" 2>/dev/null | tr -d '\r')
+      if [ "$HR_PASSED" = "true" ] && [ -n "$HR_RAN_AT" ]; then
+        HR_EPOCH=$(date -d "$HR_RAN_AT" +%s 2>/dev/null) || HR_EPOCH=""
+        HR_NOW=$(date +%s 2>/dev/null) || HR_NOW=""
+        if [ -n "$HR_EPOCH" ] && [ -n "$HR_NOW" ]; then
+          HR_AGE=$((HR_NOW - HR_EPOCH))
+          if [ "$HR_AGE" -lt "$DEDUP_WINDOW" ]; then
+            printf "SKIP: harness tests already verified %ss ago (within %ss window).\n" "$HR_AGE" "$DEDUP_WINDOW" >&2
+            TEST_SKIP=true
+          fi
+        fi
+      fi
     fi
-    if [ "$TEST_EXIT" -ge 128 ]; then
-      # Exit >= 128 means process killed by signal (segfault=139, killed=137, etc.)
-      # This is an environment crash, not a test failure — warn but don't block.
+
+    # Check tdd-events.jsonl for recent agent test run (C4: AC14a)
+    if [ "$TEST_SKIP" = false ]; then
+      TDD_EVENTS="${STATE_DIR}/tdd/tdd-events.jsonl"
+      if [ -f "$TDD_EVENTS" ]; then
+        AGENT_RUN=$(tail -20 "$TDD_EVENTS" 2>/dev/null | grep '"event":"TEST_RUN_COMPLETE"' | grep '"exit_code":0' | tail -1)
+        if [ -n "$AGENT_RUN" ]; then
+          AR_TS=$(printf '%s' "$AGENT_RUN" | jq -r '.ts // ""' 2>/dev/null | tr -d '\r')
+          if [ -n "$AR_TS" ]; then
+            AR_EPOCH=$(date -d "$AR_TS" +%s 2>/dev/null) || AR_EPOCH=""
+            AR_NOW=$(date +%s 2>/dev/null) || AR_NOW=""
+            if [ -n "$AR_EPOCH" ] && [ -n "$AR_NOW" ]; then
+              AR_AGE=$((AR_NOW - AR_EPOCH))
+              if [ "$AR_AGE" -lt "$DEDUP_WINDOW" ]; then
+                printf "SKIP: agent tests verified %ss ago (within %ss window).\n" "$AR_AGE" "$DEDUP_WINDOW" >&2
+                TEST_SKIP=true
+              fi
+            fi
+          fi
+        fi
+      fi
+    fi
+
+    TEST_EXIT=0
+    TEST_COUNT=0
+    if [ "$TEST_SKIP" = false ]; then
+      # --- DETECT TEST COMMAND ---
+      TEST_CMD=""
+      TEST_TIMEOUT=60
+      # Read project-level config (C5: AC15)
+      if [ -f "${STATE_DIR}/test-config.json" ] && jq '.' "${STATE_DIR}/test-config.json" >/dev/null 2>&1; then
+        CFG_CMD=$(jq -r '.command // ""' "${STATE_DIR}/test-config.json" 2>/dev/null | tr -d '\r')
+        CFG_TIMEOUT=$(jq -r '.timeout // 60' "${STATE_DIR}/test-config.json" 2>/dev/null | tr -d '\r')
+        [ -n "$CFG_CMD" ] && [ "$CFG_CMD" != "null" ] && TEST_CMD="$CFG_CMD"
+        if printf '%s' "$CFG_TIMEOUT" | grep -qE '^[0-9]+$'; then
+          TEST_TIMEOUT="$CFG_TIMEOUT"
+        fi
+      fi
+      # Auto-detect if no config override
+      if [ -z "$TEST_CMD" ]; then
+        if [ -f "package.json" ] && grep -q '"test"' "package.json" 2>/dev/null; then
+          TEST_CMD="npm test"
+        elif [ -f "pytest.ini" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
+          TEST_CMD="python -m pytest"
+          # Passthrough pyproject.toml ignore patterns (C4: AC14b)
+          if [ -f "pyproject.toml" ]; then
+            PYPROJ_ADDOPTS=$(python -c "
+import sys
+try:
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+    with open('pyproject.toml', 'rb') as f:
+        d = tomllib.load(f)
+    opts = d.get('tool', {}).get('pytest', {}).get('ini_options', {}).get('addopts', '')
+    if opts:
+        print(opts)
+except Exception:
+    pass
+" 2>/dev/null | tr -d '\r')
+            if [ -n "$PYPROJ_ADDOPTS" ]; then
+              TEST_CMD="python -m pytest $PYPROJ_ADDOPTS"
+            fi
+          fi
+        fi
+      fi
+
+      if [ -n "$TEST_CMD" ]; then
+        # --- ACQUIRE LOCK (C1) ---
+        if type test_lock_acquire >/dev/null 2>&1; then
+          test_lock_acquire "harness" "$TEST_CMD" 2>/dev/null
+        fi
+
+        # --- RUN WITH TIMEOUT (C5: AC16) ---
+        # Use GNU timeout (available on MSYS) with --kill-after fallback
+        printf "harness: running tests with %ss timeout: %s\n" "$TEST_TIMEOUT" "$TEST_CMD" >&2
+        if command -v timeout >/dev/null 2>&1; then
+          timeout --kill-after=5 "$TEST_TIMEOUT" bash -c "$TEST_CMD" > "${STATE_DIR}/test-output.txt" 2>&1
+          TEST_EXIT=$?
+          # timeout exit 124 = timed out, 137 = killed
+          if [ "$TEST_EXIT" -eq 124 ] || [ "$TEST_EXIT" -eq 137 ]; then
+            printf "WARNING: Test runner timed out after %ss. Process tree killed.\n" "$TEST_TIMEOUT" >&2
+            # On Windows, also kill any orphaned children by name
+            taskkill //F //IM "python.exe" //FI "WINDOWTITLE eq pytest*" 2>/dev/null || true
+            taskkill //F //IM "chrome.exe" //FI "WINDOWTITLE eq *headless*" 2>/dev/null || true
+          fi
+        else
+          # No timeout command — run directly (fallback)
+          bash -c "$TEST_CMD" > "${STATE_DIR}/test-output.txt" 2>&1
+          TEST_EXIT=$?
+        fi
+
+        # Count tests from output
+        if [ -f "${STATE_DIR}/test-output.txt" ]; then
+          TEST_COUNT=$(grep -cE '(PASSED|FAILED|passed|failed|ERROR)' "${STATE_DIR}/test-output.txt" 2>/dev/null) || TEST_COUNT=0
+        fi
+
+        # --- RELEASE LOCK (C5: AC18) ---
+        if type test_lock_release >/dev/null 2>&1; then
+          test_lock_release 2>/dev/null
+        fi
+
+        # --- WRITE RESULT FILE (C3: AC9) ---
+        HR_TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+        HR_PASSED_VAL=false
+        [ "$TEST_EXIT" -eq 0 ] && HR_PASSED_VAL=true
+        printf '{"exit_code":%d,"ran_at":"%s","passed":%s,"test_count":%d,"source":"harness"}' \
+          "$TEST_EXIT" "$HR_TS" "$HR_PASSED_VAL" "$TEST_COUNT" > "$RESULT_FILE" 2>/dev/null
+      fi
+    fi
+
+    if [ "$TEST_EXIT" -ge 128 ] && [ "$TEST_SKIP" = false ]; then
       printf "WARNING: Test runner crashed with signal %s (exit %s). This is an environment issue, not a test failure.\n" "$((TEST_EXIT - 128))" "$TEST_EXIT" >&2
       printf "WARNING: Check test-output.txt. Common cause: bare pytest segfault on Windows/venv.\n" >&2
-    elif [ "$TEST_EXIT" -ne 0 ]; then
-      # Structured feedback: include exact test output so the agent can fix specific errors
+    elif [ "$TEST_EXIT" -ne 0 ] && [ "$TEST_SKIP" = false ]; then
       printf "FAIL: Tests did not pass (exit code %s).\n\n" "$TEST_EXIT" >&2
       if [ -f "${STATE_DIR}/test-output.txt" ]; then
         printf "## Specific Failures\n" >&2
-        # Extract error/failure lines from test output
         grep -n -i "error\|fail\|assert\|TypeError\|NameError\|ImportError\|SyntaxError\|FAILED" "${STATE_DIR}/test-output.txt" 2>/dev/null | head -20 | while IFS= read -r ERR_LINE || [ -n "$ERR_LINE" ]; do
           printf -- "- %s\n" "$ERR_LINE" >&2
         done
