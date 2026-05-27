@@ -37,7 +37,9 @@ fi
 # --- Test 2: Hook produces stdout ---
 printf "Test 2: Hook produces stdout output\n"
 # Run from a project directory that has .claude/state (harness infra)
-STDOUT=$(cd "G:/harness infra" && bash "$HOOK" 2>/dev/null)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEST_PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+STDOUT=$(cd "$TEST_PROJECT_DIR" && bash "$HOOK" 2>/dev/null)
 if [ -n "$STDOUT" ]; then
   assert_pass "Hook produces stdout (length: ${#STDOUT} chars)"
 else

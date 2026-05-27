@@ -12,7 +12,7 @@ UNPROTECTED=0
 TOTAL=0
 
 # Search common locations
-for BASE in "$HOME" "/g"; do
+for BASE in "$HOME" "${HARNESS_SEARCH_PATH:-/g}"; do
   while IFS= read -r claude_dir; do
     PROJECT_DIR=$(dirname "$claude_dir")
 

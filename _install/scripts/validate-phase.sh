@@ -219,9 +219,14 @@ except Exception:
           # timeout exit 124 = timed out, 137 = killed
           if [ "$TEST_EXIT" -eq 124 ] || [ "$TEST_EXIT" -eq 137 ]; then
             printf "WARNING: Test runner timed out after %ss. Process tree killed.\n" "$TEST_TIMEOUT" >&2
-            # On Windows, also kill any orphaned children by name
-            taskkill //F //IM "python.exe" //FI "WINDOWTITLE eq pytest*" 2>/dev/null || true
-            taskkill //F //IM "chrome.exe" //FI "WINDOWTITLE eq *headless*" 2>/dev/null || true
+            # Kill any orphaned children by name (platform-aware)
+            if command -v taskkill >/dev/null 2>&1; then
+              taskkill //F //IM "python.exe" //FI "WINDOWTITLE eq pytest*" 2>/dev/null || true
+              taskkill //F //IM "chrome.exe" //FI "WINDOWTITLE eq *headless*" 2>/dev/null || true
+            else
+              pkill -f "pytest" 2>/dev/null || true
+              pkill -f "chrome.*headless" 2>/dev/null || true
+            fi
           fi
         else
           # No timeout command — run directly (fallback)

@@ -7,7 +7,7 @@
 # Writes to: G:\AgentWiki\_dropbox\{slug}_{timestamp}.md
 # Non-blocking: if anything fails, exits 0 silently.
 
-VAULT="G:/AgentWiki"
+VAULT="${AGENT_WIKI_PATH:-$HOME/AgentWiki}"
 DROPBOX="${VAULT}/_dropbox"
 PROJECT_DIR="${1:-.}"
 STATE_DIR="${PROJECT_DIR}/${HARNESS_STATE_DIR:-.claude/state}"

@@ -183,10 +183,10 @@ if echo "$COMMAND" | grep -qiE "$TEST_PATTERN"; then
   # Extract exit code from tool output
   # Claude Code reports exit codes in output; try multiple patterns
   EXIT_CODE="unknown"
-  if echo "$TOOL_OUTPUT" | grep -qoP 'exit code: \K\d+' 2>/dev/null; then
-    EXIT_CODE=$(echo "$TOOL_OUTPUT" | grep -oP 'exit code: \K\d+' | tail -1)
-  elif echo "$TOOL_OUTPUT" | grep -qoP 'Exit code: \K\d+' 2>/dev/null; then
-    EXIT_CODE=$(echo "$TOOL_OUTPUT" | grep -oP 'Exit code: \K\d+' | tail -1)
+  if echo "$TOOL_OUTPUT" | grep -qE 'exit code: [0-9]+' 2>/dev/null; then
+    EXIT_CODE=$(echo "$TOOL_OUTPUT" | grep -oE 'exit code: [0-9]+' | tail -1 | grep -oE '[0-9]+$')
+  elif echo "$TOOL_OUTPUT" | grep -qE 'Exit code: [0-9]+' 2>/dev/null; then
+    EXIT_CODE=$(echo "$TOOL_OUTPUT" | grep -oE 'Exit code: [0-9]+' | tail -1 | grep -oE '[0-9]+$')
   elif echo "$TOOL_OUTPUT" | grep -qE '(PASSED|passed|OK)' 2>/dev/null; then
     # Heuristic: if output contains pass markers and no failure markers
     if ! echo "$TOOL_OUTPUT" | grep -qiE '(FAILED|FAIL|ERROR|failures)' 2>/dev/null; then

@@ -21,7 +21,7 @@ if [ ! -f "$RESPONSE_FILE" ]; then
 fi
 
 # --- Extract source slot from challenge metadata ---
-SLOT_FILE=$(grep -oP '<!-- source_slot: \K[^>]+(?= -->)' "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
+SLOT_FILE=$(sed -n 's/.*<!-- source_slot: \([^>]*\) -->.*/\1/p' "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
 
 if [ -z "$SLOT_FILE" ] || [ ! -f "$SLOT_FILE" ]; then
   printf "FAIL: Cannot find source watcher slot from challenge metadata\n" >&2
@@ -29,7 +29,7 @@ if [ -z "$SLOT_FILE" ] || [ ! -f "$SLOT_FILE" ]; then
 fi
 
 # --- Extract Q5 Yes label from challenge metadata (BEFORE any file deletion) ---
-Q5_YES_LABEL=$(grep -oP '<!-- q5_yes_label: \K[AB]' "$CHALLENGE_FILE" 2>/dev/null | head -1)
+Q5_YES_LABEL=$(sed -n 's/.*<!-- q5_yes_label: \([AB]\).*/\1/p' "$CHALLENGE_FILE" 2>/dev/null | head -1)
 
 # --- Extract correct content from watcher slot (same logic as generator) ---
 
@@ -245,9 +245,9 @@ fi
 # --- Q6+: Must-do reference questions (variable count, only when project has must-do files) ---
 MD_Q=6
 while true; do
-  MDQ_CORRECT=$(grep -oP "<!-- q${MD_Q}_correct_label: \\K[A-D]" "$CHALLENGE_FILE" 2>/dev/null | head -1)
+  MDQ_CORRECT=$(sed -n "s/.*<!-- q${MD_Q}_correct_label: \([A-D]\).*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1)
   [ -z "$MDQ_CORRECT" ] && break
-  MDQ_SOURCE=$(grep -oP "<!-- q${MD_Q}_source: \\K[^>]+(?= -->)" "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
+  MDQ_SOURCE=$(sed -n "s/.*<!-- q${MD_Q}_source: \([^>]*\) -->.*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
   AGENT_MDQ=$(parse_answer "$MD_Q")
   if [ -z "$AGENT_MDQ" ]; then
     FAILURES=$((FAILURES + 1))

@@ -42,7 +42,7 @@ if [ -z "$TEST_CMD" ] && [ -f "package.json" ]; then
     PKG_TEST=$(jq -r '.scripts.test // empty' package.json 2>/dev/null)
   else
     # Fallback: grep for test script
-    PKG_TEST=$(grep -oP '"test"\s*:\s*"\K[^"]+' package.json 2>/dev/null || true)
+    PKG_TEST=$(sed -n 's/.*"test"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json 2>/dev/null || true)
   fi
 
   if [ -n "$PKG_TEST" ] && [ "$PKG_TEST" != "echo \"Error: no test specified\" && exit 1" ]; then
