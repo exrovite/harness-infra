@@ -1,6 +1,21 @@
 # Progress Notes — Harness Infrastructure
 
-## Current: Sprint 27 BUILD COMPLETE — GPU Test Coordination Protocol
+## Current: Sprint 28 BUILD COMPLETE — Watcher Lifecycle Completion Protocol
+
+### What Was Built (3 features)
+- **F1** (lib-helpers.sh, post-write-check.sh, on-prompt-submit.sh): Cron pause/resume — cron_pause()/cron_resume() helpers, auto-resume on Write/Edit (state files excluded), turn packet injection
+- **F2** (pre-bash-gate.sh): Watcher release guard — blocks REGISTRY.json release when phase != COMPLETE
+- **F3** (post-write-check.sh): PASS completion reminder — "DO NOT release watcher" on verifier PASS
+- **R5** (startup-recovery.sh): Stale cron-paused.json cleanup (>2h)
+- **AC8** (CLAUDE.md): Updated watcher section with pause protocol + completion sequence
+
+### TDD Tests Passed
+AC26-AC37: cron_pause, cron_resume, auto-resume on write, state-file exclusion, release blocked on BUILD, release allowed on COMPLETE, PASS reminder, FAIL no reminder, read not blocked, no phase file allowed, bash -n, default argument
+
+### Awaiting Verification
+Independent sub-agent needed for 37 acceptance criteria
+
+## Previous: Sprint 27 BUILD COMPLETE — GPU Test Coordination Protocol
 
 ### Problem
 Harness auto-runs `python -m pytest` in validate-phase.sh (Phantom TDD defense). This caused: GPU contention (two test processes load models), agent unawareness (doesn't know harness tests run), duplicate runs, no timeout/cleanup.

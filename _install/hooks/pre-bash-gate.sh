@@ -112,6 +112,34 @@ if [ "$IS_TEST_CMD" = true ]; then
   fi
 fi
 
+# --- WATCHER RELEASE GUARD (F2: AC10-AC16) ---
+# Block watcher release attempts if phase is not COMPLETE.
+# Detects commands that write "available" to REGISTRY.json.
+IS_RELEASE_CMD=false
+if printf '%s' "$COMMAND" | grep -qiF 'registry.json'; then
+  if printf '%s' "$COMMAND" | grep -qF '"available"'; then
+    # Check it's a write, not a read (must have redirect, jq write pattern, or mv/cp)
+    if printf '%s' "$COMMAND" | grep -qE '(>|mv |cp |tee )'; then
+      IS_RELEASE_CMD=true
+    elif printf '%s' "$COMMAND" | grep -qE "jq\s.*'[^']*available"; then
+      IS_RELEASE_CMD=true
+    elif printf '%s' "$COMMAND" | grep -qE 'jq\s.*"[^"]*available'; then
+      IS_RELEASE_CMD=true
+    fi
+  fi
+fi
+if [ "$IS_RELEASE_CMD" = true ]; then
+  RELEASE_PHASE=""
+  if [ -f "${STATE_DIR}/current-phase.json" ]; then
+    RELEASE_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null | tr -d '\r')
+  fi
+  if [ -n "$RELEASE_PHASE" ] && [ "$RELEASE_PHASE" != "COMPLETE" ]; then
+    printf "${PHASE_CTX} [LIFECYCLE GATE] BLOCKED: Cannot release watcher — phase is %s, not COMPLETE. Write phase-complete-marker.md first, then release.\n" "$RELEASE_PHASE" >&2
+    print_gates_ahead
+    exit 2
+  fi
+fi
+
 # If no file-writing detected, allow
 if [ "$WRITES_FILES" = false ]; then
   exit 0

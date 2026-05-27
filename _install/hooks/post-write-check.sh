@@ -293,6 +293,26 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_SUMMARY_FILE" ]; then
   fi
 fi
 
+# --- CRON PAUSE AUTO-RESUME ON WRITE (F1: AC4, AC5) ---
+# If cron is paused with resume_on_write:true, and the written file is NOT a state file,
+# delete the pause file to resume the cron.
+CRON_PAUSE_FILE="${STATE_DIR}/cron-paused.json"
+if [ -f "$CRON_PAUSE_FILE" ]; then
+  CP_RESUME_ON_WRITE=$(jq -r '.resume_on_write // false' "$CRON_PAUSE_FILE" 2>/dev/null | tr -d '\r')
+  if [ "$CP_RESUME_ON_WRITE" = "true" ]; then
+    # Check if this write is a state file (don't resume on harness self-writes)
+    TOOL_PATH_NORM=$(printf '%s' "$TOOL_FILE_PATH" | tr '\\' '/')
+    IS_STATE_FILE=false
+    if printf '%s' "$TOOL_PATH_NORM" | grep -qF '/.claude/state/'; then
+      IS_STATE_FILE=true
+    fi
+    if [ "$IS_STATE_FILE" = false ]; then
+      rm -f "$CRON_PAUSE_FILE" 2>/dev/null
+      echo "cron: auto-resumed on write to $(basename "$TOOL_FILE_PATH")" >&2
+    fi
+  fi
+fi
+
 # --- RALPH AUTO-DEACTIVATION ON VERIFIER PASS ---
 # When evidence-verdict.json is written with PASS while ralph is active,
 # update ralph state immediately (don't wait for next UserPromptSubmit).
@@ -334,6 +354,15 @@ if printf '%s' "$VERDICT_NORM" | grep -qF 'evidence-verdict.json'; then
   fi
 fi
 
+# --- VERIFIER PASS COMPLETION REMINDER (F3: AC17, AC18) ---
+VERDICT_REMINDER=""
+if printf '%s' "$VERDICT_NORM" | grep -qF 'evidence-verdict.json'; then
+  VR_VERDICT=$(jq -r '.verdict // ""' "${STATE_DIR}/evidence-verdict.json" 2>/dev/null | tr -d '\r')
+  if [ "$VR_VERDICT" = "PASS" ]; then
+    VERDICT_REMINDER="Verifier PASS — DO NOT release watcher or delete cron yet. Sequence: write phase-complete-marker.md, confirm COMPLETE, THEN release."
+  fi
+fi
+
 # --- CHECK FOR PENDING ACTIONS ---
 PENDING=""
 if [ -f "${STATE_DIR}/phase-feedback.md" ]; then
@@ -371,6 +400,9 @@ if [ -n "$HARNESS_TEST_STATUS" ]; then
 fi
 if [ -n "$PENDING" ]; then
   CONTEXT_MSG="${CONTEXT_MSG} | PENDING: ${PENDING}"
+fi
+if [ -n "$VERDICT_REMINDER" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG} | ${VERDICT_REMINDER}"
 fi
 
 # --- OUTPUT JSON TO STDOUT (the ONLY stdout from this script) ---

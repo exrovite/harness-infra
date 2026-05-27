@@ -628,6 +628,24 @@ if [ -n "$RALPH_LOOP_LINE" ]; then
 ${RALPH_LOOP_LINE}"
 fi
 
+# --- CRON PAUSE STATUS INJECTION (F1: AC6, AC7) ---
+CRON_PAUSE_FILE="${STATE_DIR}/cron-paused.json"
+if [ -f "$CRON_PAUSE_FILE" ] && jq '.' "$CRON_PAUSE_FILE" >/dev/null 2>&1; then
+  CP_RESUME_AT=$(jq -r '.resume_at // ""' "$CRON_PAUSE_FILE" 2>/dev/null | tr -d '\r')
+  CP_EXPIRED=false
+  if [ -n "$CP_RESUME_AT" ] && [ "$CP_RESUME_AT" != "null" ]; then
+    CP_RESUME_EPOCH=$(date -d "$CP_RESUME_AT" +%s 2>/dev/null) || CP_RESUME_EPOCH=""
+    CP_NOW_EPOCH=$(date +%s 2>/dev/null) || CP_NOW_EPOCH=""
+    if [ -n "$CP_RESUME_EPOCH" ] && [ -n "$CP_NOW_EPOCH" ] && [ "$CP_NOW_EPOCH" -ge "$CP_RESUME_EPOCH" ]; then
+      CP_EXPIRED=true
+    fi
+  fi
+  if [ "$CP_EXPIRED" = false ]; then
+    CP_TIME=$(printf '%s' "$CP_RESUME_AT" | grep -oE '[0-9]{2}:[0-9]{2}' | head -1)
+    CONTEXT_MSG="${CONTEXT_MSG}
+[CRON PAUSED until ${CP_TIME:-unknown}]"
+  fi
+fi
 
 # --- BUILD PIPELINE STATUS ---
 # Sprint 23: show pending gates proactively during BUILD only.

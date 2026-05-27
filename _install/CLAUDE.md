@@ -42,17 +42,26 @@ There are 5 reusable slots (`slot-1.md` through `slot-5.md`).
 5. The reminder prompt should say: "WATCHER REMINDER — Read [slot path] NOW. Check: Which step am I on? Am I following the plan? Am I stuck?"
 
 ### When the watcher fires (every 3 minutes):
-1. STOP what you're doing
-2. READ your watcher slot file
-3. Answer honestly: Which step am I on? Am I on task? Am I stuck?
-4. If you've drifted: get back on track
-5. If you've completed a step: check it off in the watcher
-6. If stuck: escalate per the Escalation Protocol
+1. FIRST check `.claude/state/cron-paused.json`. If it exists and `resume_at` has not passed, acknowledge silently and continue — do NOT print the reminder. If `resume_at` has passed, delete the file and proceed with the normal reminder.
+2. STOP what you're doing
+3. READ your watcher slot file
+4. Answer honestly: Which step am I on? Am I on task? Am I stuck?
+5. If you've drifted: get back on track
+6. If you've completed a step: check it off in the watcher
+7. If stuck: escalate per the Escalation Protocol
+
+### Pausing the cron (during discussions):
+- To pause: run `source ~/.claude/scripts/lib-helpers.sh && cron_pause 30` (pauses for 30 minutes)
+- The cron auto-resumes when you start writing/editing code files, or after the timeout
+- To manually resume: `source ~/.claude/scripts/lib-helpers.sh && cron_resume`
 
 ### When the task is complete:
-1. `CronDelete` the cron job
-2. Reset the slot to "available" in REGISTRY.json
-3. Clear the slot file
+1. Write `.claude/state/phase-complete-marker.md` FIRST
+2. Confirm the COMPLETE phase transition
+3. THEN `CronDelete` the cron job
+4. Reset the slot to "available" in REGISTRY.json
+5. Clear the slot file
+**WARNING**: The harness blocks watcher release if the phase is not COMPLETE. Follow this sequence exactly.
 
 ### Watcher slot format:
 ```markdown

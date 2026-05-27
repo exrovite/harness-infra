@@ -57,6 +57,21 @@ if [ -f "$PHASE_FB" ]; then
   fi
 fi
 
+# Clear stale cron-paused.json (>2 hours old) — same pattern as phase-feedback.md
+CRON_PAUSE="${STATE_DIR}/cron-paused.json"
+if [ -f "$CRON_PAUSE" ]; then
+  CP_AGE=0
+  if stat --format='%Y' "$CRON_PAUSE" >/dev/null 2>&1; then
+    CP_MTIME=$(stat --format='%Y' "$CRON_PAUSE" 2>/dev/null)
+    CP_NOW=$(date +%s)
+    CP_AGE=$(( CP_NOW - CP_MTIME ))
+  fi
+  if [ "$CP_AGE" -gt 7200 ]; then
+    printf "startup-recovery: Clearing stale cron-paused.json (age: %ss, threshold: 2h).\n" "$CP_AGE" >&2
+    rm -f "$CRON_PAUSE" 2>/dev/null
+  fi
+fi
+
 # Clean stale watchers FOR THIS PROJECT ONLY (claimed_at > 4 hours ago or null)
 # Only cleans watchers scoped to the current project — other projects' watchers are untouched.
 # Uses bash date -d instead of jq strptime (strptime broken on Windows/MSYS)

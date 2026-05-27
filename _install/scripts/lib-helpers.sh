@@ -351,6 +351,33 @@ test_lock_check() {
   return 0
 }
 
+# cron_pause — Pause the watcher cron for N minutes (default 30)
+# Creates .claude/state/cron-paused.json with resume triggers
+# Usage: cron_pause [minutes]
+cron_pause() {
+  local MINUTES="${1:-30}"
+  local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+  local PAUSE_FILE="${STATE_DIR}/cron-paused.json"
+  local NOW_ISO
+  NOW_ISO=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  local NOW_EPOCH
+  NOW_EPOCH=$(date +%s 2>/dev/null || echo "0")
+  local RESUME_EPOCH=$((NOW_EPOCH + MINUTES * 60))
+  local RESUME_ISO
+  RESUME_ISO=$(date -d "@${RESUME_EPOCH}" -Iseconds 2>/dev/null || date -Iseconds 2>/dev/null)
+  printf '{"paused":true,"paused_at":"%s","resume_at":"%s","resume_on_write":true}' \
+    "$NOW_ISO" "$RESUME_ISO" > "$PAUSE_FILE" 2>/dev/null
+  return 0
+}
+
+# cron_resume — Resume the watcher cron (delete the pause file)
+# Usage: cron_resume
+cron_resume() {
+  local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+  rm -f "${STATE_DIR}/cron-paused.json" 2>/dev/null
+  return 0
+}
+
 # check_watcher_for_project Ã¢â‚¬â€ Return active watcher slot for a project, or empty string
 # Usage: check_watcher_for_project "G:/path" [registry_path]
 check_watcher_for_project() {
