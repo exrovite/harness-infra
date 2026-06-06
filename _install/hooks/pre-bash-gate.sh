@@ -382,9 +382,15 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
     if [ -f "$EC_VERDICT" ] && jq '.' "$EC_VERDICT" >/dev/null 2>&1; then
       EC_B_RESULT=$(jq -r '.verdict // ""' "$EC_VERDICT" 2>/dev/null | tr -d '\r')
       if [ "$EC_B_RESULT" = "PASS" ]; then
-        rm -f "$EC_CHECKPOINT" "$EC_VERDICT" "$EC_PATHS" 2>/dev/null
-        rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
-        printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
+        # Clear via shared helper (single source of truth, freshness-guarded) — a
+        # STALE PASS will not clear. Inline fallback only if helper failed to source.
+        if type clear_evidence_checkpoint_if_pass >/dev/null 2>&1; then
+          clear_evidence_checkpoint_if_pass "$STATE_DIR" "$CURRENT_PHASE" >/dev/null 2>&1
+        else
+          rm -f "$EC_CHECKPOINT" "$EC_VERDICT" "$EC_PATHS" 2>/dev/null
+          rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
+          printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
+        fi
       elif [ "$EC_B_RESULT" = "FAIL" ]; then
         EC_B_REMED2="${STATE_DIR}/evidence-remediation.md"
         if [ ! -f "$EC_B_REMED2" ] || [ "$(wc -c < "$EC_B_REMED2" 2>/dev/null | tr -d ' ')" -lt 200 ]; then

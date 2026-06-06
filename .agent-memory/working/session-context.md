@@ -1,12 +1,13 @@
 # Session Context (auto-updated by hook)
-Last updated: 2026-05-09T23:12:35+01:00
-Phase: COMPLETE
-Sprint: 23
-Iteration: 0
-Write count: 736
+Last updated: 2026-06-02T11:41:47+01:00
+Phase: BUILD
+Sprint: 29
+Iteration: 1
+Write count: 853
 Working directory: /g/harness infra
 Last modified files:
   - .agent-memory/MEMORY_MANIFEST.json
+  - .agent-memory/episodic/decisions/transitions.jsonl
   - .agent-memory/sessions.jsonl
   - .agent-memory/working/active-tasks.json
   - .agent-memory/working/session-context.md

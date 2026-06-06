@@ -549,11 +549,14 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
       EC_RESULT=$(jq -r '.verdict // ""' "$EC_VERDICT" 2>/dev/null | tr -d '\r')
 
       if [ "$EC_RESULT" = "PASS" ]; then
-        # Clear checkpoint — all phases verified
-        rm -f "$EC_CHECKPOINT" "$EC_VERDICT" "$EC_PATHS" 2>/dev/null
-        rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
-        # Reset checkpoint counter
-        printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
+        # Clear checkpoint via shared helper (single source of truth, freshness-guarded)
+        if type clear_evidence_checkpoint_if_pass >/dev/null 2>&1; then
+          clear_evidence_checkpoint_if_pass "$STATE_DIR" "$CURRENT_PHASE" >/dev/null 2>&1
+        else
+          rm -f "$EC_CHECKPOINT" "$EC_VERDICT" "$EC_PATHS" 2>/dev/null
+          rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
+          printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
+        fi
         # Fall through to remaining gates
       elif [ "$EC_RESULT" = "FAIL" ]; then
         # --- Remediation plan validation ---

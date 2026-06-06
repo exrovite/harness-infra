@@ -45,3 +45,17 @@ Harness auto-runs `python -m pytest` in validate-phase.sh (Phantom TDD defense).
 ## Previous: Sprint 20 COMPLETE — Turn Packet System
 ## Previous: Sprint 13 COMPLETE — Evidence Checkpoint System
 ## Previous: Sprint 12 COMPLETE — Strategy Loop Breaker
+
+## Sprint 29 — Orphaned Evidence-Checkpoint Auto-Resolve (BUILD complete 2026-06-02)
+- Root cause: PASS-clear lived ONLY in pre-write-gate, fired as side-effect of next NON-exempt source write. Tasks ending at verifier PASS (docs / exempt final write) left checkpoint pending forever -> phase never completed -> next sprint inherited stuck BUILD.
+- Fix: shared helper clear_evidence_checkpoint_if_pass in lib-helpers.sh (mtime-based freshness: verdict file >= checkpoint file; explicit ts as extra gate). Wired into pre-write-gate (refactor), post-write-check (exempt-write path), on-prompt-submit (turn-start path, injects [CHECKPOINT RESOLVED]).
+- Freshness via FILE MTIME not checked_at — real verdicts omit checked_at (PCW Sprint 48 confirmed). Contract revised to Rev 2.
+- Tests: tests/test-sprint29-checkpoint-autoresolve.sh — 9/9 green against REAL hooks in sandbox. AC19 smoke clean. All files bash -n clean.
+- Awaiting independent verifier (EVALUATE).
+
+## Sprint 29 iter 1 — pre-bash-gate single-source-of-truth fix (BUILD complete 2026-06-02)
+- Concept validator found drift: pre-bash-gate.sh inline PASS-clear (384-387) wasn't freshness-guarded -> stale PASS could clear via file-writing bash.
+- Fix: routed pre-bash-gate PASS-clear through clear_evidence_checkpoint_if_pass (mirrors pre-write-gate; inline fallback retained). Both write+bash gates now share the guarded helper.
+- TDD T10 added: T10a (stale PASS via bash -> NOT cleared) failed before fix, passes after; T10b (fresh -> cleared) passes. Suite 11/11.
+- FAIL block + exit-2 paths unchanged (regression smoke: FAIL still blocks, checkpoint preserved). bash -n clean.
+- Note: test must use PROJECT-RELATIVE redirect (echo > src/foo.js); absolute /tmp paths are treated as scratch by the WRITES_FILES detector.

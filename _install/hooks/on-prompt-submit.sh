@@ -601,8 +601,22 @@ fi
 if printf '%s' "$BLOCKS" | grep -q 'WRITES LOCKED: Phase is PLAN'; then
   TOOLS_LOCKED="false"
 fi
+# --- ORPHANED CHECKPOINT AUTO-RESOLVE (Sprint 29) ---
+# At turn start, clear a pending checkpoint that already holds a fresh PASS verdict
+# (covers the "agent stopped at PASS, user sends next prompt" case).
+EC_RESOLVED_NOTE=""
+if type clear_evidence_checkpoint_if_pass >/dev/null 2>&1; then
+  if clear_evidence_checkpoint_if_pass "$STATE_DIR" "$PHASE" >/dev/null 2>&1; then
+    EC_RESOLVED_NOTE="[CHECKPOINT RESOLVED] Pending evidence checkpoint auto-cleared on fresh PASS verdict — phase may now complete."
+  fi
+fi
+
 # --- ASSEMBLE TURN PACKET ---
 CONTEXT_MSG="[HARNESS] Phase: ${PHASE} | Sprint: ${SPRINT} | Iter: ${ITERATION} | Writes: ${WRITES} | Watcher: ${WATCHER_STATUS}"
+if [ -n "$EC_RESOLVED_NOTE" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG}
+${EC_RESOLVED_NOTE}"
+fi
 if [ -n "$GUIDANCE_LINE" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
 ${GUIDANCE_LINE}"

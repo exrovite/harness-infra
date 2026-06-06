@@ -414,3 +414,64 @@ read_watcher_step_scope() {
 
   printf 'STEP=%s\nSCOPE=%s\nMISTAKES=%s\nDONE=%s\n' "$STEP" "$SCOPE" "$MISTAKES" "$DONE"
 }
+
+# clear_evidence_checkpoint_if_pass — auto-resolve a pending evidence checkpoint
+# when a FRESH PASS verdict exists, independent of any later source write.
+# Freshness = verdict FILE mtime >= checkpoint FILE mtime (verdict JSON frequently
+# omits checked_at). If BOTH an explicit verdict timestamp and the checkpoint
+# triggered_at parse, that comparison is applied as an additional gate.
+# Usage: clear_evidence_checkpoint_if_pass [state_dir] [current_phase]
+# Prints 'cleared' and returns 0 when it clears; returns 1 (no output) otherwise.
+clear_evidence_checkpoint_if_pass() {
+  local STATE_DIR="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  local CURRENT_PHASE="$2"
+  local CHK="${STATE_DIR}/evidence-checkpoint.json"
+  local VRD="${STATE_DIR}/evidence-verdict.json"
+  local PTH="${STATE_DIR}/evidence-paths.json"
+
+  if [ -z "$CURRENT_PHASE" ]; then
+    CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null | tr -d '\r')
+  fi
+  # BUILD-only scoping — matches the evidence gate
+  [ "$CURRENT_PHASE" = "BUILD" ] || return 1
+
+  # Must be a pending checkpoint
+  [ -f "$CHK" ] || return 1
+  local STATUS
+  STATUS=$(jq -r '.status // ""' "$CHK" 2>/dev/null | tr -d '\r')
+  [ "$STATUS" = "pending" ] || return 1
+
+  # Must be a valid PASS verdict
+  [ -f "$VRD" ] && jq '.' "$VRD" >/dev/null 2>&1 || return 1
+  local VERDICT
+  VERDICT=$(jq -r '.verdict // ""' "$VRD" 2>/dev/null | tr -d '\r')
+  [ "$VERDICT" = "PASS" ] || return 1
+
+  # Freshness — primary signal: verdict file mtime >= checkpoint file mtime
+  local V_MT C_MT
+  V_MT=$(stat --format='%Y' "$VRD" 2>/dev/null)
+  C_MT=$(stat --format='%Y' "$CHK" 2>/dev/null)
+  if [ -n "$V_MT" ] && [ -n "$C_MT" ]; then
+    [ "$V_MT" -ge "$C_MT" ] || return 1
+  fi
+
+  # Freshness — additional gate only when BOTH explicit timestamps parse
+  local VTS TRIG
+  VTS=$(jq -r '.timestamp // .checked_at // .verdict_at // .created_at // .ts // ""' "$VRD" 2>/dev/null | tr -d '\r')
+  TRIG=$(jq -r '.triggered_at // ""' "$CHK" 2>/dev/null | tr -d '\r')
+  if [ -n "$VTS" ] && [ "$VTS" != "null" ] && [ -n "$TRIG" ] && [ "$TRIG" != "null" ]; then
+    local VE TE
+    VE=$(date -d "$VTS" +%s 2>/dev/null) || VE=""
+    TE=$(date -d "$TRIG" +%s 2>/dev/null) || TE=""
+    if [ -n "$VE" ] && [ -n "$TE" ]; then
+      [ "$VE" -ge "$TE" ] || return 1
+    fi
+  fi
+
+  # Conditions met — clear (idempotent rm -f) and reset counter
+  rm -f "$CHK" "$VRD" "$PTH" 2>/dev/null
+  rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
+  printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
+  printf 'cleared'
+  return 0
+}

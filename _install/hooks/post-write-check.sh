@@ -354,6 +354,17 @@ if printf '%s' "$VERDICT_NORM" | grep -qF 'evidence-verdict.json'; then
   fi
 fi
 
+# --- ORPHANED CHECKPOINT AUTO-RESOLVE (Sprint 29) ---
+# A pending checkpoint with a FRESH PASS verdict must clear even when the
+# triggering write was exempt (phase-complete-marker.md, progress notes, etc.) —
+# the pre-write gate only clears on the next NON-exempt source write.
+if type clear_evidence_checkpoint_if_pass >/dev/null 2>&1; then
+  EC_AR_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null | tr -d '\r')
+  if clear_evidence_checkpoint_if_pass "$STATE_DIR" "$EC_AR_PHASE" >/dev/null 2>&1; then
+    echo "evidence-checkpoint: auto-resolved on fresh PASS verdict" >&2
+  fi
+fi
+
 # --- VERIFIER PASS COMPLETION REMINDER (F3: AC17, AC18) ---
 VERDICT_REMINDER=""
 if printf '%s' "$VERDICT_NORM" | grep -qF 'evidence-verdict.json'; then

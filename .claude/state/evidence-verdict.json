@@ -1,1 +1,1 @@
-{"verdict":"PASS","timestamp":"2026-05-27T22:20:28+01:00","details":"37/37 criteria verified","sprint":28}
+{"verdict":"PASS","sprint":29,"iteration":1,"verifier":"independent sub-agent (default-FAIL)","checked_at":"2026-06-02","summary":"pre-bash-gate single-source-of-truth fix: 11/11 TDD + 5/5 independent checks. Stale PASS no longer clears via bash; FAIL block intact."}
