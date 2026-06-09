@@ -18,6 +18,12 @@ fi
 
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
+# Multilane lane resolution (Sprint 31a): override flat STATE_DIR with the lane's (lane 1 = flat,
+# transparent for single instance). Skipped when HARNESS_STATE_DIR is an explicit test override.
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type resolve_instance >/dev/null 2>&1; then
+  resolve_instance "$INPUT" "$(pwd -W 2>/dev/null || pwd)" "PreToolUse" >/dev/null 2>&1
+  STATE_DIR="${STATE_DIR:-.claude/state}"
+fi
 
 # Shared phase context for early Ralph guards and later Bash write gates.
 CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null)
@@ -422,7 +428,7 @@ WRITES=$(printf '%s' "$WRITES" | grep -o '[0-9]*' | head -1)
 WRITES=${WRITES:-0}
 
 if [ "$WRITES" -ge 2 ]; then
-  WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
+  WATCHER_REGISTRY="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
   if [ -f "$WATCHER_REGISTRY" ]; then
     CURRENT_PROJECT=$(pwd -W 2>/dev/null || pwd)
     CURRENT_PROJECT=$(printf '%s' "$CURRENT_PROJECT" | tr '\\\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
@@ -431,9 +437,13 @@ if [ "$WRITES" -ge 2 ]; then
       "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
 
     if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
+      CLAIM_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null | tr -d '\r')
       printf "[ADMIN GATE] BLOCKED: %s File-writing Bash command detected but no watcher is active for this project.\n\n" "$PHASE_CTX" >&2
       printf "You cannot bypass Write/Edit hooks by writing files through shell commands.\n" >&2
-      printf "Claim a watcher and set up a cron first, then use the Write/Edit tools.\n" >&2
+      printf "Your project gets up to 5 of its OWN watchers (not shared with other folders). Claim one:\n" >&2
+      printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && SLOT=$(watcher_claim_pp "%s" "$(pwd -W 2>/dev/null || pwd)") && echo "claimed watcher slot $SLOT"\n' "$CLAIM_SID" >&2
+      printf "Then write the slot file, start a 3-min cron (CronCreate), and record it:\n" >&2
+      printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && watcher_set_cron "%s" "<JOB_ID>"\n' "$CLAIM_SID" >&2
       print_gates_ahead
       exit 2
     fi

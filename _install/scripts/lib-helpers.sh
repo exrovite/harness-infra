@@ -164,7 +164,7 @@ compute_pending_gates() {
   local SPRINT="${2:-0}"
   local PROJECT_PATH="${3:-}"
   local STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
-  local WATCHER_REGISTRY="${WATCHER_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
+  local WATCHER_REGISTRY="${WATCHER_REGISTRY:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
   local PENDING=""
 
   if [ -z "$PROJECT_PATH" ]; then
@@ -382,7 +382,7 @@ cron_resume() {
 # Usage: check_watcher_for_project "G:/path" [registry_path]
 check_watcher_for_project() {
   local PROJECT_PATH="$1"
-  local REGISTRY="${2:-$HOME/.openclaw/watchers/REGISTRY.json}"
+  local REGISTRY="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
 
   if [ -z "$PROJECT_PATH" ] || [ ! -f "$REGISTRY" ]; then
     return 1
@@ -473,5 +473,194 @@ clear_evidence_checkpoint_if_pass() {
   rm -f "${STATE_DIR}/evidence-remediation.md" 2>/dev/null
   printf '{"writes":0,"last_step":""}' > "${STATE_DIR}/checkpoint-counter.json" 2>/dev/null
   printf 'cleared'
+  return 0
+}
+
+# ===== Multilane instances (Sprint 31a) =====
+# Registry v2: {version, max_lanes_per_project, instances:[{session_id,project,lane,status,...}]}
+# Identity = session_id. Lane 1 = flat layout (today); lanes 2-5 = subdirs. Per-project cap.
+
+# _reg_lock_for REG [maxwait] — mkdir-lock keyed to a SPECIFIC registry path (hermetic for sandboxes)
+_reg_lock_for() {
+  local LOCK="${1}.lock" MAX="${2:-10}" W=0
+  while ! mkdir "$LOCK" 2>/dev/null; do
+    sleep 0.2; W=$((W + 1))
+    if [ "$W" -ge $((MAX * 5)) ]; then rm -rf "$LOCK" 2>/dev/null; mkdir "$LOCK" 2>/dev/null || return 1; break; fi
+  done
+  return 0
+}
+_reg_unlock_for() { rm -rf "${1}.lock" 2>/dev/null; }
+
+_proj_norm() { printf '%s' "$1" | tr '\\' '/' | sed 's:/*$::' | tr '[:upper:]' '[:lower:]'; }
+
+_ensure_reg_v2() {
+  local REG="$1" M
+  if [ ! -f "$REG" ]; then
+    printf '{"version":"2.0.0","max_lanes_per_project":5,"instances":[]}' > "$REG"
+    return 0
+  fi
+  if ! jq -e '.instances' "$REG" >/dev/null 2>&1; then
+    # Migrate-in-place: ADD version/max/instances, PRESERVE all existing keys (.watchers etc.).
+    # NEVER clobber a live v1 watcher registry.
+    M=$(jq -c '. + {version:"2.0.0", max_lanes_per_project:(.max_lanes_per_project // 5), instances:(.instances // [])}' "$REG" 2>/dev/null)
+    if [ -n "$M" ]; then
+      printf '%s' "$M" > "$REG"
+    else
+      # Unparseable/corrupt — fresh v2 (nothing recoverable to lose)
+      printf '{"version":"2.0.0","max_lanes_per_project":5,"instances":[]}' > "$REG"
+    fi
+  fi
+}
+
+# instance_find_by_session SESSION [REG] -> echo lane; rc 0 if found, 1 if not
+instance_find_by_session() {
+  local SID="$1" REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" L
+  [ -f "$REG" ] || return 1
+  L=$(jq -r --arg s "$SID" '[.instances[]? | select(.session_id==$s)][0].lane // empty' "$REG" 2>/dev/null | tr -d '\r')
+  [ -n "$L" ] || return 1
+  printf '%s' "$L"; return 0
+}
+
+# instance_claim_lane SESSION PROJECT [REG] -> echo lane(1-5) rc0; refuse (cap full) -> empty rc1
+# Idempotent: an existing session keeps its lane. Lowest free lane per project, under per-registry lock.
+instance_claim_lane() {
+  local SID="$1" PROJ="$2" REG="${3:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local NOW PN MAX USED LANE i NEW
+  NOW=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  PN=$(_proj_norm "$PROJ")
+  _reg_lock_for "$REG" || return 1
+  _ensure_reg_v2 "$REG"
+  MAX=$(jq -r '.max_lanes_per_project // 5' "$REG" 2>/dev/null | tr -d '\r'); [ -n "$MAX" ] || MAX=5
+  LANE=$(jq -r --arg s "$SID" '[.instances[]? | select(.session_id==$s)][0].lane // empty' "$REG" 2>/dev/null | tr -d '\r')
+  if [ -n "$LANE" ]; then _reg_unlock_for "$REG"; printf '%s' "$LANE"; return 0; fi
+  USED=$(jq -r --arg p "$PN" '.instances[]? | select((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p and .status=="active") | .lane' "$REG" 2>/dev/null | tr -d '\r' | tr '\n' ' ')
+  LANE=""
+  for i in $(seq 1 "$MAX"); do
+    case " $USED " in *" $i "*) ;; *) LANE="$i"; break ;; esac
+  done
+  if [ -z "$LANE" ]; then _reg_unlock_for "$REG"; return 1; fi
+  NEW=$(jq -c --arg s "$SID" --arg p "$PROJ" --argjson l "$LANE" --arg t "$NOW" \
+    '.instances += [{"session_id":$s,"project":$p,"lane":$l,"status":"active","claimed_at":$t,"last_seen":$t,"cron_job_id":null,"cron_interval":null}]' \
+    "$REG" 2>/dev/null)
+  [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
+  _reg_unlock_for "$REG"
+  printf '%s' "$LANE"; return 0
+}
+
+# instance_release SESSION [REG] — remove ONLY this session's entry (under lock)
+instance_release() {
+  local SID="$1" REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" NEW
+  [ -f "$REG" ] || return 0
+  _reg_lock_for "$REG" || return 1
+  NEW=$(jq -c --arg s "$SID" '.instances |= map(select(.session_id != $s))' "$REG" 2>/dev/null)
+  [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
+  _reg_unlock_for "$REG"
+  return 0
+}
+
+# lane_paths LANE — set STATE_DIR/CONTRACTS_DIR/PREFLIGHT_DIR/EVIDENCE_DIR/WORKING_DIR/MUSTDO_FILE/LANE
+# Lane 1 (or empty) = today's FLAT layout (zero migration). Lanes 2-5 = lane-N subdirs.
+lane_paths() {
+  local L="$1"
+  if [ "$L" = "1" ] || [ -z "$L" ]; then
+    STATE_DIR=".claude/state"; CONTRACTS_DIR=".claude/contracts"; PREFLIGHT_DIR=".claude/pre-flight"
+    EVIDENCE_DIR=".claude/evidence"; WORKING_DIR=".agent-memory/working"; MUSTDO_FILE="docs/must do/must-do.md"
+    LANE=1
+  else
+    STATE_DIR=".claude/state/lane-${L}"; CONTRACTS_DIR=".claude/contracts/lane-${L}"
+    PREFLIGHT_DIR=".claude/pre-flight/lane-${L}"; EVIDENCE_DIR=".claude/evidence/lane-${L}"
+    WORKING_DIR=".agent-memory/working/lane-${L}"; MUSTDO_FILE="docs/must do/must-do-$((L - 1)).md"
+    LANE="$L"
+  fi
+}
+
+# resolve_instance PAYLOAD PROJECT EVENT [REG] — the chokepoint. Reads session_id from the PASSED
+# payload (never stdin). Finds the session's lane; claims ONLY at UserPromptSubmit; otherwise a new
+# session defaults to read-only flat (lane 1) WITHOUT claiming. Sets LANE + all *_DIR/MUSTDO_FILE.
+resolve_instance() {
+  local PAYLOAD="$1" PROJ="$2" EVENT="$3" REG="${4:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local SID L
+  SID=$(printf '%s' "$PAYLOAD" | jq -r '.session_id // empty' 2>/dev/null | tr -d '\r')
+  if [ -z "$SID" ]; then lane_paths 1; return 0; fi
+  # OPT-IN GATE: multilane is ONLY active when the project has .claude/multi-lane.json. Otherwise every
+  # instance resolves to lane 1 = flat = exact pre-multilane behavior (zero regression). This prevents
+  # auto-lane-assignment from breaking projects whose per-lane state (phase/contracts) isn't seeded.
+  if [ ! -f ".claude/multi-lane.json" ]; then lane_paths 1; return 0; fi
+  L=$(instance_find_by_session "$SID" "$REG" 2>/dev/null)
+  if [ -z "$L" ]; then
+    if [ "$EVENT" = "UserPromptSubmit" ]; then
+      L=$(instance_claim_lane "$SID" "$PROJ" "$REG" 2>/dev/null)
+    fi
+    [ -z "$L" ] && L=1
+  fi
+  lane_paths "$L"
+  return 0
+}
+
+# ===== Per-project watcher POOL (AC13) — unlimited total watchers, capped max_per_project PER PROJECT =====
+# Replaces the old fixed global 5-slot pool. .watchers[] is now a DYNAMIC list; each project independently
+# gets up to max_per_project (5) active watchers. Slot numbers are global-unique (reused when freed).
+
+# watcher_count_pp PROJECT [REG] -> echo count of ACTIVE watchers for that project
+watcher_count_pp() {
+  local PROJ="$1" REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" PN C
+  PN=$(_proj_norm "$PROJ")
+  [ -f "$REG" ] || { printf '0'; return 0; }
+  C=$(jq -r --arg p "$PN" '[.watchers[]? | select(.status=="active" and .project!=null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))] | length' "$REG" 2>/dev/null | tr -d '\r')
+  [ -n "$C" ] || C=0
+  printf '%s' "$C"
+}
+
+# watcher_claim_pp SESSION PROJECT [REG] -> echo slot (global-unique) rc0; refuse (empty rc1) if project full.
+# Idempotent: an existing active session keeps its slot.
+watcher_claim_pp() {
+  local SID="$1" PROJ="$2" REG="${3:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local NOW PN MAX EXIST CNT USED SLOT NEW
+  NOW=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  PN=$(_proj_norm "$PROJ")
+  _reg_lock_for "$REG" || return 1
+  if [ ! -f "$REG" ] || ! jq -e '.watchers' "$REG" >/dev/null 2>&1; then
+    printf '{"version":"3.0.0","max_per_project":5,"watchers":[]}' > "$REG"
+  fi
+  MAX=$(jq -r '.max_per_project // 5' "$REG" 2>/dev/null | tr -d '\r'); [ -n "$MAX" ] || MAX=5
+  # idempotent
+  EXIST=$(jq -r --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")][0].slot // empty' "$REG" 2>/dev/null | tr -d '\r')
+  if [ -n "$EXIST" ]; then _reg_unlock_for "$REG"; printf '%s' "$EXIST"; return 0; fi
+  # per-project cap
+  CNT=$(jq -r --arg p "$PN" '[.watchers[]? | select(.status=="active" and .project!=null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))] | length' "$REG" 2>/dev/null | tr -d '\r')
+  [ -n "$CNT" ] || CNT=0
+  if [ "$CNT" -ge "$MAX" ]; then _reg_unlock_for "$REG"; return 1; fi
+  # lowest free global slot not used by any ACTIVE watcher
+  USED=$(jq -r '[.watchers[]? | select(.status=="active") | .slot] | sort | .[]' "$REG" 2>/dev/null | tr -d '\r' | tr '\n' ' ')
+  SLOT=1
+  while case " $USED " in *" $SLOT "*) true ;; *) false ;; esac; do SLOT=$((SLOT + 1)); done
+  # drop any stale non-active entry on that slot, append the new active watcher
+  NEW=$(jq -c --argjson sl "$SLOT" --arg s "$SID" --arg p "$PROJ" --arg t "$NOW" \
+    '.watchers |= (map(select((.slot != $sl) or (.status == "active"))) + [{"slot":$sl,"project":$p,"session_id":$s,"status":"active","claimed_by":"Claude","claimed_at":$t,"cron_job_id":null,"cron_interval":null,"task":null}])' \
+    "$REG" 2>/dev/null)
+  [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
+  _reg_unlock_for "$REG"
+  printf '%s' "$SLOT"; return 0
+}
+
+# watcher_release_pp SESSION [REG] — remove this session's watcher entry (under lock)
+watcher_release_pp() {
+  local SID="$1" REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" NEW
+  [ -f "$REG" ] || return 0
+  _reg_lock_for "$REG" || return 1
+  NEW=$(jq -c --arg s "$SID" '.watchers |= map(select(.session_id != $s))' "$REG" 2>/dev/null)
+  [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
+  _reg_unlock_for "$REG"
+  return 0
+}
+
+# watcher_set_cron SESSION CRON_ID [CRON_INTERVAL] [REG] — record the cron on this session's watcher entry
+watcher_set_cron() {
+  local SID="$1" CID="$2" CI="${3:-*/3 * * * *}" REG="${4:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" NEW
+  [ -f "$REG" ] || return 1
+  _reg_lock_for "$REG" || return 1
+  NEW=$(jq -c --arg s "$SID" --arg c "$CID" --arg i "$CI" '.watchers |= map(if .session_id==$s then (.cron_job_id=$c | .cron_interval=$i) else . end)' "$REG" 2>/dev/null)
+  [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
+  _reg_unlock_for "$REG"
   return 0
 }

@@ -1,6 +1,22 @@
 # Progress Notes — Harness Infrastructure
 
-## Current: Sprint 28 BUILD COMPLETE — Watcher Lifecycle Completion Protocol
+## Current: Sprint 31a — REAL Per-Project Watcher Pool (goal-locked)
+GOAL: 5 watchers PER PROJECT, unlimited total. New project never blocked by other folders. Validate until zero bugs.
+
+DONE this session:
+1. Helpers (lib-helpers.sh, TDD-green): watcher_count_pp / watcher_claim_pp / watcher_release_pp / watcher_set_cron. Dynamic .watchers[] list, idempotent claim, per-registry mkdir lock, HARNESS_REGISTRY honored.
+2. Gate wiring: replaced OLD fixed-index claim (.watchers[[N]-1], fails when global pool full) with watcher_claim_pp + watcher_set_cron in pre-write-gate.sh (both blocks) and pre-bash-gate.sh. Per-project COUNT enforcement was already correct.
+3. Both gates now honor HARNESS_REGISTRY (back-compat default unchanged).
+4. Live registry migrated v2->v3.0.0, max_per_project=5, backfilled my session_id onto slot 1 (validated: 4 active before==after, self-lock safe).
+5. startup-recovery.sh: dynamic-list compatible; fixed cosmetic ">24h"->">72h" log.
+
+Tests green: test-perproject-watchers 6/6, test-perproject-gate-integration 7/7, sprint29 11/11, sprint31a-foundation 10/10, sprint31a-integration 3/3, preflight-session-keyed 4/4, evidence-checkpoint PASS.
+Pre-existing OUT-OF-SCOPE failures: test-ralph-loop tests 7 & 41 (on-prompt-submit.sh, untouched Jun 7) — not from this work.
+NEXT: independent validator -> iterate to zero bugs -> _install sync + commit.
+
+---
+
+## Sprint 28 BUILD COMPLETE — Watcher Lifecycle Completion Protocol
 
 ### What Was Built (3 features)
 - **F1** (lib-helpers.sh, post-write-check.sh, on-prompt-submit.sh): Cron pause/resume — cron_pause()/cron_resume() helpers, auto-resume on Write/Edit (state files excluded), turn packet injection
@@ -59,3 +75,168 @@ Harness auto-runs `python -m pytest` in validate-phase.sh (Phantom TDD defense).
 - TDD T10 added: T10a (stale PASS via bash -> NOT cleared) failed before fix, passes after; T10b (fresh -> cleared) passes. Suite 11/11.
 - FAIL block + exit-2 paths unchanged (regression smoke: FAIL still blocks, checkpoint preserved). bash -n clean.
 - Note: test must use PROJECT-RELATIVE redirect (echo > src/foo.js); absolute /tmp paths are treated as scratch by the WRITES_FILES detector.
+
+## Sprint 31a BUILD — Piece 1 COMPLETE (2026-06-06)
+PROBE (AC1) done: session_id present in Pre/Post/UserPromptSubmit (+cwd, transcript_path). Sub-agent
+tool calls report PARENT session_id (sub-agents transparent — no special handling). Sub-agents don't
+fire UserPromptSubmit (don't claim lanes). Stop-event firing UNCONFIRMED (settle in AC34). Findings:
+.claude/state/lane-probe-findings.md. Probe hook instrumentation fully reverted (bash -n clean).
+
+Piece 1 (lib-helpers.sh, appended): registry v2 helpers + resolve_instance.
+- _reg_lock_for/_reg_unlock_for (per-registry-path mkdir lock), _proj_norm, _ensure_reg_v2
+- instance_find_by_session, instance_claim_lane (per-project lowest-free 1-5, cap, idempotent),
+  instance_release, lane_paths (lane1=flat, laneN=subdir; MUSTDO must-do.md / must-do-(N-1).md),
+  resolve_instance (reads .session_id from PASSED payload, claims ONLY at UserPromptSubmit, else flat)
+- BUG FIXED: USED-lanes jq output had \r -> membership match failed -> all lanes got 1. Added tr -d '\r'.
+- Tests: tests/test-sprint31a-foundation.sh = 8/8. Sprint 29 regression = 11/11 (lane1=flat safe).
+
+REMAINING for 31a (next):
+- Piece 2: wire hooks to resolve_instance + convert literal .claude/state|contracts|... reads to
+  resolved vars (AC32a/b literal-path guard) + contract-gate deadlock fix (AC36 -> ${CONTRACTS_DIR}).
+  DELICATE: editing the live gating hooks; one bad edit can self-lock. Do incrementally + bash -n each.
+- Piece 3: concurrency tests (AC27-29), orphan/liveness heartbeat (AC30-31), subprocess session
+  threading (AC35), on-session-end stdin+release (AC34, confirm Stop firing), v1->v2 migration (AC25).
+- Then EVALUATE: independent verifier (real multi-lane sandbox, cross-lane write + contract deadlock).
+
+## Sprint 31a Piece 1 — INDEPENDENT VALIDATION: PASS (2026-06-06)
+Verifier (default-FAIL) ran bash -n + foundation 8/8 + sprint29 11/11 + own 16-check adversarial suite
+(all pass): lane_paths 1/3/5 exact, cap+6th-refused, idempotency-no-dup, per-project independence,
+release/reuse-lowest, payload-resolve with empty stdin, lazy claim, no-session default, malformed/empty
+registry recreation, CRLF. Additive confirmed. Probe findings internally consistent.
+MINOR (later cleanup, non-blocking): _proj_norm (bash) and the inline jq normalization in
+instance_claim_lane duplicate the same normalization logic — identical results, drift risk only.
+
+## Sprint 31a Piece 2 — registry safety (2026-06-06)
+CRITICAL fix before any hook wiring: _ensure_reg_v2 was CLOBBERING a v1 watcher registry (.watchers
+-> GONE). If a hook had called resolve_instance on the live v1 REGISTRY.json at a UserPromptSubmit, it
+would have wiped my watcher slots and self-locked. FIXED: _ensure_reg_v2 now MIGRATES IN PLACE — adds
+version/max_lanes_per_project/instances, PRESERVES .watchers and all existing keys. Corrupt -> fresh v2.
+- Tests added: t_migrate_preserves_watchers, t_claim_on_v1_keeps_watchers. Foundation suite = 10/10.
+- Coexistence model: during transition, .watchers (old enforcement) and .instances (lanes) live in the
+  SAME registry. Old watcher enforcement keeps gating; lane system runs alongside. Safe.
+
+NEXT (Piece 2 main, still pending — DELICATE live-hook wiring):
+- Insert resolve_instance call after stdin-read in pre-write-gate/pre-bash-gate/post-write-check/
+  on-prompt-submit (set STATE_DIR/CONTRACTS_DIR/... from it instead of flat default). Transparent for
+  lane 1 (flat) — single instance unchanged. bash -n + run sprint29(11/11)+foundation(10/10) after EACH.
+- Convert literal `.claude/state|contracts|...` READS to the resolved vars (AC32a/b guard).
+- Contract-gate deadlock fix: pre-write-gate contract check -> ${CONTRACTS_DIR} (AC36).
+- Watcher enforcement -> session-keyed via .instances (AC12) — the part that can self-lock; do last + test.
+
+## Sprint 31a Piece 2 — first hook wired (2026-06-06)
+post-write-check.sh: replaced flat STATE_DIR assignment with lane resolution:
+  if HARNESS_STATE_DIR set -> use it (test override); elif resolve_instance available -> call it
+  (PostToolUse) to set STATE_DIR; else flat. Transparent for lane 1 (verified: lane-1 session writes to
+  flat .claude/state, NO lane-1 subdir). bash -n + sprint29 11/11 + foundation 10/10 all green.
+WIRING PATTERN (reuse for remaining hooks), insert AFTER the hook sources lib-helpers + reads its payload:
+  if [ -n "${HARNESS_STATE_DIR:-}" ]; then STATE_DIR="$HARNESS_STATE_DIR"
+  elif type resolve_instance >/dev/null 2>&1; then resolve_instance "$PAYLOAD" "$(pwd -W||pwd)" "$EVENT" >/dev/null 2>&1
+  else STATE_DIR=".claude/state"; fi; STATE_DIR="${STATE_DIR:-.claude/state}"
+  Payload vars/events: pre-write-gate=INPUT_DATA/PreToolUse; pre-bash-gate=INPUT(verify name)/PreToolUse;
+  on-prompt-submit=PROMPT_INPUT/UserPromptSubmit. Backup each hook before editing (/tmp/*-bk).
+REMAINING Piece 2: wire pre-write-gate, pre-bash-gate, on-prompt-submit (same pattern); convert literal
+  .claude/state|contracts|... READS to ${STATE_DIR}/${CONTRACTS_DIR}/...; contract-gate -> ${CONTRACTS_DIR}
+  (AC36); watcher-enforcement -> .instances session-keyed (AC12, LAST, self-lock risk, sandbox-test).
+Then Piece 3 (concurrency AC27-29, orphan/liveness AC30-31, subprocess threading AC35, on-session-end
+  AC34) + EVALUATE verifier.
+
+## Sprint 31a Piece 2 — pre-write-gate wired (2026-06-06)
+pre-write-gate.sh: inserted lane resolution AFTER INPUT_DATA=$(cat) (line 19), BEFORE first STATE_DIR
+use. Skips when HARNESS_STATE_DIR set (test override); else resolve_instance(PreToolUse) overrides
+STATE_DIR (lane1=flat). bash -n + sprint29 11/11 + foundation 10/10. LIVE PROOF: this hook gates my own
+writes and my edits kept working = lane-1 transparent, no self-lock. Backup: /tmp/pwg-bk-piece2.sh.
+2 of 4 hooks wired (post-write-check, pre-write-gate). Remaining: pre-bash-gate (PreToolUse, verify
+payload var name — likely INPUT), on-prompt-submit (UserPromptSubmit, PROMPT_INPUT). Then literal-path
+conversions + contract-gate ${CONTRACTS_DIR} (AC36) + watcher-enforcement->.instances (AC12, last).
+
+## Sprint 31a Piece 2 — pre-bash-gate wired (2026-06-07)
+pre-bash-gate.sh: inserted lane resolution AFTER source lib-helpers (line 19), before phase context.
+payload=INPUT, event=PreToolUse. bash -n + sprint29 11/11 + foundation 10/10. Live-proven (gates my own
+Bash; verify cmd worked). Backup /tmp/pbg-bk-piece2.sh. 3 of 4 hooks wired.
+LAST hook = on-prompt-submit (UserPromptSubmit): payload=PROMPT_INPUT (line 2), HELPERS sourced line 12,
+STATE_DIR line 9. Insert resolution AFTER source (line 12), event=UserPromptSubmit -> THIS is where a lane
+gets CLAIMED on the live registry (first .instances entry for my session=lane1; watchers preserved=safe).
+Also add minimal [LANE N] tag to turn packet (AC14-basic). Then literal-path conversions + contract-gate
+${CONTRACTS_DIR} (AC36) + watcher-enforcement->.instances (AC12, LAST) + Piece 3 + EVALUATE.
+
+## Sprint 31a — CORE COMPLETE + INDEPENDENTLY VERIFIED PASS (2026-06-07)
+All 4 hooks wired to resolve_instance (lane1=flat transparent). Turn packet leads with [HARNESS] Lane: N
+and emits [LANE N] briefing for lanes>1. AC36 contract-gate now uses ${CONTRACTS_DIR} (lane-2 gated on
+lane-2's contract, no deadlock — spot-checked). HARNESS_REGISTRY env override added to helpers (testable).
+- Tests: foundation 10/10, integration 3/3 (real-hook multi-lane isolation), sprint29 regression 11/11.
+- INDEPENDENT VERIFIER (default-FAIL) ran all suites + its OWN adversarial 2-lane sandbox: genuine
+  isolation (L2 sees only lane-2, zero lane-1 leak; 3+5 concurrent writes stayed separate), lane-1
+  transparent, no self-lock, registry-safe (v1 watchers+cron preserved), additive. VERDICT: PASS.
+
+VERIFIED-WORKING 31a CORE = lanes isolate phase/contracts/state/turn-packet; single instance unchanged.
+
+REMAINING 31a (finish-line pass — NOT yet built; each is additive):
+- AC34 on-session-end release by session_id (Stop hook reads no stdin today; probe was inconclusive on
+  whether session-end fires it — confirm during build).
+- AC27-29 concurrency tests (helpers already lock per-registry); AC30-31 last_seen heartbeat + orphan cleanup.
+- AC35 subprocess session-threading (generate-pre-flight-challenge / create-evidence-checkpoint).
+- AC12 watcher-enforcement -> .instances session-keyed === THE SELF-LOCK-RISK PIECE. Do in a sandbox-tested
+  way; today enforcement still reads .watchers (coexists safely with .instances). Leave for a careful pass.
+- AC32b full literal-path READ guard (verifier noted advisory DISPLAY text still has flat path strings —
+  display only, not reads; reads resolve correctly). 31b also covers the exhaustive awareness sweep.
+NEXT-SESSION: finish above, then _install sync (lib-helpers + 4 hooks) + commit for all of 31a.
+
+## Sprint 31a — watcher-pool fixes (user live problem) (2026-06-07)
+ROOT CAUSE of "new project sees 5 active / cannot claim": per-project watchers DESIGNED but not deployed
+— live enforcement still uses the global watcher 5-slot pool (AC12 not done). Pool exhausted by 6-7 day
+orphans (no global cleanup). FIXED:
+1. Freed stale orphan slots 2,3,4 (via Write tool).
+2. post-write-check.sh ACTIVE_WATCHERS now PROJECT-SCOPED (counts only current project's slots) —
+   live-proven: turn packet 5 -> 1; fresh project -> 0 (not-claimed).
+3. startup-recovery.sh: added GLOBAL orphan reaper (free ANY project's slots older than 24h) so the
+   shared pool self-heals. Tested: 55h orphan reaped, 1h kept. bash -n clean. sprint29 11/11, integration 3/3.
+KNOWN ISSUE: Sprint 28 release-guard (pre-bash-gate) is OVER-BROAD — flags any bash command mentioning the
+  registry plus the free-status token during non-COMPLETE, even READS and even THIS progress note. Fix:
+  only flag a WRITE releasing the CURRENT project's own slot.
+REMAINING 31a (careful pass): AC12 enforcement onto .instances + AC13 per-project pool (never exhausts),
+  AC32b literal-path guard, AC34 release, AC27-31 concurrency, AC35 subprocess, then _install sync + commit.
+The .instances per-project model is ALREADY live+correct (Magenta=lane1, PCW=lane1+lane2); only the
+watcher ENFORCEMENT side remains to converge onto it.
+
+## Sprint 31a — FULL INDEPENDENT VALIDATION: BOTH PASS (2026-06-07)
+Two parallel default-FAIL adversarial validators:
+- REGRESSION validator PASS (10/10): every pre-existing gate still fires (phase, contract, evidence +
+  sprint29 fresh/stale guard, watcher/cron, ralph + ralph-mode protection, pre-bash, single-instance
+  transparency byte-identical, additive). No regressions. Live gates even blocked its own sandbox setup
+  = independent proof gates are active.
+- FEATURE validator PASS (9/9): lane resolution, per-project cap + independence, lazy claim, real-hook
+  lane isolation (no cross-lane leak), v1->v2 safety (watchers+cron preserved), project-scoped count,
+  >24h global reaper, AC36 deadlock fix (both directions).
+By-design note from both: watcher ENFORCEMENT still keys off .watchers (v1 slots), not .instances — that
+convergence is the deferred AC12 careful pass; migration shim keeps .watchers intact, so consistent.
+=> Harness prior capability INTACT + all new features verified working. Ready to commit (sync _install).
+
+## Sprint 31a — watcher heartbeat (AC30 core) — fixes re-claim waste (2026-06-07)
+USER REPORT: agents waste time claiming the watcher over and over. ROOT CAUSE: no heartbeat — claimed_at
+set once, never refreshed; the 4h project-scoped cleanup + global reaper then reap an agent's OWN active
+watcher -> gate forces re-claim -> loop. NOTE: watcher/cron LOCATION unchanged (still global registry +
+slot files), so no per-project docs needed; this was behavioral, not a docs gap.
+FIX: post-write-check now refreshes the current project's active watcher claimed_at if >1h old (throttled
+hourly, hot-path cheap). Active agents self-maintain their own slot; dead sessions age out and get cleaned.
+Verified: 2h-old -> refresh, 10min -> skip; bash -n clean; sprint29 11/11, integration 3/3; registry valid.
+Crons are STILL re-created per session (by design — crons do not survive a restart; unavoidable).
+LIVE: Magenta claimed slot 2 (pool unblock worked); PCW slot 5; harness-infra slot 1; slots 3,4 free.
+
+## Audit fixes — multilane harness bugs found in live projects (2026-06-07/08)
+PCW audit (independent agent) = BROKEN/deadlocked. Two root bugs from the half-wired multilane change:
+1. PHASE-CLOBBER DEADLOCK: lanes were AUTO-assigned (no opt-in flag); a lane-N instance with no seeded
+   lane-N/current-phase.json triggered post-write-check's auto-init -> init-project.sh rewrote the FLAT
+   phase to PLAN/0 -> agent's BUILD never stuck -> all writes blocked.
+   FIX: resolve_instance now OPT-IN — multilane only active with .claude/multi-lane.json; else lane 1 =
+   flat = exact pre-multilane behavior. PCW (no flag) -> all instances flat -> unblocked. Verified.
+2. PRE-FLIGHT THRASH (harness-wide): concurrent agents in one folder shared the FLAT challenge.md/
+   response.md; the gate regenerates on every fire -> two agents race + file-rotation deletes the files
+   mid-op -> 13-min retry loops. FIX (HARNESS-WIDE, in the global hooks): per-session pre-flight subdir
+   .claude/pre-flight/<session_id>/. Threaded session_id through pre-flight-gate -> generate -> validate;
+   block message names the session subdir; flat fallback when no session. Each concurrent agent now has
+   its OWN challenge/response = no thrash. Tests: tests/test-preflight-session-keyed.sh 4/4. All suites
+   green (sprint29 11/11, foundation 10/10, integration 3/3). bash -n clean on all 3 pre-flight scripts.
+Magenta audit STILL OWED (looked healthy: single-instance, lane 1 flat, BUILD/2, no FAIL, no lane dirs).
+REMAINING for full per-folder concurrency: phase/contracts/must-do still shared-flat when opt-in off; the
+lane system (when its per-lane state seeding is completed) or session-keying those too is the next step.
+Then _install sync + commit.

@@ -125,6 +125,32 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     registry_unlock
   fi
 
+  # --- GLOBAL orphan reap: free ANY project's watchers older than 72h ---
+  # The pool is shared; without this, week-old orphans from other projects exhaust it and a fresh
+  # project can never claim. Threshold is 72h (NOT 24h): claimed_at is NOT refreshed (no heartbeat
+  # yet — that's AC30), so a shorter window would reap a long-running ACTIVE session. 72h only catches
+  # clearly-dead multi-day orphans. TODO(AC30): add a last_seen heartbeat, then this can safely tighten.
+  GLOBAL_STALE=259200
+  GLOBAL_SLOTS=""
+  for SLOT_INFO in $(jq -r '.watchers[] | select(.status == "active") | "\(.slot)|\(.claimed_at // "null")"' "$WATCHER_REGISTRY" 2>/dev/null); do
+    GSN="${SLOT_INFO%%|*}"; GCA="${SLOT_INFO#*|}"
+    [ "$GCA" = "null" ] && continue
+    GCA_EPOCH=$(date -d "$GCA" +%s 2>/dev/null || echo "$NOW_EPOCH")
+    if [ $((NOW_EPOCH - GCA_EPOCH)) -gt $GLOBAL_STALE ]; then GLOBAL_SLOTS="$GLOBAL_SLOTS $GSN"; fi
+  done
+  GLOBAL_SLOTS=$(echo "$GLOBAL_SLOTS" | xargs)
+  if [ -n "$GLOBAL_SLOTS" ]; then
+    printf "startup-recovery: Global orphan reap (>72h): slots %s\n" "$GLOBAL_SLOTS" >&2
+    if registry_lock; then
+      for GSN in $GLOBAL_SLOTS; do
+        UPDATED_REG=$(jq --argjson s "$GSN" '.watchers |= map(if .slot == $s then {slot, status: "available", claimed_by: null, claimed_at: null, cron_job_id: null} else . end)' "$WATCHER_REGISTRY" 2>/dev/null)
+        [ -n "$UPDATED_REG" ] && printf '%s\n' "$UPDATED_REG" > "$WATCHER_REGISTRY"
+        printf "# Watcher Slot %s\n\n**Status**: available\n" "$GSN" > "$HOME/.openclaw/watchers/slot-${GSN}.md" 2>/dev/null
+      done
+      registry_unlock
+    fi
+  fi
+
   # --- Clear stale cron data from active watchers for this project ---
   # CronCreate jobs only live within the session that created them.
   # When a new session starts, those crons are dead but the registry still has their IDs.

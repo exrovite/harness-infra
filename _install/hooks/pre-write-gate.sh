@@ -8,7 +8,7 @@ source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 WRITE_COUNTER="${STATE_DIR}/write-count.txt"
-WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
+WATCHER_REGISTRY="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
 
 # If no harness state, allow silently
 if [ ! -f "${STATE_DIR}/current-phase.json" ]; then
@@ -17,6 +17,13 @@ fi
 
 # Read stdin once for all gates (tool input JSON from Claude Code)
 INPUT_DATA=$(cat)
+
+# Multilane lane resolution (Sprint 31a): override flat STATE_DIR with the lane's (lane 1 = flat,
+# transparent for single instance). Skipped when HARNESS_STATE_DIR is an explicit test override.
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type resolve_instance >/dev/null 2>&1; then
+  resolve_instance "$INPUT_DATA" "$(pwd -W 2>/dev/null || pwd)" "PreToolUse" >/dev/null 2>&1
+  STATE_DIR="${STATE_DIR:-.claude/state}"
+fi
 
 # PHASE GATE: Only BUILD phase allows source code writes.
 # Agents in PLAN/NEGOTIATE/EVALUATE/COMPLETE can only write to infrastructure paths.
@@ -170,8 +177,10 @@ fi
 # CONTRACT GATE: BUILD phase requires a sprint contract
 # Without a contract, there's no scope boundary — agent can drift indefinitely.
 if [ "$CURRENT_PHASE" = "BUILD" ]; then
-  # Check for THIS sprint's contract file (not just any contract)
-  if [ ! -f ".claude/contracts/sprint-${CURRENT_SPRINT}-contract.md" ]; then
+  # Check for THIS sprint's contract file IN THIS LANE'S contracts dir (AC36: lane 2 must not be
+  # gated against lane 1's contract — that would deadlock). CONTRACTS_DIR set by resolve_instance.
+  CG_DIR="${CONTRACTS_DIR:-.claude/contracts}"
+  if [ ! -f "${CG_DIR}/sprint-${CURRENT_SPRINT}-contract.md" ]; then
     # Agent tool spawns subagents — they get their own Write/Edit gating independently.
     # Blocking Agent here creates deadlocks (can't spawn verifier without contract).
     CG_TOOL=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_name // ""' 2>/dev/null)
@@ -702,31 +711,21 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
 
   if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
-    # Show available slots so agent knows which to claim
-    AVAIL_SLOTS=$(jq -r '[.watchers[] | select(.status == "available") | .slot] | join(", ")' "$WATCHER_REGISTRY" 2>/dev/null)
+    # Per-project watcher pool: this project gets up to 5 of its OWN watchers — never blocked by others.
+    CLAIM_SID=$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // empty' 2>/dev/null | tr -d '\r')
     printf "[ADMIN GATE] BLOCKED: %s Write/Edit/Agent tools are LOCKED after %s writes.\n\n" "$PHASE_CTX" "$WRITES" >&2
-    if [ -n "$AVAIL_SLOTS" ]; then
-      printf "Available watcher slots: %s\n\n" "$AVAIL_SLOTS" >&2
-    fi
-    printf "You need BOTH a watcher AND a cron reminder FOR THIS PROJECT. Neither is set up.\n\n" >&2
-    printf "STEP 1 - Claim a watcher via Bash. IMPORTANT: use a CURRENT timestamp or it will be auto-cleaned as stale.\n" >&2
-    printf "  Find an available slot in REGISTRY.json, then run (replace [N] with slot number):\n\n" >&2
-    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && registry_lock && \\\n' >&2
-    printf '  TSTAMP=$(date -Iseconds) && PROJ=$(pwd -W 2>/dev/null || pwd) && \\\n' >&2
-    printf '  jq --arg ts "$TSTAMP" --arg pr "$PROJ" '"'"'.watchers[[N]-1].status = "active" | .watchers[[N]-1].claimed_by = "Claude" | .watchers[[N]-1].claimed_at = $ts | .watchers[[N]-1].project = $pr'"'"' \\\n' >&2
-    printf '  "$HOME/.openclaw/watchers/REGISTRY.json" > /tmp/reg.tmp && mv /tmp/reg.tmp "$HOME/.openclaw/watchers/REGISTRY.json" && \\\n' >&2
-    printf '  registry_unlock\n\n' >&2
-    printf "STEP 2 - Write your to-do list to the slot file via Bash:\n" >&2
-    printf '  printf "# Watcher Slot [N]\\n\\n**Status**: active\\n**Task**: [describe]\\n## TO-DO\\n- [ ] Step 1\\n" > "$HOME/.openclaw/watchers/slot-[N].md"\n\n' >&2
-    printf "STEP 3 - Start 3-minute cron (use CronCreate tool):\n" >&2
-    printf '  CronCreate with cron "*/3 * * * *" and prompt "WATCHER REMINDER - Read your watcher slot NOW. Which step am I on? Am I on task?"\n\n' >&2
-    printf "STEP 4 - Record cron job ID in registry via Bash (use the lock):\n" >&2
-    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && registry_lock && \\\n' >&2
-    printf '  jq '"'"'.watchers[[N]-1].cron_job_id = "<JOB_ID>" | .watchers[[N]-1].cron_interval = "*/3 * * * *"'"'"' \\\n' >&2
-    printf '  "$HOME/.openclaw/watchers/REGISTRY.json" > /tmp/reg.tmp && mv /tmp/reg.tmp "$HOME/.openclaw/watchers/REGISTRY.json" && \\\n' >&2
-    printf '  registry_unlock\n\n' >&2
-    printf "All 4 steps required. Tools stay locked until both watcher AND cron are active FOR THIS PROJECT.\n" >&2
-    printf "CRITICAL: claimed_at MUST be a current timestamp. Stale watchers (>4h old) are auto-cleaned.\n" >&2
+    printf "You need a watcher AND a cron reminder FOR THIS PROJECT. Your project gets up to 5 of its OWN\n" >&2
+    printf "watchers (not shared with other folders), so claiming never fails because other projects are busy.\n\n" >&2
+    printf "STEP 1 - Claim a per-project watcher via Bash (prints your slot number):\n" >&2
+    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && SLOT=$(watcher_claim_pp "%s" "$(pwd -W 2>/dev/null || pwd)") && echo "claimed watcher slot $SLOT"\n' "$CLAIM_SID" >&2
+    printf "  (If it prints nothing: your project already has 5 active watchers — release one with watcher_release_pp.)\n\n" >&2
+    printf "STEP 2 - Write your to-do to the slot file (use the printed \$SLOT):\n" >&2
+    printf '  printf "# Watcher Slot $SLOT\\n\\n**Status**: active\\n**Task**: [describe]\\n## TO-DO\\n- [ ] Step 1\\n" > "$HOME/.openclaw/watchers/slot-$SLOT.md"\n\n' >&2
+    printf "STEP 3 - Start the 3-minute cron (CronCreate tool):\n" >&2
+    printf '  CronCreate with cron "*/3 * * * *" and prompt "WATCHER REMINDER - Read your watcher slot NOW. Which step am I on? On task?"\n\n' >&2
+    printf "STEP 4 - Record the cron on your watcher via Bash:\n" >&2
+    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && watcher_set_cron "%s" "<JOB_ID>"\n\n' "$CLAIM_SID" >&2
+    printf "Tools stay locked until both watcher AND cron are active FOR THIS PROJECT.\n" >&2
     print_gates_ahead
     exit 2
   fi
@@ -736,11 +735,9 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     printf "Without the cron, you will forget your to-do list and drift.\n\n" >&2
     printf "Set up the 3-minute cron (use CronCreate tool):\n" >&2
     printf '  CronCreate with cron "*/3 * * * *" and prompt "WATCHER REMINDER - Read your watcher slot NOW. Which step am I on? Am I on task? Am I stuck?"\n\n' >&2
-    printf "Then record the cron job ID in the registry via Bash (replace [N] with your slot number):\n" >&2
-    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && registry_lock && \\\n' >&2
-    printf '  jq '"'"'.watchers[[N]-1].cron_job_id = "<JOB_ID>" | .watchers[[N]-1].cron_interval = "*/3 * * * *"'"'"' \\\n' >&2
-    printf '  "$HOME/.openclaw/watchers/REGISTRY.json" > /tmp/reg.tmp && mv /tmp/reg.tmp "$HOME/.openclaw/watchers/REGISTRY.json" && \\\n' >&2
-    printf '  registry_unlock\n\n' >&2
+    CLAIM_SID=$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // empty' 2>/dev/null | tr -d '\r')
+    printf "Then record the cron on your watcher via Bash:\n" >&2
+    printf '  source "$HOME/.claude/scripts/lib-helpers.sh" && watcher_set_cron "%s" "<JOB_ID>"\n\n' "$CLAIM_SID" >&2
     printf "Tools stay locked until cron is active.\n" >&2
     print_gates_ahead
     exit 2
