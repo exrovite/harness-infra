@@ -12,6 +12,12 @@ TOOL_FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // .to
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+
+# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch — no counting/checkpoints ---
+if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+  exit 0
+fi
+
 MARKER_FILE="${STATE_DIR}/phase-complete-marker.md"
 
 # Auto-initialize if project has .claude/ but no harness state

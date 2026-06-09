@@ -25,6 +25,30 @@ atomic_write() {
 
 # append_jsonl Ã¢â‚¬â€ Append one JSON line to a JSONL file (append-only, can't corrupt previous entries)
 # Usage: append_jsonl '{"key":"value"}' "/path/to/file.jsonl"
+harness_is_disabled() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  [ -f "$sd/harness-disabled.flag" ]
+}
+harness_disable() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  mkdir -p "$sd" 2>/dev/null
+  local ts
+  ts=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  if type atomic_write >/dev/null 2>&1; then
+    atomic_write "harness disabled at ${ts}"$'\n' "$sd/harness-disabled.flag"
+  else
+    printf 'harness disabled at %s\n' "$ts" > "$sd/harness-disabled.flag.tmp" 2>/dev/null \
+      && mv -f "$sd/harness-disabled.flag.tmp" "$sd/harness-disabled.flag" 2>/dev/null
+  fi
+}
+harness_enable() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  rm -f "$sd/harness-disabled.flag" 2>/dev/null
+}
+
+# HARNESS KILL-SWITCH (Sprint 33): per-project on/off switch via <state>/harness-disabled.flag.
+# Honors HARNESS_STATE_DIR. Used by on-prompt-submit toggle + all enforcement gates.
+
 append_jsonl() {
   local LINE="$1"
   local TARGET="$2"

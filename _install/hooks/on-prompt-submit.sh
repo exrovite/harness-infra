@@ -11,6 +11,39 @@ WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 HELPERS="$HOME/.claude/scripts/lib-helpers.sh"
 [ -f "$HELPERS" ] && source "$HELPERS" 2>/dev/null
 
+# --- HARNESS KILL-SWITCH TOGGLE (Sprint 33) ---
+# Exact-match prompt tokens flip a project-scoped OFF switch. Nothing else toggles it.
+#   '---' -> harness OFF (all gates bypassed)   '===' -> harness ON
+# Project-scoped flag at <state>/harness-disabled.flag. The toggle messages and the
+# OFF banner are injected here; they are never blocked by any write gate.
+KS_FLAG="${STATE_DIR}/harness-disabled.flag"
+KS_PROJECT=$(pwd -W 2>/dev/null || pwd); KS_PROJECT=$(basename "$KS_PROJECT" 2>/dev/null)
+KS_TRIMMED=$(printf '%s' "$PROMPT_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+if [ "$KS_TRIMMED" = "---" ]; then
+  if type harness_disable >/dev/null 2>&1; then
+    harness_disable "$STATE_DIR"
+  else
+    mkdir -p "$STATE_DIR" 2>/dev/null
+    KS_TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+    printf 'harness disabled at %s\n' "$KS_TS" > "${KS_FLAG}.tmp" 2>/dev/null && mv -f "${KS_FLAG}.tmp" "$KS_FLAG" 2>/dev/null
+  fi
+  printf '[HARNESS OFF — %s] All enforcement gates bypassed for this project (phase lock, watcher, pre-flight MCQ, evidence, must-do, contract). Send === to re-enable.' "${KS_PROJECT:-project}"
+  exit 0
+elif [ "$KS_TRIMMED" = "===" ]; then
+  if type harness_enable >/dev/null 2>&1; then
+    harness_enable "$STATE_DIR"
+  else
+    rm -f "$KS_FLAG" 2>/dev/null
+  fi
+  printf '[HARNESS ON] Enforcement re-enabled for this project.'
+  exit 0
+fi
+# If OFF (flag present) and this is an ordinary prompt, inject only the persistent banner.
+if [ -f "$KS_FLAG" ]; then
+  printf '[HARNESS OFF — %s] Enforcement disabled for this project — all gates bypassed. Send === to re-enable.' "${KS_PROJECT:-project}"
+  exit 0
+fi
+
 one_line() {
   tr '\n' ' ' | tr -d '\r' | sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
 }

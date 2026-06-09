@@ -24,6 +24,12 @@ fi
 
 # --- HARD BLOCK: Phase validation failed — agent MUST address before continuing ---
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+
+# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch bypasses all enforcement ---
+if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+  exit 0
+fi
+
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 CURRENT_PHASE=$(jq -r '.phase // ""' "${STATE_DIR}/current-phase.json" 2>/dev/null)
 CURRENT_SPRINT=$(jq -r '.sprint // 0' "${STATE_DIR}/current-phase.json" 2>/dev/null)

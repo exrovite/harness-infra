@@ -10,6 +10,11 @@ STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 WRITE_COUNTER="${STATE_DIR}/write-count.txt"
 WATCHER_REGISTRY="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
 
+# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch bypasses all enforcement ---
+if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+  exit 0
+fi
+
 # If no harness state, allow silently
 if [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   exit 0
