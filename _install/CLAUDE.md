@@ -94,6 +94,12 @@ Every non-trivial task follows this progression:
 - Write a HIGH-LEVEL spec to `.claude/specs/product-spec.md` (WHAT to build, not HOW)
 - Write evaluation criteria to `.claude/specs/evaluation-criteria.md`
 - Stay under ~100 lines — no implementation details (prevents cascading errors)
+- **Show, don't just tell (visual/UI work):** if what you're planning has a visual, UI, layout, or
+  document-format dimension, build a quick HTML **mock** of the proposed result and open it in lavish
+  for the human to review and mark up BEFORE writing the full spec or any code — `bash
+  ~/.claude/skills/lavish-review/lavish-review.sh mock.html`. Iterate on the mock until they're happy,
+  then capture what was agreed in the spec. This replaces making the human read long markdown to
+  imagine the result. (Skip for non-visual work — e.g. bash helpers, pure logic — which has no mock.)
 - When done: write `.claude/state/phase-complete-marker.md`
 
 ### PHASE: NEGOTIATE

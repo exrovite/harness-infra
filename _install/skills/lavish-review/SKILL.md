@@ -10,8 +10,12 @@ in a local browser editor, annotates elements / selects text / types feedback; y
 feedback and iterate. Everything is local — no cloud.
 
 ## When to use
-- You generated or updated an `.html` artifact (report, mockup, dashboard, document) and want the
-  human to review it visually and mark it up, rather than describe changes in chat.
+- **Planning / mockups (preferred):** during the PLAN phase, when the thing being designed has a
+  visual, UI, layout, or document dimension, build a quick HTML **mock** of the proposed result and
+  open it in lavish so the human reviews and marks it up BEFORE the spec is finalized or any code is
+  written. This is faster and clearer for them than reading long markdown to imagine the outcome.
+- **Artifact review:** you generated or updated an `.html` artifact (report, dashboard, document) and
+  want the human to review it visually and annotate it, rather than describe changes in chat.
 
 ## How to use it (the harness way)
 Run the wrapper — it pauses your 3-minute watcher cron during the (blocking) wait so the harness does
