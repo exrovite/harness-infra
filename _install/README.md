@@ -71,3 +71,22 @@ This creates the `.claude/state/`, `.claude/contracts/`, `.claude/specs/` direct
 - **macOS** (with GNU coreutils recommended)
 
 All scripts use portable patterns with proper fallbacks for platform differences.
+
+## Bundled tools
+
+### lavish-axi (HTML-artifact human feedback)
+
+The installer also installs [**lavish-axi**](https://github.com/kunchenguid/lavish-axi) (pinned
+`0.1.20`) via npm and wires its always-on `SessionStart` ambient-context hook into `settings.json`.
+It gives agents a human↔agent feedback loop on HTML artifacts: the agent writes an `.html` file, the
+human annotates it in a local browser editor, and the agent receives that feedback. Use it through the
+`lavish-review` skill (`~/.claude/skills/lavish-review/`). Requires Node/npm; if absent, this step is
+skipped with a warning and the rest of the harness installs normally.
+
+#### Third-party notices
+
+This product bundles the following MIT-licensed software. Their license texts are retained under
+[`_install/LICENSES/`](LICENSES/):
+
+- **lavish-axi** — MIT © Kun Chen — `_install/LICENSES/lavish-axi-LICENSE`
+- **axi-sdk-js** — MIT © kunchenguid — `_install/LICENSES/axi-sdk-js-LICENSE`

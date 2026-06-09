@@ -89,7 +89,7 @@ if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/d
 
   RALPH_EXEMPT=false
   if [ "$RALPH_TOOL" = "Agent" ]; then RALPH_EXEMPT=true; fi
-  for RALPH_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/'; do
+  for RALPH_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/'; do
     if printf '%s' "$RALPH_TARGET_NORM" | grep -qiF "$RALPH_PAT"; then
       RALPH_EXEMPT=true
       break
@@ -128,7 +128,7 @@ if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   PG_TARGET=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
   PG_TARGET_NORM=$(printf '%s' "$PG_TARGET" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
   PG_EXEMPT=false
-  for PG_PAT in '.claude/state/' '.claude/specs/' '.claude/contracts/' '.claude/pre-flight/' '.openclaw/watchers/' '.agent-memory/' 'agentwiki/' 'claude-progress' 'features.json' 'tests.json' 'claude.md'; do
+  for PG_PAT in '.claude/state/' '.claude/specs/' '.claude/contracts/' '.claude/pre-flight/' '.openclaw/watchers/' '.agent-memory/' 'agentwiki/' '.lavish-axi/' 'claude-progress' 'features.json' 'tests.json' 'claude.md'; do
     if printf '%s' "$PG_TARGET_NORM" | grep -qiF "$PG_PAT"; then
       PG_EXEMPT=true
       break
@@ -195,7 +195,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
     if printf '%s' "$TARGET_NORM" | grep -qiF '.agent-memory/'; then exit 0; fi
     if printf '%s' "$TARGET_NORM" | grep -qiF '.claude/pre-flight/'; then exit 0; fi
     if printf '%s' "$TARGET_NORM" | grep -qiF '.claude/evidence/'; then exit 0; fi
-    if printf '%s' "$TARGET_NORM" | grep -qiF 'agentwiki/'; then exit 0; fi
+    if printf '%s' "$TARGET_NORM" | grep -qiE 'agentwiki/|\.lavish-axi/'; then exit 0; fi
     printf "[ADMIN GATE] BLOCKED: BUILD phase requires a contract for sprint %s.\n\n" "$CURRENT_SPRINT" >&2
     printf "No contract found at .claude/contracts/sprint-%s-contract.md\n\n" "$CURRENT_SPRINT" >&2
     printf "You MUST complete the NEGOTIATE phase first:\n" >&2
@@ -225,7 +225,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
     SLB_TARGET_NORM=$(printf '%s' "$SLB_TARGET" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
 
     SLB_EXEMPT=false
-    for SLB_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' 'agentwiki/'; do
+    for SLB_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
       if printf '%s' "$SLB_TARGET_NORM" | grep -qiF "$SLB_PAT"; then
         SLB_EXEMPT=true
         break
@@ -345,7 +345,7 @@ if [ -n "$MUST_DO_MD" ]; then
 
   # Exempt harness/state files (agent must be able to write the summary itself)
   MD_EXEMPT=false
-  for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/'; do
+  for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
     if printf '%s' "$TARGET_MD_NORM" | grep -qiF "$PAT"; then
       MD_EXEMPT=true
       break
@@ -487,7 +487,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
   # Exempt: harness state, infrastructure, Agent tool
   EC_EXEMPT=false
   if [ "$EC_TOOL" = "Agent" ]; then EC_EXEMPT=true; fi
-  for EC_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' 'agentwiki/'; do
+  for EC_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
     if printf '%s' "$EC_TARGET_NORM" | grep -qiF "$EC_PAT"; then
       EC_EXEMPT=true
       break

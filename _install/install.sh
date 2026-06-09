@@ -10,8 +10,9 @@
 #   5. Copies CLAUDE.md to ~/.claude/CLAUDE.md
 #   6. Sets up ~/.openclaw/watchers/ with blank registry
 #   7. Sets up ~/.openclaw/distractor-pool/ with MCQ distractors
+#   8. Installs lavish-axi (HTML-artifact human feedback) + wires its SessionStart hook
 #
-# Prerequisites: bash, jq
+# Prerequisites: bash, jq  (node/npm optional — step 8 is skipped with a warning if absent)
 
 set -e
 
@@ -20,6 +21,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -W 2>/dev/null || pwd)"
 
 CLAUDE_DIR="$HOME/.claude"
 OPENCLAW_DIR="$HOME/.openclaw"
+LAVISH_VERSION="0.1.20"
 
 echo "=== Enhanced Agent Harness Installer ==="
 echo "Source:  $SCRIPT_DIR"
@@ -27,7 +29,7 @@ echo "Target:  $CLAUDE_DIR"
 echo ""
 
 # --- Step 1: Create directories ---
-echo "[1/7] Creating directories..."
+echo "[1/8] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"
 mkdir -p "$CLAUDE_DIR/scripts"
 mkdir -p "$CLAUDE_DIR/roles"
@@ -35,24 +37,32 @@ mkdir -p "$OPENCLAW_DIR/watchers"
 mkdir -p "$OPENCLAW_DIR/distractor-pool"
 
 # --- Step 2: Copy hooks ---
-echo "[2/7] Installing hooks..."
+echo "[2/8] Installing hooks..."
 cp "$SCRIPT_DIR/hooks/"* "$CLAUDE_DIR/hooks/"
 chmod +x "$CLAUDE_DIR/hooks/"*
 echo "  -> $(ls "$SCRIPT_DIR/hooks/" | wc -l) hooks installed"
 
 # --- Step 3: Copy role prompts ---
-echo "[3/7] Installing role prompts..."
+echo "[3/8] Installing role prompts..."
 cp "$SCRIPT_DIR/roles/"* "$CLAUDE_DIR/roles/"
 echo "  -> $(ls "$SCRIPT_DIR/roles/" | wc -l) roles installed"
 
+# Copy skills (slash-command skills available to ALL agents/projects), if shipped
+if [ -d "$SCRIPT_DIR/skills" ]; then
+  mkdir -p "$CLAUDE_DIR/skills"
+  cp -r "$SCRIPT_DIR/skills/"* "$CLAUDE_DIR/skills/"
+  chmod +x "$CLAUDE_DIR/skills/"*/*.sh 2>/dev/null || true
+  echo "  -> $(ls "$SCRIPT_DIR/skills/" | wc -l) skill(s) installed"
+fi
+
 # --- Step 4: Copy scripts ---
-echo "[4/7] Installing scripts..."
+echo "[4/8] Installing scripts..."
 cp "$SCRIPT_DIR/scripts/"* "$CLAUDE_DIR/scripts/"
 chmod +x "$CLAUDE_DIR/scripts/"*
 echo "  -> $(ls "$SCRIPT_DIR/scripts/" | wc -l) scripts installed"
 
 # --- Step 5: Copy settings.json ---
-echo "[5/7] Installing settings.json..."
+echo "[5/8] Installing settings.json..."
 if [ -f "$CLAUDE_DIR/settings.json" ]; then
   BACKUP="$CLAUDE_DIR/settings.json.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/settings.json" "$BACKUP"
@@ -61,7 +71,7 @@ fi
 cp "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
 
 # --- Step 6: Copy CLAUDE.md ---
-echo "[6/7] Installing global CLAUDE.md..."
+echo "[6/8] Installing global CLAUDE.md..."
 if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
   BACKUP="$CLAUDE_DIR/CLAUDE.md.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/CLAUDE.md" "$BACKUP"
@@ -70,23 +80,19 @@ fi
 cp "$SCRIPT_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
 
 # --- Step 7: Set up openclaw infrastructure ---
-echo "[7/7] Installing openclaw infrastructure..."
+echo "[7/8] Installing openclaw infrastructure..."
 cp "$SCRIPT_DIR/openclaw/distractor-pool/"* "$OPENCLAW_DIR/distractor-pool/" 2>/dev/null || true
 
-# Create blank watcher registry if none exists
+# Create blank watcher registry if none exists (v3 per-project pool: max_per_project=5)
 if [ ! -f "$OPENCLAW_DIR/watchers/REGISTRY.json" ]; then
   cat > "$OPENCLAW_DIR/watchers/REGISTRY.json" <<'REGISTRY'
 {
-  "watchers": [
-    {"slot": 1, "status": "available", "claimed_by": null, "claimed_at": null, "project": null, "cron_job_id": null, "cron_interval": null},
-    {"slot": 2, "status": "available", "claimed_by": null, "claimed_at": null, "project": null, "cron_job_id": null, "cron_interval": null},
-    {"slot": 3, "status": "available", "claimed_by": null, "claimed_at": null, "project": null, "cron_job_id": null, "cron_interval": null},
-    {"slot": 4, "status": "available", "claimed_by": null, "claimed_at": null, "project": null, "cron_job_id": null, "cron_interval": null},
-    {"slot": 5, "status": "available", "claimed_by": null, "claimed_at": null, "project": null, "cron_job_id": null, "cron_interval": null}
-  ]
+  "version": "3.0.0",
+  "max_per_project": 5,
+  "watchers": []
 }
 REGISTRY
-  echo "  -> Fresh watcher registry created (5 slots)"
+  echo "  -> Fresh watcher registry created (per-project pool, 5/project)"
 else
   echo "  -> Watcher registry already exists, preserving"
 fi
@@ -97,6 +103,32 @@ for i in 1 2 3 4 5; do
     printf "# Watcher Slot %d\n\n**Status**: available\n" "$i" > "$OPENCLAW_DIR/watchers/slot-${i}.md"
   fi
 done
+
+# --- Step 8: Install lavish-axi + wire its always-on SessionStart hook ---
+# lavish-axi adds the human<->agent HTML-artifact feedback loop. We install it from npm (pinned) and
+# let `lavish-axi setup hooks` merge its SessionStart hook into the just-copied settings.json. We do
+# NOT bake the hook into _install/settings.json because lavish writes a machine-specific absolute path;
+# running setup hooks per-machine keeps the path correct and the merge idempotent (marker-based).
+echo "[8/8] Installing lavish-axi (HTML-artifact feedback)..."
+if command -v npm >/dev/null 2>&1; then
+  if npm install -g "lavish-axi@${LAVISH_VERSION}" >/dev/null 2>&1; then
+    echo "  -> lavish-axi@${LAVISH_VERSION} installed globally"
+    # Merge the always-on SessionStart hook into the freshly-copied settings.json (additive).
+    if command -v lavish-axi >/dev/null 2>&1; then
+      if lavish-axi setup hooks >/dev/null 2>&1; then
+        echo "  -> SessionStart ambient-context hook wired into settings.json"
+      else
+        echo "  -> WARN: 'lavish-axi setup hooks' failed; run it manually later. Harness unaffected."
+      fi
+    else
+      echo "  -> WARN: lavish-axi binary not on PATH after install; skipping hook wiring."
+    fi
+  else
+    echo "  -> WARN: 'npm install -g lavish-axi@${LAVISH_VERSION}' failed; skipping. Harness unaffected."
+  fi
+else
+  echo "  -> SKIP: node/npm not found. lavish-axi not installed (optional). Harness unaffected."
+fi
 
 echo ""
 echo "=== Installation Complete ==="
@@ -109,6 +141,7 @@ echo "  Settings:   $CLAUDE_DIR/settings.json"
 echo "  CLAUDE.md:  $CLAUDE_DIR/CLAUDE.md"
 echo "  Watchers:   $OPENCLAW_DIR/watchers/"
 echo "  Distractors:$OPENCLAW_DIR/distractor-pool/"
+echo "  lavish-axi: $(command -v lavish-axi >/dev/null 2>&1 && echo "installed ($(lavish-axi --version 2>/dev/null))" || echo "not installed (optional)")"
 echo ""
 echo "To initialize a new project, run from the project directory:"
 echo "  bash ~/.claude/scripts/init-project.sh"

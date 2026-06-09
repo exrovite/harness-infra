@@ -1,6 +1,24 @@
 # Progress Notes — Harness Infrastructure
 
-## Current: Sprint 31a — REAL Per-Project Watcher Pool (goal-locked)
+## Current: Sprint 32 — lavish-axi Harness Integration (BUILD complete, pre-validation)
+GOAL: make lavish-axi (human↔agent HTML-artifact feedback) a first-class harness citizen, shipped in _install.
+User decisions: npm-global pinned (0.1.20) · always-on SessionStart · full harness-native.
+
+DONE:
+1. Installed lavish-axi@0.1.20 globally. Captured its SessionStart hook in a SANDBOX HOME — confirmed it MERGES additively (our 4 hook types untouched). KEY FINDING: the installed command is a machine-specific absolute path, so we do NOT bake it into _install/settings.json; instead install.sh runs `lavish-axi setup hooks` per-machine (portable, idempotent).
+2. Live ~/.claude/settings.json: ran setup hooks with backup+integrity-auto-restore. SessionStart added, 4 original hooks byte-identical, valid JSON. Backup: settings.json.pre-lavish.bak.
+3. install.sh: new guarded step 8 (`npm i -g lavish-axi@0.1.20` + setup hooks; skips with warning if no node/npm; set -e safe). Also added a skills-copy step + upgraded registry seed to v3 per-project pool.
+4. Gate exemptions for `.lavish-axi/` in pre-write-gate.sh (6), pre-bash-gate.sh (2), pre-flight-gate.sh (2) — mirrored agentwiki/ (grep -qiF -> -qiE alternation + for-loop lists). Synced to _install/hooks.
+5. Skill ~/.claude/skills/lavish-review/ (SKILL.md + lavish-review.sh wrapper: cron_pause -> poll -> cron_resume). Shipped in _install/skills/.
+6. License: _install/LICENSES/{lavish-axi,axi-sdk-js}-LICENSE (MIT) + README NOTICE.
+7. Real smoke test: `lavish-axi <file> --no-open` opens session + instructs poll; `lavish-axi stop` clean. State lives in ~/.lavish-axi/ (home), not workspace, on open.
+
+Tests: tests/test-lavish-integration.sh 17/17. Regression: all suites green EXCEPT pre-existing test-ralph-loop 7&41 (on-prompt-submit.sh, untouched — unchanged count, not my regression).
+NEXT: independent validator -> iterate to zero bugs -> commit.
+
+---
+
+## Sprint 31a — REAL Per-Project Watcher Pool (goal-locked)
 GOAL: 5 watchers PER PROJECT, unlimited total. New project never blocked by other folders. Validate until zero bugs.
 
 DONE this session:

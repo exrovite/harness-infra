@@ -201,7 +201,7 @@ if printf '%s' "$COMMAND" | grep -qiF '.claude/pre-flight/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.claude/contracts/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.claude/specs/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.agent-memory/'; then exit 0; fi
-if printf '%s' "$COMMAND" | grep -qiF 'agentwiki/'; then exit 0; fi
+if printf '%s' "$COMMAND" | grep -qiE 'agentwiki/|\.lavish-axi/'; then exit 0; fi
 
 # --- File-writing detected — apply same enforcement as Write/Edit ---
 
@@ -361,7 +361,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
   if printf '%s' "$COMMAND" | grep -qiF '.claude/contracts/'; then EC_BASH_EXEMPT=true; fi
   if printf '%s' "$COMMAND" | grep -qiF '.claude/specs/'; then EC_BASH_EXEMPT=true; fi
   if printf '%s' "$COMMAND" | grep -qiF '.claude/pre-flight/'; then EC_BASH_EXEMPT=true; fi
-  if printf '%s' "$COMMAND" | grep -qiF 'agentwiki/'; then EC_BASH_EXEMPT=true; fi
+  if printf '%s' "$COMMAND" | grep -qiE 'agentwiki/|\.lavish-axi/'; then EC_BASH_EXEMPT=true; fi
 
   # .claude/evidence/ — exempt UNLESS FAIL verdict without valid remediation plan
   if [ "$EC_BASH_EXEMPT" = false ] && printf '%s' "$COMMAND" | grep -qiF '.claude/evidence/'; then

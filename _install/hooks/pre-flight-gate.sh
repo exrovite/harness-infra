@@ -51,7 +51,7 @@ print_gates_ahead() {
 PHASE_FB="${STATE_DIR}/phase-feedback.md"
 if [ -f "$PHASE_FB" ] && grep -qF "FAIL" "$PHASE_FB" 2>/dev/null; then
   # Allow writes to harness infrastructure paths (needed for phase transitions)
-  for FB_PAT in '.claude/state/' '.openclaw/watchers/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.agent-memory/' 'agentwiki/' '.claude/evidence/'; do
+  for FB_PAT in '.claude/state/' '.openclaw/watchers/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.agent-memory/' 'agentwiki/' '.lavish-axi/' '.claude/evidence/'; do
     if printf '%s' "$TARGET_NORM" | grep -qiF "$FB_PAT"; then
       exit 0
     fi
@@ -90,7 +90,7 @@ if printf '%s' "$TARGET_NORM" | grep -qF '.claude/state/'; then
 fi
 
 # Exempt: wiki files (AgentWiki vault pages)
-if printf '%s' "$TARGET_NORM" | grep -qiF 'agentwiki/'; then
+if printf '%s' "$TARGET_NORM" | grep -qiE 'agentwiki/|\.lavish-axi/'; then
   exit 0
 fi
 
@@ -253,39 +253,40 @@ jq -n --argjson wc "$WRITE_COUNT" --arg ls "$LAST_STEP" \
   '{"write_count": $wc, "last_step": $ls}' > "$COUNTER_FILE"
 
 # --- Check for valid pre-flight response ---
-PREFLIGHT_DIR=".claude/pre-flight"
+# Per-session pre-flight (Sprint 31a): each agent gets its OWN challenge/response under a session subdir,
+# so concurrent agents in one folder don't thrash on shared files. Flat fallback when no session id.
+PF_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null | tr -cd 'a-zA-Z0-9-' | head -c 40)
+PREFLIGHT_DIR=".claude/pre-flight${PF_SID:+/$PF_SID}"
 RESPONSE_FILE="$PREFLIGHT_DIR/response.md"
 CHALLENGE_FILE="$PREFLIGHT_DIR/challenge.md"
 
-# If response exists, try to validate it
+# If response exists, try to validate it (pass session id so validate reads THIS session's files)
 if [ -f "$RESPONSE_FILE" ] && [ -f "$CHALLENGE_FILE" ]; then
-  VALIDATE_OUTPUT=$(bash "$HOME/.claude/scripts/validate-pre-flight.sh" 2>&1)
+  VALIDATE_OUTPUT=$(bash "$HOME/.claude/scripts/validate-pre-flight.sh" "$PF_SID" 2>&1)
   VALIDATE_EXIT=$?
   if [ $VALIDATE_EXIT -eq 0 ]; then
     # Validation passed — files consumed, allow write
-    # Step 8: Increment counter and save after MCQ pass
     WRITE_COUNT=$((WRITE_COUNT + 1))
-    mkdir -p .claude/pre-flight
+    mkdir -p "$PREFLIGHT_DIR"
     jq -n --argjson wc "$WRITE_COUNT" --arg ls "$LAST_STEP" \
       '{"write_count": $wc, "last_step": $ls}' > "$COUNTER_FILE"
     exit 0
   else
     # Validation failed — show feedback, regenerate challenge, block
     printf "PRE-FLIGHT CHECK FAILED:\n%s\n\n" "$VALIDATE_OUTPUT" >&2
-    # Remove the bad response so agent must re-answer
     rm -f "$RESPONSE_FILE"
   fi
 fi
 
-# --- Generate fresh challenge and block ---
-bash "$HOME/.claude/scripts/generate-pre-flight-challenge.sh" "$TARGET_FILE" 2>/dev/null
+# --- Generate fresh challenge (per-session) and block ---
+bash "$HOME/.claude/scripts/generate-pre-flight-challenge.sh" "$TARGET_FILE" "$PF_SID" 2>/dev/null
 
 if [ -f "$CHALLENGE_FILE" ]; then
   printf "[EVIDENCE GATE] BLOCKED: Pre-flight check required before writing.\n\n" >&2
   print_evidence_gate_note
   printf "Before you can write to: %s\n\n" "$TARGET_FILE" >&2
-  printf "1. READ your challenge: .claude/pre-flight/challenge.md\n" >&2
-  printf "2. WRITE your answers to: .claude/pre-flight/response.md\n" >&2
+  printf "1. READ your challenge: %s/challenge.md\n" "$PREFLIGHT_DIR" >&2
+  printf "2. WRITE your answers to: %s/response.md\n" "$PREFLIGHT_DIR" >&2
   printf "   Format:\n" >&2
   printf "   Q1: A\n" >&2
   printf "   Q2: B\n" >&2
