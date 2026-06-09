@@ -7,8 +7,11 @@
 # Output: Writes .claude/pre-flight/challenge.md
 
 TARGET_FILE="${1:-(unknown)}"
+# Per-session pre-flight subdir (Sprint 31a): concurrent agents must not share challenge/response files
+# (sharing caused a regenerate/file-rotation thrash). Falls back to flat .claude/pre-flight when no session.
+PF_SID=$(printf '%s' "${2:-}" | tr -cd 'a-zA-Z0-9-' | head -c 40)
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
-PREFLIGHT_DIR=".claude/pre-flight"
+PREFLIGHT_DIR=".claude/pre-flight${PF_SID:+/$PF_SID}"
 WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 DISTRACTOR_POOL="$HOME/.openclaw/distractor-pool"
 
@@ -178,7 +181,7 @@ cat > "$PREFLIGHT_DIR/challenge.md" << CHALLENGE
 
 # Pre-Flight Challenge
 
-Answer all 5 questions. Write your answers to .claude/pre-flight/response.md in format:
+Answer all 5 questions. Write your answers to ${PREFLIGHT_DIR}/response.md in format:
 Q1: A
 Q2: B
 Q3: C

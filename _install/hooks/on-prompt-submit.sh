@@ -11,6 +11,16 @@ WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 HELPERS="$HOME/.claude/scripts/lib-helpers.sh"
 [ -f "$HELPERS" ] && source "$HELPERS" 2>/dev/null
 
+# Multilane lane resolution (Sprint 31a): UserPromptSubmit is where a lane is CLAIMED on the live
+# registry (lane 1 = flat, transparent). Honor explicit HARNESS_STATE_DIR test override.
+LANE=1
+if [ -n "${HARNESS_STATE_DIR:-}" ]; then
+  STATE_DIR="$HARNESS_STATE_DIR"
+elif type resolve_instance >/dev/null 2>&1; then
+  resolve_instance "$PROMPT_INPUT" "$(pwd -W 2>/dev/null || pwd)" "UserPromptSubmit" >/dev/null 2>&1
+  STATE_DIR="${STATE_DIR:-.claude/state}"
+fi
+
 # --- HARNESS KILL-SWITCH TOGGLE (Sprint 33) ---
 # Exact-match prompt tokens flip a project-scoped OFF switch. Nothing else toggles it.
 #   '---' -> harness OFF (all gates bypassed)   '===' -> harness ON
@@ -645,7 +655,11 @@ if type clear_evidence_checkpoint_if_pass >/dev/null 2>&1; then
 fi
 
 # --- ASSEMBLE TURN PACKET ---
-CONTEXT_MSG="[HARNESS] Phase: ${PHASE} | Sprint: ${SPRINT} | Iter: ${ITERATION} | Writes: ${WRITES} | Watcher: ${WATCHER_STATUS}"
+CONTEXT_MSG="[HARNESS] Lane: ${LANE:-1} | Phase: ${PHASE} | Sprint: ${SPRINT} | Iter: ${ITERATION} | Writes: ${WRITES} | Watcher: ${WATCHER_STATUS}"
+if [ "${LANE:-1}" != "1" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG}
+[LANE ${LANE}] Your state is under .claude/state/lane-${LANE}/ and contracts under .claude/contracts/lane-${LANE}/ — use these, not the bare CLAUDE.md defaults. Other lanes are separate instances; do not touch their dirs."
+fi
 if [ -n "$EC_RESOLVED_NOTE" ]; then
   CONTEXT_MSG="${CONTEXT_MSG}
 ${EC_RESOLVED_NOTE}"

@@ -20,3 +20,10 @@ Desktop.ini
 # Temp files
 /tmp/
 *.tmp
+
+# Scratch / throwaway test artifacts
+scratch/
+
+# lavish-axi workspace state (created per-project by the lavish server)
+.lavish/
+.lavish-axi/

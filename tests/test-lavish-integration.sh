@@ -24,7 +24,8 @@ else
   no "C1a no pinned npm step in install.sh"
 fi
 grep -qE 'command -v npm|command -v node|which npm' "$INSTALL" && ok "C1b installer guards on npm/node presence" || no "C1b no node/npm guard"
-grep -q 'lavish-axi setup hooks' "$INSTALL" && ok "C1c installer runs 'lavish-axi setup hooks' (portable per-machine merge)" || no "C1c installer does not run setup hooks"
+[ -f "$ROOT/_install/vendor/lavish-axi-0.1.20.tgz" ] && ok "C1c vendored lavish-axi bundle present in _install/vendor/" || no "C1c vendor bundle missing"
+{ grep -q 'vendor/lavish-axi' "$INSTALL" && grep -q -- '--offline' "$INSTALL"; } && ok "C1d installer installs from the vendored bundle offline-first" || no "C1d installer not using vendored bundle/offline"
 
 # C2: shipped settings.json keeps our 4 hook types and is valid JSON (we do NOT bake an absolute path)
 if jq -e . "$SETTINGS_SHIP" >/dev/null 2>&1; then ok "C2a _install/settings.json is valid JSON"; else no "C2a _install/settings.json invalid"; fi
@@ -35,6 +36,8 @@ done
 [ -z "$MISS" ] && ok "C2b _install/settings.json retains all 4 harness hook types" || no "C2b missing hook types:$MISS"
 # must NOT ship a machine-specific absolute path
 if grep -qi 'Users\\\\exrov\|/c/Users/exrov\|AppData' "$SETTINGS_SHIP"; then no "C2c shipped settings leaks a machine-specific path"; else ok "C2c shipped settings has no machine-specific path"; fi
+# C2d: shipped settings now BAKES a portable SessionStart (lavish-axi bin, no absolute path)
+if jq -e '.hooks.SessionStart[0].hooks[0].command | test("lavish-axi")' "$SETTINGS_SHIP" >/dev/null 2>&1; then ok "C2d shipped settings bakes a portable SessionStart (lavish-axi)"; else no "C2d no portable SessionStart baked in shipped settings"; fi
 
 # C3: .lavish-axi/ exempt in all three gates
 grep -q '.lavish-axi/' "$PWG" && ok "C3a pre-write-gate exempts .lavish-axi/" || no "C3a pre-write-gate missing .lavish-axi/ exemption"

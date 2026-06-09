@@ -11,7 +11,16 @@ TOOL_FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // .to
 # Load helpers
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
-STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+# Multilane lane resolution (Sprint 31a): lane 1 = flat (transparent for single instance).
+# Honor an explicit HARNESS_STATE_DIR override (tests/sandboxes) first.
+if [ -n "${HARNESS_STATE_DIR:-}" ]; then
+  STATE_DIR="$HARNESS_STATE_DIR"
+elif type resolve_instance >/dev/null 2>&1; then
+  resolve_instance "$HOOK_INPUT" "$(pwd -W 2>/dev/null || pwd)" "PostToolUse" >/dev/null 2>&1
+else
+  STATE_DIR=".claude/state"
+fi
+STATE_DIR="${STATE_DIR:-.claude/state}"
 
 # --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch — no counting/checkpoints ---
 if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
@@ -48,9 +57,29 @@ WATCHER_PROMPT="${STATE_DIR}/watcher-self-check.md"
 WATCHER_STATUS="no registry"
 
 if [ -f "$WATCHER_REGISTRY" ]; then
-  ACTIVE_WATCHERS=$(jq '[.watchers[] | select(.status == "active")] | length' "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+  # Project-scoped count: a project must only see ITS OWN active watchers, not the global pool
+  # (fixes a brand-new project falsely reporting other projects' watchers as "active").
+  PWC_PROJ=$(pwd -W 2>/dev/null || pwd)
+  PWC_PROJ=$(printf '%s' "$PWC_PROJ" | tr '\\' '/' | sed 's:/*$::' | tr '[:upper:]' '[:lower:]')
+  ACTIVE_WATCHERS=$(jq -r --arg p "$PWC_PROJ" '[.watchers[] | select(.status == "active" and .project != null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))] | length' "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
   if [ "$ACTIVE_WATCHERS" -gt 0 ]; then
     WATCHER_STATUS="claimed (${ACTIVE_WATCHERS} active)"
+    # Heartbeat (AC30): refresh THIS project's active watcher claimed_at if >1h old, so an actively
+    # working agent's watcher never ages into the stale-cleanup window and forces a needless re-claim.
+    # Throttled to ~hourly to keep the write hot-path cheap.
+    HB_INFO=$(jq -r --arg p "$PWC_PROJ" '[.watchers[] | select(.status=="active" and .project!=null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))][0] | "\(.slot)|\(.claimed_at // "")"' "$WATCHER_REGISTRY" 2>/dev/null)
+    HB_SLOT="${HB_INFO%%|*}"; HB_TS="${HB_INFO#*|}"
+    if [ -n "$HB_SLOT" ] && [ "$HB_SLOT" != "null" ]; then
+      HB_NOW=$(date +%s); HB_OLD=$(date -d "$HB_TS" +%s 2>/dev/null || echo 0)
+      if [ $((HB_NOW - HB_OLD)) -gt 3600 ]; then
+        if registry_lock; then
+          HB_NEW=$(date -Iseconds)
+          HB_R=$(jq --argjson s "$HB_SLOT" --arg t "$HB_NEW" '.watchers |= map(if .slot==$s then (.claimed_at=$t) else . end)' "$WATCHER_REGISTRY" 2>/dev/null)
+          [ -n "$HB_R" ] && printf '%s' "$HB_R" > "$WATCHER_REGISTRY"
+          registry_unlock
+        fi
+      fi
+    fi
   else
     WATCHER_STATUS="not claimed"
   fi

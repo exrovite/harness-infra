@@ -5,7 +5,9 @@
 # Usage: bash validate-pre-flight.sh
 # Exit: 0 = pass (files consumed), 1 = fail (stderr says which Q wrong)
 
-PREFLIGHT_DIR=".claude/pre-flight"
+# Per-session pre-flight subdir (Sprint 31a): read THIS session's challenge/response. Flat fallback.
+PF_SID=$(printf '%s' "${1:-}" | tr -cd 'a-zA-Z0-9-' | head -c 40)
+PREFLIGHT_DIR=".claude/pre-flight${PF_SID:+/$PF_SID}"
 CHALLENGE_FILE="$PREFLIGHT_DIR/challenge.md"
 RESPONSE_FILE="$PREFLIGHT_DIR/response.md"
 

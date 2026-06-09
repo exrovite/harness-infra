@@ -392,3 +392,88 @@
 {"ts":"2026-06-02T11:38:49+01:00","file":"G:/harness infra/tests/test-sprint29-checkpoint-autoresolve.sh"}
 {"ts":"2026-06-02T11:40:46+01:00","file":"G:/harness infra/tests/test-sprint29-checkpoint-autoresolve.sh"}
 {"ts":"2026-06-02T11:41:47+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-06T05:03:27+01:00","file":"G:/harness infra/.claude/contracts/sprint-31-proposal.md"}
+{"ts":"2026-06-06T05:03:59+01:00","file":"G:/harness infra/.claude/contracts/sprint-31-contract.md"}
+{"ts":"2026-06-06T05:09:52+01:00","file":"G:/harness infra/.claude/contracts/sprint-31-contract.md"}
+{"ts":"2026-06-06T05:10:37+01:00","file":"G:/harness infra/.claude/specs/multilane-workers-spec.md"}
+{"ts":"2026-06-06T05:15:45+01:00","file":"G:/harness infra/.claude/contracts/sprint-31-contract.md"}
+{"ts":"2026-06-06T05:16:09+01:00","file":"G:/harness infra/.claude/specs/multilane-workers-spec.md"}
+{"ts":"2026-06-06T05:23:10+01:00","file":"G:/harness infra/.claude/contracts/sprint-31-contract.md"}
+{"ts":"2026-06-06T06:04:18+01:00","file":"G:/harness infra/.claude/contracts/sprint-31a-contract.md"}
+{"ts":"2026-06-06T06:04:46+01:00","file":"G:/harness infra/.claude/contracts/sprint-31b-contract.md"}
+{"ts":"2026-06-06T16:08:02+01:00","file":"G:/harness infra/tests/test-sprint31a-foundation.sh"}
+{"ts":"2026-06-06T16:10:03+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-06T16:12:29+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-06T18:00:36+01:00","file":"G:/harness infra/tests/test-sprint31a-foundation.sh"}
+{"ts":"2026-06-06T18:02:12+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-06T20:31:44+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-06-06T22:29:49+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-07T03:13:12+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-07T03:55:17+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-07T03:56:31+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-07T03:57:44+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-07T03:58:48+01:00","file":"G:/harness infra/tests/test-sprint31a-integration.sh"}
+{"ts":"2026-06-07T04:06:19+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-07T09:49:10+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-06-07T09:51:28+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-06-07T12:16:21+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-06-07T17:43:44+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-06-08T08:14:36+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-08T08:16:29+01:00","file":"G:/harness infra/tests/test-sprint31a-integration.sh"}
+{"ts":"2026-06-08T08:17:10+01:00","file":"G:/harness infra/tests/test-sprint31a-foundation.sh"}
+{"ts":"2026-06-08T08:17:35+01:00","file":"G:/harness infra/tests/test-sprint31a-foundation.sh"}
+{"ts":"2026-06-08T08:26:07+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-06-08T08:26:23+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-06-08T08:28:58+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-06-08T08:30:22+01:00","file":"G:/harness infra/tests/test-preflight-session-keyed.sh"}
+{"ts":"2026-06-09T07:37:33+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-06-09T11:42:41+01:00","file":"G:/harness infra/tests/test-perproject-watchers.sh"}
+{"ts":"2026-06-09T11:43:53+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-09T11:46:52+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-09T11:48:17+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T11:52:05+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T11:52:52+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-09T11:54:31+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T11:54:41+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-09T11:56:00+01:00","file":"G:/harness infra/tests/test-perproject-gate-integration.sh"}
+{"ts":"2026-06-09T11:58:02+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-06-09T12:10:13+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-09T18:55:02+01:00","file":"G:/harness infra/.claude/specs/lavish-axi-integration-spec.md"}
+{"ts":"2026-06-09T18:55:38+01:00","file":"G:/harness infra/.claude/specs/evaluation-criteria.md"}
+{"ts":"2026-06-09T18:56:04+01:00","file":"G:/harness infra/.claude/contracts/sprint-32-contract.md"}
+{"ts":"2026-06-09T18:58:29+01:00","file":"G:/harness infra/tests/test-lavish-integration.sh"}
+{"ts":"2026-06-09T19:00:22+01:00","file":"G:/harness infra/_install/install.sh"}
+{"ts":"2026-06-09T19:01:55+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T19:02:02+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T19:02:08+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-09T19:02:50+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-06-09T19:02:57+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-06-09T19:04:12+01:00","file":"G:/harness infra/_install/skills/lavish-review/lavish-review.sh"}
+{"ts":"2026-06-09T19:04:28+01:00","file":"G:/harness infra/_install/skills/lavish-review/SKILL.md"}
+{"ts":"2026-06-09T19:05:09+01:00","file":"G:/harness infra/_install/install.sh"}
+{"ts":"2026-06-09T19:06:21+01:00","file":"G:/harness infra/tests/test-lavish-integration.sh"}
+{"ts":"2026-06-09T19:09:41+01:00","file":"G:/harness infra/_install/README.md"}
+{"ts":"2026-06-09T19:11:22+01:00","file":"G:/harness infra/_install/skills/lavish-review/SKILL.md"}
+{"ts":"2026-06-09T19:19:51+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-09T19:43:51+01:00","file":"G:/harness infra/tests/test-killswitch.sh"}
+{"ts":"2026-06-09T19:46:28+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-09T19:46:45+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-09T19:47:14+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T19:47:21+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-09T19:47:57+01:00","file":"C:/Users/exrov/.claude/hooks/pre-flight-gate.sh"}
+{"ts":"2026-06-09T19:48:05+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-06-09T19:48:24+01:00","file":"G:/harness infra/tests/test-killswitch.sh"}
+{"ts":"2026-06-09T19:49:09+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-09T19:49:41+01:00","file":"G:/harness infra/_install/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-09T19:49:49+01:00","file":"G:/harness infra/_install/hooks/pre-flight-gate.sh"}
+{"ts":"2026-06-09T19:50:11+01:00","file":"G:/harness infra/_install/scripts/lib-helpers.sh"}
+{"ts":"2026-06-09T19:50:25+01:00","file":"G:/harness infra/_install/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-09T19:56:26+01:00","file":"G:/harness infra/_install/hooks/post-write-check.sh"}
+{"ts":"2026-06-09T19:58:31+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-09T20:22:02+01:00","file":"G:/harness infra/_install/CLAUDE.md"}
+{"ts":"2026-06-09T20:22:12+01:00","file":"G:/harness infra/_install/skills/lavish-review/SKILL.md"}
+{"ts":"2026-06-09T20:22:41+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-09T21:49:03+01:00","file":"G:/harness infra/_install/install.sh"}
+{"ts":"2026-06-09T21:49:40+01:00","file":"G:/harness infra/tests/test-lavish-integration.sh"}
+{"ts":"2026-06-09T21:49:49+01:00","file":"G:/harness infra/tests/test-lavish-integration.sh"}
+{"ts":"2026-06-09T21:51:43+01:00","file":"G:/harness infra/_install/README.md"}

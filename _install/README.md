@@ -76,12 +76,18 @@ All scripts use portable patterns with proper fallbacks for platform differences
 
 ### lavish-axi (HTML-artifact human feedback)
 
-The installer also installs [**lavish-axi**](https://github.com/kunchenguid/lavish-axi) (pinned
-`0.1.20`) via npm and wires its always-on `SessionStart` ambient-context hook into `settings.json`.
+[**lavish-axi**](https://github.com/kunchenguid/lavish-axi) (pinned `0.1.20`) ships **vendored inside
+this pack** at `_install/vendor/lavish-axi-0.1.20.tgz` — a self-contained bundle (all dependencies
+included) that installs **fully offline**, no npm registry needed. The installer puts it on the global
+PATH and the always-on `SessionStart` ambient-context hook is **baked portably** into `settings.json`
+(the command is just `lavish-axi`, no machine-specific path), so it works on any machine.
+
 It gives agents a human↔agent feedback loop on HTML artifacts: the agent writes an `.html` file, the
-human annotates it in a local browser editor, and the agent receives that feedback. Use it through the
-`lavish-review` skill (`~/.claude/skills/lavish-review/`). Requires Node/npm; if absent, this step is
-skipped with a warning and the rest of the harness installs normally.
+human annotates it in a local browser editor, and the agent receives that feedback. **Preferred use:
+visual mockups during PLAN** — see a proposed UI/layout before any code is written. Drive it through
+the `lavish-review` skill (`~/.claude/skills/lavish-review/`). Requires Node/npm to install; if absent,
+the step is skipped with a warning, the rest of the harness installs normally, and the baked
+`SessionStart` command safely no-ops until lavish is present.
 
 #### Third-party notices
 

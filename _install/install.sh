@@ -104,27 +104,35 @@ for i in 1 2 3 4 5; do
   fi
 done
 
-# --- Step 8: Install lavish-axi + wire its always-on SessionStart hook ---
-# lavish-axi adds the human<->agent HTML-artifact feedback loop. We install it from npm (pinned) and
-# let `lavish-axi setup hooks` merge its SessionStart hook into the just-copied settings.json. We do
-# NOT bake the hook into _install/settings.json because lavish writes a machine-specific absolute path;
-# running setup hooks per-machine keeps the path correct and the merge idempotent (marker-based).
-echo "[8/8] Installing lavish-axi (HTML-artifact feedback)..."
+# --- Step 8: Install the BUNDLED lavish-axi (HTML-artifact feedback) ---
+# lavish-axi ships VENDORED inside this pack (_install/vendor/lavish-axi-<ver>.tgz) with all its
+# dependencies bundled, so it installs fully OFFLINE — no npm registry needed. The always-on
+# SessionStart ambient-context hook is baked (portably, no machine-specific path) into settings.json,
+# which step 5 already copied to ~/.claude/settings.json. If node/npm is absent this step is skipped
+# with a warning and the harness installs normally; the baked SessionStart command no-ops (via
+# `command -v lavish-axi`) until lavish is present.
+echo "[8/8] Installing bundled lavish-axi (HTML-artifact feedback)..."
+LAVISH_TGZ="$SCRIPT_DIR/vendor/lavish-axi-${LAVISH_VERSION}.tgz"
 if command -v npm >/dev/null 2>&1; then
-  if npm install -g "lavish-axi@${LAVISH_VERSION}" >/dev/null 2>&1; then
-    echo "  -> lavish-axi@${LAVISH_VERSION} installed globally"
-    # Merge the always-on SessionStart hook into the freshly-copied settings.json (additive).
-    if command -v lavish-axi >/dev/null 2>&1; then
-      if lavish-axi setup hooks >/dev/null 2>&1; then
-        echo "  -> SessionStart ambient-context hook wired into settings.json"
-      else
-        echo "  -> WARN: 'lavish-axi setup hooks' failed; run it manually later. Harness unaffected."
-      fi
+  if [ -f "$LAVISH_TGZ" ]; then
+    if npm install -g "$LAVISH_TGZ" --offline --ignore-scripts >/dev/null 2>&1 \
+       || npm install -g "$LAVISH_TGZ" --ignore-scripts >/dev/null 2>&1; then
+      echo "  -> lavish-axi@${LAVISH_VERSION} installed from bundled vendor/ (offline)"
     else
-      echo "  -> WARN: lavish-axi binary not on PATH after install; skipping hook wiring."
+      echo "  -> WARN: bundled install failed; trying npm registry..."
+      if npm install -g "lavish-axi@${LAVISH_VERSION}" >/dev/null 2>&1; then
+        echo "  -> lavish-axi@${LAVISH_VERSION} installed from npm registry"
+      else
+        echo "  -> WARN: lavish-axi install failed. Harness unaffected; SessionStart hook no-ops."
+      fi
     fi
   else
-    echo "  -> WARN: 'npm install -g lavish-axi@${LAVISH_VERSION}' failed; skipping. Harness unaffected."
+    echo "  -> vendor bundle missing; installing lavish-axi@${LAVISH_VERSION} from npm registry..."
+    if npm install -g "lavish-axi@${LAVISH_VERSION}" >/dev/null 2>&1; then
+      echo "  -> lavish-axi@${LAVISH_VERSION} installed from npm registry"
+    else
+      echo "  -> WARN: lavish-axi install failed. Harness unaffected; SessionStart hook no-ops."
+    fi
   fi
 else
   echo "  -> SKIP: node/npm not found. lavish-axi not installed (optional). Harness unaffected."
