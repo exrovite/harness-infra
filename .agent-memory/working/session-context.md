@@ -1,9 +1,9 @@
 # Session Context (auto-updated by hook)
-Last updated: 2026-06-09T21:51:43+01:00
+Last updated: 2026-06-13T03:23:20+01:00
 Phase: BUILD
 Sprint: 32
 Iteration: 1
-Write count: 962
+Write count: 980
 Working directory: /g/harness infra
 Last modified files:
   - .agent-memory/MEMORY_MANIFEST.json
@@ -14,5 +14,5 @@ Last modified files:
   - .agent-memory/working/session-context.md.hash
   - .claude/pre-flight/gate-counter.json
   - .claude/pre-flight/verify-counter.json
-  - .claude/scheduled_tasks.lock
-  - .claude/state/current-phase.json
+  - .claude/state/phase-complete-marker.md
+  - .claude/state/unverified-writes-archive.jsonl

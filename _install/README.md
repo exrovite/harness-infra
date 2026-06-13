@@ -34,7 +34,8 @@ This installs to `~/.claude/` and `~/.openclaw/`:
 |-----------|----------|-------|
 | Hooks | `~/.claude/hooks/` | 12 |
 | Role prompts | `~/.claude/roles/` | 5 |
-| Scripts | `~/.claude/scripts/` | 28 |
+| Scripts | `~/.claude/scripts/` | 29 |
+| Skills | `~/.claude/skills/` | lavish-review, headroom, last30days |
 | Settings | `~/.claude/settings.json` | 1 |
 | Global protocol | `~/.claude/CLAUDE.md` | 1 |
 | Watcher slots | `~/.openclaw/watchers/` | 5 |
@@ -89,10 +90,47 @@ the `lavish-review` skill (`~/.claude/skills/lavish-review/`). Requires Node/npm
 the step is skipped with a warning, the rest of the harness installs normally, and the baked
 `SessionStart` command safely no-ops until lavish is present.
 
+### headroom (token-compression wrapper)
+
+[**headroom**](https://github.com/chopratejas/headroom) reduces token usage by compressing context
+(tool output, logs, files, conversation history) before it reaches the model — so sessions last
+longer and cost less. Because it needs Python 3.10+, the installer puts it in an **isolated,
+uv-managed Python 3.10 venv** at `~/.claude/headroom-venv` — its own standalone interpreter and
+packages, **never** the system Python and never any other Python install on the machine. Uninstall is
+just `rm -rf ~/.claude/headroom-venv`.
+
+Use it the **transparent** way by launching Claude Code through the bundled wrapper instead of plain
+`claude`:
+
+```bash
+bash ~/.claude/scripts/claude-hr.sh          # = headroom wrap claude (compressed session)
+```
+
+This starts a local headroom proxy, points `ANTHROPIC_BASE_URL` at it, and launches `claude`. It is
+**opt-in** — a normal `claude` session is unchanged. Agents can also call the venv's `headroom` CLI
+directly to compress a single blob/file (see the `headroom` skill). Requires `uv` to install; if
+absent (or the network/build fails), step 9 is skipped with a warning, the partial venv is removed,
+and the rest of the harness installs normally. The `claude-hr` launcher falls back to plain `claude`
+when headroom isn't present, so you are never blocked.
+
+### last30days (engagement-ranked research skill)
+
+[**last30days**](https://github.com/mvanhorn/last30days-skill) is a Claude Code skill (vendored at
+`_install/skills/last30days/`, installed to `~/.claude/skills/`) that researches any topic across
+Reddit, X, YouTube, TikTok, Hacker News, Polymarket, GitHub, and the web — ranking results by **real
+engagement** (upvotes, likes, money) rather than editorial signals. Useful for finding what an
+audience actually cares about and who is most likely to engage with or buy a piece of content. Invoke
+it as `/last30days <topic>`. It works with zero config for several sources (Reddit, HN, Polymarket,
+GitHub) and unlocks more via optional API keys (see the skill's `CONFIGURATION.md`/`SKILL.md`); it
+needs `python3`/`node` (already required by the harness) and degrades gracefully without keys. The
+14MB demo assets from upstream are intentionally **not** bundled to keep the pack lean.
+
 #### Third-party notices
 
-This product bundles the following MIT-licensed software. Their license texts are retained under
+This product bundles / installs the following third-party software. License texts are retained under
 [`_install/LICENSES/`](LICENSES/):
 
 - **lavish-axi** — MIT © Kun Chen — `_install/LICENSES/lavish-axi-LICENSE`
 - **axi-sdk-js** — MIT © kunchenguid — `_install/LICENSES/axi-sdk-js-LICENSE`
+- **last30days** — MIT © Matt Van Horn — `_install/LICENSES/last30days-LICENSE` (skill vendored in-tree)
+- **headroom** — Apache-2.0 © headroom authors — `_install/LICENSES/headroom-LICENSE` (installed from PyPI into an isolated venv, not vendored in-tree)
