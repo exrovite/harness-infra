@@ -452,7 +452,7 @@ if [ -n "$WATCHER_SLOT" ] && [ "$PHASE" = "BUILD" ]; then
   fi
   if ! printf '%s' "$PF_WRITE_COUNT" | grep -qE '^[0-9]+$'; then PF_WRITE_COUNT=0; fi
   if [ -n "$WATCHER_STEP" ] && { [ "$WATCHER_STEP" != "$PF_LAST_STEP" ] || [ $((PF_WRITE_COUNT % 4)) -eq 0 ]; }; then
-    add_action "Note: MCQ gate fires on next gated write â€” read .claude/pre-flight/challenge.md if blocked"
+    add_action "Pre-flight MCQ fires on your next code write. When it does: do NOT guess - it loads your task context. READ challenge.md + your watcher slot + any 'MUST READ <file>' fresh; it reshuffles on wrong answers, so guessing loops."
   fi
 fi
 

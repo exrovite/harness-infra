@@ -280,6 +280,12 @@ if [ -f "$RESPONSE_FILE" ] && [ -f "$CHALLENGE_FILE" ]; then
   else
     # Validation failed — show feedback, regenerate challenge, block
     printf "PRE-FLIGHT CHECK FAILED:\n%s\n\n" "$VALIDATE_OUTPUT" >&2
+    printf "STOP GUESSING. The challenge has been RESHUFFLED — your previous answers are now invalid.\n" >&2
+    printf "Do NOT answer from memory. OPEN AND READ, fresh, before answering again:\n" >&2
+    printf "  - %s/challenge.md  (re-read it; option letters changed)\n" "$PREFLIGHT_DIR" >&2
+    printf "  - your watcher slot  (Q1-Q4: task / current step / target file / what to avoid)\n" >&2
+    printf "  - every file named in a 'you MUST READ <file>' line above — actually open it\n" >&2
+    printf "These questions exist to load your task context, not to be passed by guessing.\n\n" >&2
     rm -f "$RESPONSE_FILE"
   fi
 fi
@@ -298,7 +304,10 @@ if [ -f "$CHALLENGE_FILE" ]; then
   printf "   Q2: B\n" >&2
   printf "   Q3: C\n" >&2
   printf "   Q4: D\n\n" >&2
-  printf "3. Then retry your Write/Edit — the gate will validate and allow if correct.\n" >&2
+  printf "3. Then retry your Write/Edit — the gate will validate and allow if correct.\n\n" >&2
+  printf "DO NOT GUESS the answers — they exist to load your task context, not as a quiz.\n" >&2
+  printf "Answer ONLY by reading: open challenge.md, your watcher slot, and any 'MUST READ <file>'\n" >&2
+  printf "line. The challenge RESHUFFLES on every wrong answer, so guessing just loops and burns tokens.\n" >&2
 else
   printf "[ADMIN GATE] BLOCKED: Pre-flight challenge generation failed. Check watcher slot.\n" >&2
 fi

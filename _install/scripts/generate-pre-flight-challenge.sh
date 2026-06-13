@@ -181,6 +181,16 @@ cat > "$PREFLIGHT_DIR/challenge.md" << CHALLENGE
 
 # Pre-Flight Challenge
 
+>>> STOP. READ THIS FIRST — DO NOT GUESS. <<<
+The point of these questions is NOT a quiz to pass — it is to make you LOAD YOUR CONTEXT
+(your real task, current step, target file, scope, and any reference files) before you write code.
+Answer ONLY by reading, never from memory or from your previous answers:
+  • READ THIS challenge.md FRESH every attempt. It is REGENERATED AND RESHUFFLED on each wrong
+    answer, so option letters change and any previous answer you remember is now WRONG.
+  • OPEN AND READ your watcher slot for Q1-Q4 (task / current step / target file / what to avoid).
+  • For any "Qn: you MUST READ <file>" line, OPEN that exact file and read it before answering.
+Guessing just reshuffles the challenge and burns tokens in a loop. Read once, answer once, proceed.
+
 Answer all 5 questions. Write your answers to ${PREFLIGHT_DIR}/response.md in format:
 Q1: A
 Q2: B

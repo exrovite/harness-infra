@@ -85,6 +85,24 @@ When this fires, answer: Which step am I on? Am I on task? Am I stuck?
 [What "done" looks like]
 ```
 
+## PRE-FLIGHT MCQ GATE — READ, DO NOT GUESS (you WILL hit this)
+
+Before code writes during BUILD, the harness blocks you with a multiple-choice **pre-flight challenge**.
+Expect it. Its purpose is to make you **load your task context** (task, current step, target file, scope,
+and any reference files) — it is **not a quiz to pass from memory**.
+
+When it fires (or when the packet warns one is coming):
+1. **OPEN AND READ** `.claude/pre-flight/<id>/challenge.md` fresh — every single attempt.
+2. Answer Q1-Q4 by **reading your watcher slot** (task / current step / target file / what to avoid),
+   not from memory.
+3. For any `Qn: you MUST READ <file>` line, **actually open that file** and read it before answering.
+4. Write answers to `response.md`, then retry your write.
+
+**The challenge RESHUFFLES on every wrong answer** — option letters change, so a remembered or
+copied-from-before answer is now wrong. Guessing does not "eventually pass"; it just regenerates the
+challenge and burns tokens in a loop. Read once, answer once, proceed. If you've answered twice and
+still fail, STOP guessing and re-open the named files — the failure text tells you exactly which to read.
+
 ## STATE MACHINE (follow in order, never skip)
 
 Every non-trivial task follows this progression:
