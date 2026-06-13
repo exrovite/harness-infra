@@ -182,8 +182,12 @@ cat > "$PREFLIGHT_DIR/challenge.md" << CHALLENGE
 # Pre-Flight Challenge
 
 >>> STOP. READ THIS FIRST — DO NOT GUESS. <<<
-The point of these questions is NOT a quiz to pass — it is to make you LOAD YOUR CONTEXT
-(your real task, current step, target file, scope, and any reference files) before you write code.
+This is NOT an obstacle to bypass and NOT a quiz to pass. It is a checkpoint that exists to KEEP YOU
+ON TASK and to catch where you may have drifted or misunderstood — a moment to confirm you are still
+building the right thing, in the right file, within scope. Treat it as a useful self-check that is on
+your side: answering it honestly by reading is how you discover, early, what you might be getting
+wrong before you waste effort. Its job is to make you LOAD YOUR CONTEXT (your real task, current step,
+target file, scope, and any reference files) before you write code.
 Answer ONLY by reading, never from memory or from your previous answers:
   • READ THIS challenge.md FRESH every attempt. It is REGENERATED AND RESHUFFLED on each wrong
     answer, so option letters change and any previous answer you remember is now WRONG.

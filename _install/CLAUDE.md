@@ -88,8 +88,12 @@ When this fires, answer: Which step am I on? Am I on task? Am I stuck?
 ## PRE-FLIGHT MCQ GATE — READ, DO NOT GUESS (you WILL hit this)
 
 Before code writes during BUILD, the harness blocks you with a multiple-choice **pre-flight challenge**.
-Expect it. Its purpose is to make you **load your task context** (task, current step, target file, scope,
-and any reference files) — it is **not a quiz to pass from memory**.
+Expect it. **It is on your side, not an obstacle to get past.** Its purpose is to **keep you on task** and
+to surface where you may have drifted or misunderstood — a quick self-check that confirms you are still
+building the right thing, in the right file, within scope, *before* you waste effort going the wrong way.
+It makes you **load your task context** (task, current step, target file, scope, and any reference files).
+It is **not a quiz to pass from memory** — answering it honestly by reading is how you catch your own
+mistakes early.
 
 When it fires (or when the packet warns one is coming):
 1. **OPEN AND READ** `.claude/pre-flight/<id>/challenge.md` fresh — every single attempt.

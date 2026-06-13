@@ -285,7 +285,9 @@ if [ -f "$RESPONSE_FILE" ] && [ -f "$CHALLENGE_FILE" ]; then
     printf "  - %s/challenge.md  (re-read it; option letters changed)\n" "$PREFLIGHT_DIR" >&2
     printf "  - your watcher slot  (Q1-Q4: task / current step / target file / what to avoid)\n" >&2
     printf "  - every file named in a 'you MUST READ <file>' line above — actually open it\n" >&2
-    printf "These questions exist to load your task context, not to be passed by guessing.\n\n" >&2
+    printf "These questions exist to load your task context, not to be passed by guessing.\n" >&2
+    printf "This is a self-check that keeps you on task — a wrong answer means you may be drifting\n" >&2
+    printf "or misreading your own task; read the files and let it catch that now, not later.\n\n" >&2
     rm -f "$RESPONSE_FILE"
   fi
 fi
