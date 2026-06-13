@@ -154,8 +154,17 @@ fi
 # build fails, this step SKIPs with a warning and the harness installs normally (set -e safe — every
 # fallible command is the condition of an `if`). The transparent wrapper is invoked later, opt-in,
 # via the `claude-hr` launcher (installed in step 4) which runs `headroom wrap claude`.
-echo "[9/9] Installing headroom (isolated token-compression venv)..."
-if command -v uv >/dev/null 2>&1; then
+echo "[9/9] headroom (isolated token-compression venv)..."
+# DISABLED BY DEFAULT (2026-06-13). headroom is NOT installed unless you explicitly opt in by
+# running the installer with HEADROOM_INSTALL=1. Reason: its compression layer is not yet verified
+# (model load unconfirmed) and we do not want it on other servers until it is fixed properly. Even
+# when enabled, this only installs an ISOLATED, OPT-IN venv — it NEVER sets ANTHROPIC_BASE_URL, never
+# starts a proxy, never installs a service/scheduled task. Compression is used only by explicitly
+# launching `bash ~/.claude/scripts/claude-hr.sh`. To enable: HEADROOM_INSTALL=1 bash _install/install.sh
+if [ "${HEADROOM_INSTALL:-0}" != "1" ]; then
+  echo "  -> SKIP: headroom install disabled by default (not yet verified). Harness unaffected."
+  echo "     To install the isolated, opt-in venv: HEADROOM_INSTALL=1 bash _install/install.sh"
+elif command -v uv >/dev/null 2>&1; then
   if uv venv --python "$HEADROOM_PYTHON" "$HEADROOM_VENV" >/dev/null 2>&1; then
     if uv pip install --python "$HEADROOM_VENV" "headroom-ai[all]" >/dev/null 2>&1; then
       echo "  -> headroom installed into isolated venv: $HEADROOM_VENV (Python $HEADROOM_PYTHON)"

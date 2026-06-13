@@ -99,6 +99,13 @@ uv-managed Python 3.10 venv** at `~/.claude/headroom-venv` — its own standalon
 packages, **never** the system Python and never any other Python install on the machine. Uninstall is
 just `rm -rf ~/.claude/headroom-venv`.
 
+> **DISABLED BY DEFAULT (2026-06-13).** headroom is **not installed** by `install.sh` unless you opt
+> in with `HEADROOM_INSTALL=1 bash _install/install.sh`. Its compression layer is not yet verified, so
+> it stays off across servers until fixed. Even when enabled, the install is **isolated and opt-in
+> only**: it NEVER sets `ANTHROPIC_BASE_URL`, never starts a proxy, and never installs a
+> service/scheduled task. Compression happens only when you explicitly run `claude-hr.sh`. (The
+> always-on/global setup tried during development is **not** part of this pack and must never be.)
+
 Use it the **transparent** way by launching Claude Code through the bundled wrapper instead of plain
 `claude`:
 

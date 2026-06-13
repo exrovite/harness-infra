@@ -34,6 +34,16 @@ else
 fi
 # set -e safety: the install commands are inside if-conditions (guarded)
 grep -qE 'if uv venv' "$INSTALL" && ok "H7 uv venv is an if-condition (set -e safe)" || no "H7 uv venv not guarded as if-condition"
+# DISABLED-BY-DEFAULT: headroom must NOT install unless HEADROOM_INSTALL=1 (opt-in only)
+grep -qE 'HEADROOM_INSTALL.*!= *"1"|HEADROOM_INSTALL:-0' "$INSTALL" && ok "H7b headroom install is OFF by default (HEADROOM_INSTALL=1 to opt in)" || no "H7b headroom not gated behind HEADROOM_INSTALL"
+# the install pack must NEVER wire always-on (no executable redirect/service/wrap — comments OK)
+if grep -vE '^\s*#' "$INSTALL" | grep -qE 'ANTHROPIC_BASE_URL|install apply|install agent|schtasks|sc(\.exe)? create|headroom (wrap|unwrap)'; then
+  no "H7c install.sh contains executable always-on wiring"
+else
+  ok "H7c install.sh has NO executable always-on wiring (no redirect/service/wrap)"
+fi
+# shipped settings.json must not contain a proxy redirect
+if grep -qE 'ANTHROPIC_BASE_URL|127\.0\.0\.1:8787' "$ROOT/_install/settings.json"; then no "H7d shipped settings.json has a proxy redirect"; else ok "H7d shipped settings.json has NO proxy redirect"; fi
 
 # --- headroom: launcher ---
 [ -f "$LAUNCHER" ] && ok "H8 claude-hr.sh launcher shipped in _install/scripts/" || no "H8 launcher missing"
