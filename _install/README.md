@@ -35,7 +35,7 @@ This installs to `~/.claude/` and `~/.openclaw/`:
 | Hooks | `~/.claude/hooks/` | 12 |
 | Role prompts | `~/.claude/roles/` | 5 |
 | Scripts | `~/.claude/scripts/` | 29 |
-| Skills | `~/.claude/skills/` | lavish-review, headroom, last30days |
+| Skills | `~/.claude/skills/` | lavish-review, headroom, last30days, arbor-agent-* (11) |
 | Settings | `~/.claude/settings.json` | 1 |
 | Global protocol | `~/.claude/CLAUDE.md` | 1 |
 | Watcher slots | `~/.openclaw/watchers/` | 5 |
@@ -139,6 +139,29 @@ GitHub) and unlocks more via optional API keys (see the skill's `CONFIGURATION.m
 needs `python3`/`node` (already required by the harness) and degrades gracefully without keys. The
 14MB demo assets from upstream are intentionally **not** bundled to keep the pack lean.
 
+### Arbor (autonomous research-agent CLI)
+
+[**Arbor**](https://github.com/RUC-NLPIR/Arbor) is an autonomous deep-research agent (a Coordinator
+that grows a hypothesis tree and Executors that run in isolated git worktrees). Like headroom, the CLI
+is installed into its **own isolated uv-managed Python venv** at `~/.claude/arbor-venv` — its own
+standalone interpreter; system Python and other installs are never touched. Uninstall is just
+`rm -rf ~/.claude/arbor-venv`. The 11 `arbor-agent-*` Claude Code skills ship vendored in
+`_install/skills/` and install to `~/.claude/skills/` via the normal skills step, so the workflow is
+available to every project even without the CLI.
+
+Install is **on by default but fully guarded** (`ARBOR_INSTALL=0` to skip; auto-skips if `uv`/`git`
+absent; a failed build trims the partial venv and leaves the harness untouched). The installer
+scaffolds a default `~/.arbor/config.yaml` (provider `anthropic`) but **never fabricates an API key**.
+
+```bash
+bash ~/.claude/scripts/arbor.sh setup     # one-time: add your provider/model/API key
+bash ~/.claude/scripts/arbor.sh doctor    # diagnose the install
+bash ~/.claude/scripts/arbor.sh           # launch an autonomous research session
+```
+
+> ⚠️ Arbor is **autonomous** — it edits code in git worktrees and spends real LLM money. Nothing in
+> the harness ever auto-runs it; it runs **only** when you launch it via `arbor.sh`.
+
 #### Third-party notices
 
 This product bundles / installs the following third-party software. License texts are retained under
@@ -148,3 +171,4 @@ This product bundles / installs the following third-party software. License text
 - **axi-sdk-js** — MIT © kunchenguid — `_install/LICENSES/axi-sdk-js-LICENSE`
 - **last30days** — MIT © Matt Van Horn — `_install/LICENSES/last30days-LICENSE` (skill vendored in-tree)
 - **headroom** — Apache-2.0 © headroom authors — `_install/LICENSES/headroom-LICENSE` (installed from PyPI into an isolated venv, not vendored in-tree)
+- **Arbor** — Apache-2.0 © RUC-NLPIR — `_install/LICENSES/arbor-LICENSE` (skills vendored in-tree; CLI installed from GitHub into an isolated venv)

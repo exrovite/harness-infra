@@ -10,6 +10,8 @@ HR_SKILL="$ROOT/_install/skills/headroom/SKILL.md"
 L30_DIR="$ROOT/_install/skills/last30days"
 LIC_DIR="$ROOT/_install/LICENSES"
 README="$ROOT/_install/README.md"
+ARBOR_SH="$ROOT/_install/scripts/arbor.sh"
+ARBOR_SKILLS="$ROOT/_install/skills"
 PASS=0; FAIL=0
 ok(){ echo "  PASS: $1"; PASS=$((PASS+1)); }
 no(){ echo "  FAIL: $1"; FAIL=$((FAIL+1)); }
@@ -96,5 +98,22 @@ grep -qi 'last30days' "$README" && ok "P4 README documents last30days" || no "P4
 grep -qi 'Apache' "$README" && ok "P5 README notes headroom Apache-2.0 license" || no "P5 README missing headroom license note"
 
 echo ""
+# --- Arbor (autonomous research-agent CLI) integration ---
+grep -qE 'ARBOR_INSTALL:-1' "$INSTALL" && ok "A1 Arbor installs by default (ARBOR_INSTALL=0 to skip)" || no "A1 Arbor not default-on via ARBOR_INSTALL:-1"
+grep -qE 'if uv venv .*ARBOR_VENV|&& uv pip install --python "\$ARBOR_VENV"' "$INSTALL" && ok "A2 Arbor uv venv/install guarded as if-condition (set -e safe)" || no "A2 Arbor uv venv not guarded as if-condition"
+grep -qE 'command -v uv .*command -v git' "$INSTALL" && ok "A3 Arbor step skips cleanly if uv/git absent" || no "A3 Arbor step not guarded on uv/git presence"
+grep -q 'arbor-venv' "$INSTALL" && ok "A4 Arbor uses ISOLATED venv (~/.claude/arbor-venv)" || no "A4 Arbor not isolated to its own venv"
+grep -qiE 'api_key|fabricat' "$INSTALL" && grep -q 'ANTHROPIC_API_KEY' "$INSTALL" && ok "A5 Arbor scaffolds config without fabricating an API key" || no "A5 Arbor config scaffold issue"
+[ -f "$ARBOR_SH" ] && ok "A6 arbor.sh launcher shipped" || no "A6 arbor.sh launcher missing"
+if [ -f "$ARBOR_SH" ]; then
+  bash -n "$ARBOR_SH" && ok "A6b arbor.sh is valid bash" || no "A6b arbor.sh bash -n failed"
+  grep -q 'ARBOR_VENV' "$ARBOR_SH" && ok "A6c arbor.sh resolves the isolated venv entrypoint" || no "A6c arbor.sh does not target the venv"
+fi
+ASKILLS=$(ls -d "$ARBOR_SKILLS"/arbor-agent-* 2>/dev/null | wc -l | tr -d ' ')
+[ "$ASKILLS" -ge 10 ] && ok "A7 arbor-agent-* skills vendored ($ASKILLS found)" || no "A7 arbor-agent skills missing (found $ASKILLS)"
+[ -f "$LIC_DIR/arbor-LICENSE" ] && ok "A8 arbor-LICENSE (Apache-2.0) shipped" || no "A8 arbor-LICENSE missing"
+grep -qi 'arbor' "$README" && ok "A9 README documents Arbor" || no "A9 README does not mention Arbor"
+grep -qE '\[10/10\] Arbor' "$INSTALL" && ok "A10 install.sh step 10 labeled Arbor" || no "A10 install.sh step 10 label missing"
+
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
