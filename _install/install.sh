@@ -154,32 +154,38 @@ fi
 # build fails, this step SKIPs with a warning and the harness installs normally (set -e safe — every
 # fallible command is the condition of an `if`). The transparent wrapper is invoked later, opt-in,
 # via the `claude-hr` launcher (installed in step 4) which runs `headroom wrap claude`.
-echo "[9/9] headroom (isolated token-compression venv)..."
-# DISABLED BY DEFAULT (2026-06-13). headroom is NOT installed unless you explicitly opt in by
-# running the installer with HEADROOM_INSTALL=1. Reason: its compression layer is not yet verified
-# (model load unconfirmed) and we do not want it on other servers until it is fixed properly. Even
-# when enabled, this only installs an ISOLATED, OPT-IN venv — it NEVER sets ANTHROPIC_BASE_URL, never
-# starts a proxy, never installs a service/scheduled task. Compression is used only by explicitly
-# launching `bash ~/.claude/scripts/claude-hr.sh`. To enable: HEADROOM_INSTALL=1 bash _install/install.sh
-if [ "${HEADROOM_INSTALL:-0}" != "1" ]; then
-  echo "  -> SKIP: headroom install disabled by default (not yet verified). Harness unaffected."
-  echo "     To install the isolated, opt-in venv: HEADROOM_INSTALL=1 bash _install/install.sh"
+echo "[9/9] headroom (isolated token-compression venv + always-on)..."
+# Installs the FIXED headroom (2026-06-14): isolated uv venv, agent-90 profile, HEADROOM_RUST_DETECT=0
+# (the fix that stopped compression hanging), a supervisor watchdog that keeps the proxy alive across
+# reboots, and a HEALTH-GATED global redirect.
+#
+# DEFAULTS: install ON (set HEADROOM_INSTALL=0 to skip) and always-on ON (set HEADROOM_ALWAYSON=0 to
+# install the venv but stay opt-in via claude-hr.sh).
+#
+# SAFETY (the 2026-06-13 incident lesson): the always-on step writes ANTHROPIC_BASE_URL into
+# settings.json ONLY AFTER the proxy answers /livez (see headroom-alwayson.sh). If uv/network/the
+# proxy isn't healthy, the redirect is NOT set — Claude keeps talking to Anthropic directly and no
+# session is ever bricked. The shipped settings.json never contains the redirect for this reason.
+if [ "${HEADROOM_INSTALL:-1}" != "1" ]; then
+  echo "  -> SKIP: headroom install disabled (HEADROOM_INSTALL=0). Harness unaffected."
 elif command -v uv >/dev/null 2>&1; then
-  if uv venv --python "$HEADROOM_PYTHON" "$HEADROOM_VENV" >/dev/null 2>&1; then
-    if uv pip install --python "$HEADROOM_VENV" "headroom-ai[all]" >/dev/null 2>&1; then
-      echo "  -> headroom installed into isolated venv: $HEADROOM_VENV (Python $HEADROOM_PYTHON)"
-      echo "     Launch a compressed session with:  bash ~/.claude/scripts/claude-hr.sh"
+  if uv venv --python "$HEADROOM_PYTHON" "$HEADROOM_VENV" >/dev/null 2>&1 \
+     && uv pip install --python "$HEADROOM_VENV" "headroom-ai[all]" >/dev/null 2>&1; then
+    echo "  -> headroom installed into isolated venv: $HEADROOM_VENV (Python $HEADROOM_PYTHON)"
+    if [ "${HEADROOM_ALWAYSON:-1}" = "1" ]; then
+      # health-gated: sets the global redirect only if the proxy comes up healthy
+      bash "$CLAUDE_DIR/scripts/headroom-alwayson.sh" enable || \
+        echo "  -> WARN: always-on enable returned non-zero; redirect left unset (safe). Use claude-hr.sh."
     else
-      echo "  -> WARN: 'uv pip install headroom-ai[all]' failed (network/build?). Trimming partial venv."
-      rm -rf "$HEADROOM_VENV" 2>/dev/null || true
-      echo "     Harness unaffected; claude-hr will report headroom missing until reinstalled."
+      echo "     Always-on skipped (HEADROOM_ALWAYSON=0). Opt-in: bash ~/.claude/scripts/claude-hr.sh"
     fi
   else
-    echo "  -> WARN: 'uv venv --python $HEADROOM_PYTHON' failed (no isolated 3.10 available?)."
-    echo "     Harness unaffected; headroom not installed (optional)."
+    echo "  -> WARN: headroom venv/install failed (network/build?). Trimming partial venv."
+    rm -rf "$HEADROOM_VENV" 2>/dev/null || true
+    echo "     Harness unaffected; no redirect set, no proxy. Re-run installer to retry."
   fi
 else
-  echo "  -> SKIP: 'uv' not found. headroom not installed (optional). Harness unaffected."
+  echo "  -> SKIP: 'uv' not found. headroom not installed. Harness unaffected (no redirect set)."
   echo "     To enable later: install uv (https://docs.astral.sh/uv/) then re-run this installer."
 fi
 

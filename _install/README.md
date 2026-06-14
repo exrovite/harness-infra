@@ -99,12 +99,19 @@ uv-managed Python 3.10 venv** at `~/.claude/headroom-venv` — its own standalon
 packages, **never** the system Python and never any other Python install on the machine. Uninstall is
 just `rm -rf ~/.claude/headroom-venv`.
 
-> **DISABLED BY DEFAULT (2026-06-13).** headroom is **not installed** by `install.sh` unless you opt
-> in with `HEADROOM_INSTALL=1 bash _install/install.sh`. Its compression layer is not yet verified, so
-> it stays off across servers until fixed. Even when enabled, the install is **isolated and opt-in
-> only**: it NEVER sets `ANTHROPIC_BASE_URL`, never starts a proxy, and never installs a
-> service/scheduled task. Compression happens only when you explicitly run `claude-hr.sh`. (The
-> always-on/global setup tried during development is **not** part of this pack and must never be.)
+> **ALWAYS-ON BY DEFAULT (fixed 2026-06-14), with a health-gate safety net.** `install.sh` installs
+> the isolated venv (`HEADROOM_INSTALL=0` to skip) and turns on transparent compression
+> (`HEADROOM_ALWAYSON=0` to install but stay opt-in). The fix: `HEADROOM_RUST_DETECT=0` (stopped the
+> compression hang) + the `agent-90` profile + a supervisor watchdog (`headroom-supervisor.{ps1,sh}`)
+> that keeps the proxy alive across reboots (Windows logon task / Linux `systemd --user` or `@reboot`
+> cron).
+>
+> **The safety net (learned the hard way):** the global `ANTHROPIC_BASE_URL` redirect is written into
+> `settings.json` **only after the proxy answers `/livez`** (see `headroom-alwayson.sh`). If `uv`, the
+> network, or the proxy isn't healthy, the redirect is **not** set — Claude keeps talking to Anthropic
+> directly and no session is ever bricked. The **shipped `settings.json` never contains the redirect**.
+> Turn always-on off cleanly any time: `bash ~/.claude/scripts/headroom-alwayson.sh disable`.
+> Real-world reduction observed so far: ~6% average input tokens (peaks ~98% on large tool outputs).
 
 Use it the **transparent** way by launching Claude Code through the bundled wrapper instead of plain
 `claude`:

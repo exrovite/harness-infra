@@ -33,15 +33,33 @@ else
   ok "H6 headroom only installed into the isolated venv (no global/system install)"
 fi
 # set -e safety: the install commands are inside if-conditions (guarded)
-grep -qE 'if uv venv' "$INSTALL" && ok "H7 uv venv is an if-condition (set -e safe)" || no "H7 uv venv not guarded as if-condition"
-# DISABLED-BY-DEFAULT: headroom must NOT install unless HEADROOM_INSTALL=1 (opt-in only)
-grep -qE 'HEADROOM_INSTALL.*!= *"1"|HEADROOM_INSTALL:-0' "$INSTALL" && ok "H7b headroom install is OFF by default (HEADROOM_INSTALL=1 to opt in)" || no "H7b headroom not gated behind HEADROOM_INSTALL"
-# the install pack must NEVER wire always-on (no executable redirect/service/wrap — comments OK)
-if grep -vE '^\s*#' "$INSTALL" | grep -qE 'ANTHROPIC_BASE_URL|install apply|install agent|schtasks|sc(\.exe)? create|headroom (wrap|unwrap)'; then
-  no "H7c install.sh contains executable always-on wiring"
+grep -qE 'if uv venv|&& uv pip install' "$INSTALL" && ok "H7 uv venv/install guarded as if-condition (set -e safe)" || no "H7 uv venv not guarded as if-condition"
+# INSTALL-ON-BY-DEFAULT: HEADROOM_INSTALL defaults to 1 (skip only with =0)
+grep -qE 'HEADROOM_INSTALL:-1' "$INSTALL" && ok "H7b headroom installs by default (HEADROOM_INSTALL=0 to skip)" || no "H7b headroom not default-on via HEADROOM_INSTALL:-1"
+# ALWAYS-ON wired via the health-gated enabler (NOT inline redirect)
+grep -qE 'headroom-alwayson\.sh' "$INSTALL" && ok "H7c install.sh calls headroom-alwayson.sh enabler" || no "H7c install.sh does not call the always-on enabler"
+grep -qE 'HEADROOM_ALWAYSON:-1' "$INSTALL" && ok "H7c2 always-on defaults on (HEADROOM_ALWAYSON=0 to skip)" || no "H7c2 always-on not default-on"
+# CRITICAL SAFETY: install.sh must NOT inline-set ANTHROPIC_BASE_URL (only the health-gated enabler may)
+if grep -vE '^[[:space:]]*#' "$INSTALL" | grep -qE 'ANTHROPIC_BASE_URL'; then
+  no "H7c3 install.sh inline-sets ANTHROPIC_BASE_URL (must be health-gated in enabler only)"
 else
-  ok "H7c install.sh has NO executable always-on wiring (no redirect/service/wrap)"
+  ok "H7c3 install.sh never inline-sets ANTHROPIC_BASE_URL (delegated to health-gated enabler)"
 fi
+# the enabler MUST health-gate the redirect: ANTHROPIC_BASE_URL only after a /livez check
+ALW="$ROOT/_install/scripts/headroom-alwayson.sh"
+[ -f "$ALW" ] && ok "H7e headroom-alwayson.sh shipped" || no "H7e enabler missing"
+if [ -f "$ALW" ]; then
+  bash -n "$ALW" && ok "H7e2 enabler is valid bash" || no "H7e2 enabler bash -n failed"
+  grep -q 'livez' "$ALW" && grep -q 'settings_set_redirect' "$ALW" && ok "H7e3 enabler health-gates the redirect (livez before set)" || no "H7e3 enabler not health-gated"
+  grep -qE 'disable\)' "$ALW" && ok "H7e4 enabler supports clean disable (un-brick path)" || no "H7e4 no disable path"
+fi
+# supervisor scripts shipped (both OSes) with the HEADROOM_RUST_DETECT=0 fix + agent-90
+for sup in headroom-supervisor.ps1 headroom-supervisor.sh; do
+  f="$ROOT/_install/scripts/$sup"
+  [ -f "$f" ] && grep -q 'HEADROOM_RUST_DETECT' "$f" && grep -q 'agent-90' "$f" && ok "H7f $sup ships with RUST_DETECT=0 + agent-90 fix" || no "H7f $sup missing or lacks the fix env"
+done
+# shipped settings.json must NEVER carry the redirect (would brick fresh installs before proxy is up)
+if grep -qE 'ANTHROPIC_BASE_URL|127\.0\.0\.1:8787' "$ROOT/_install/settings.json"; then no "H7g shipped settings.json carries a redirect (brick risk)"; else ok "H7g shipped settings.json has NO redirect (safe)"; fi
 # shipped settings.json must not contain a proxy redirect
 if grep -qE 'ANTHROPIC_BASE_URL|127\.0\.0\.1:8787' "$ROOT/_install/settings.json"; then no "H7d shipped settings.json has a proxy redirect"; else ok "H7d shipped settings.json has NO proxy redirect"; fi
 
