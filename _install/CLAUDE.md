@@ -19,6 +19,19 @@ If NONE of these files exist: the harness will auto-initialize on your first fil
 
 **These files survive across sessions, across days, across weeks.** When you come back to a project after any gap, your context is in these files.
 
+## MUST-DO SYSTEM (when a project has a `docs/must do/` folder)
+
+If the project you're working in has a `docs/must do/` folder, it uses the must-do system — read
+`~/.claude/MUST-DO-SYSTEM.md` for the full guide. In short:
+- The folder links files you **MUST read before writing code**. The gates will block code writes until you
+  acknowledge them (write `.claude/state/must-do-summary.md`).
+- **Before PLAN**, build your grounding pack: send the prompt **`+++pack`** (captures the conversation
+  verbatim + relinks grounding into *your owned* must-do file), then write your discussion-agreement and
+  **validate it independently** with `validate-agreement.sh` before you proceed. Don't plan until it passes.
+- You own exactly one must-do file (`must-do.md` solo; `must-do-N.md` under contention, bound to your
+  watcher slot). **Never touch another session's must-do file.**
+- No `docs/must do/` folder → the system is inert; ignore it.
+
 ## WATCHER SYSTEM (for multi-step tasks)
 
 The watcher keeps you on task. It fires every 3 minutes and forces you to check your progress.

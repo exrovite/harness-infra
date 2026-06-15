@@ -81,3 +81,19 @@ After user approves suggestions:
 2. Create `docs/must do/` directory if it doesn't exist
 3. Write `docs/must do/must-do.md` with one file path per line
 4. Verify the must-do summary gate (Layer 4) will activate on next session
+
+---
+
+## Related: the auto-pack workflow
+
+This skill *generates* must-do content. Once a `docs/must do/` folder exists, the runtime layer takes
+over — see **`~/.claude/MUST-DO-SYSTEM.md`** for the full agent guide. Key points it adds:
+
+- **`+++pack`** — before PLAN, this signal clears/repopulates the caller's *owned* must-do file and captures
+  the conversation transcript verbatim (`build-mustdo-pack.sh`). Use it instead of hand-writing the pack.
+- **`validate-agreement.sh`** — independently checks the discussion-agreement contains every agreed point
+  from the raw conversation before it's accepted as grounding (don't proceed to PLAN until it passes).
+- **Lane ownership** — under concurrency, files fan out to `must-do-N.md` bound to the watcher slot; each
+  session owns exactly one and never touches a sibling's. Resolve via `mustdo_file_for_dir`, never hardcode.
+- **`.claude/mustdo-pack.json` `{"require_pack": true}`** — opt-in PLAN-entry gate that blocks the first
+  spec write until a pack exists.
