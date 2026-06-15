@@ -598,6 +598,20 @@ lane_paths() {
   fi
 }
 
+# mustdo_file_for_dir DIR — resolve THIS caller's owned must-do file inside a candidate dir,
+# honoring lane ownership (slot-N <-> must-do-(N-1).md). Uses the global LANE set by resolve_instance.
+# Lane 1 / unset -> "DIR/must-do.md". Lane N>=2 -> "DIR/must-do-(N-1).md" IF it exists, else falls
+# back to "DIR/must-do.md" (back-compat: a lane with no numbered file uses the shared default).
+# Replaces hardcoded "DIR/must-do.md" and "find DIR | head -1" so every gate reads the OWNED file.
+mustdo_file_for_dir() {
+  local DIR="$1" L="${LANE:-1}" F
+  if [ "$L" = "1" ] || [ -z "$L" ]; then
+    printf '%s/must-do.md' "$DIR"; return 0
+  fi
+  F="${DIR}/must-do-$((L - 1)).md"
+  if [ -f "$F" ]; then printf '%s' "$F"; else printf '%s/must-do.md' "$DIR"; fi
+}
+
 # resolve_instance PAYLOAD PROJECT EVENT [REG] — the chokepoint. Reads session_id from the PASSED
 # payload (never stdin). Finds the session's lane; claims ONLY at UserPromptSubmit; otherwise a new
 # session defaults to read-only flat (lane 1) WITHOUT claiming. Sets LANE + all *_DIR/MUSTDO_FILE.

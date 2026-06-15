@@ -54,6 +54,35 @@ if [ -f "$KS_FLAG" ]; then
   exit 0
 fi
 
+# --- MUST-DO PACK BUILD TRIGGER (D-Trigger, C12) ---
+# Explicit signal '+++pack' (exact trimmed match) builds the caller's must-do PACK before PLAN:
+# clears ONLY the caller's owned must-do file and relinks the raw conversation (transcript copy) +
+# grounding. The PLAN-entry gate in pre-write-gate.sh is the independent backstop.
+if [ "$KS_TRIMMED" = "+++pack" ]; then
+  PK_DIR=""
+  for PK_C in "docs/must do" "docs/must-do" ".claude/must-do"; do
+    [ -d "$PK_C" ] && PK_DIR="$PK_C" && break
+  done
+  [ -z "$PK_DIR" ] && PK_DIR="docs/must do"
+  if type mustdo_file_for_dir >/dev/null 2>&1; then
+    PK_OWN=$(mustdo_file_for_dir "$PK_DIR" 2>/dev/null)
+  fi
+  [ -n "${PK_OWN:-}" ] || PK_OWN="${PK_DIR}/must-do.md"
+  PK_TRANSCRIPT=$(printf '%s' "$PROMPT_INPUT" | jq -r '.transcript_path // ""' 2>/dev/null | tr -d '\r')
+  PK_BUILDER="$HOME/.claude/scripts/build-mustdo-pack.sh"
+  if [ -f "$PK_BUILDER" ]; then
+    if [ -n "$PK_TRANSCRIPT" ] && [ -f "$PK_TRANSCRIPT" ]; then
+      bash "$PK_BUILDER" --own "$PK_OWN" --transcript "$PK_TRANSCRIPT" >/dev/null 2>&1
+    else
+      bash "$PK_BUILDER" --own "$PK_OWN" --no-transcript >/dev/null 2>&1
+    fi
+    printf '[MUST-DO PACK BUILT] Owned file %s cleared + relinked (raw conversation captured). Now write your discussion-agreement / rough-plan, add grounding links, then proceed to PLAN.' "$PK_OWN"
+  else
+    printf '[MUST-DO PACK] build-mustdo-pack.sh not found at %s — cannot build pack.' "$PK_BUILDER"
+  fi
+  exit 0
+fi
+
 one_line() {
   tr '\n' ' ' | tr -d '\r' | sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
 }
@@ -415,8 +444,9 @@ else
   done
 fi
 if [ -n "$MUST_DO_DIR" ] && [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
-  if [ -f "${MUST_DO_DIR}/must-do.md" ]; then
-    add_read "${MUST_DO_DIR}/must-do.md and referenced docs"
+  MUST_DO_OWN=$(mustdo_file_for_dir "$MUST_DO_DIR" 2>/dev/null); [ -n "$MUST_DO_OWN" ] || MUST_DO_OWN="${MUST_DO_DIR}/must-do.md"
+  if [ -f "$MUST_DO_OWN" ]; then
+    add_read "$MUST_DO_OWN and referenced docs"
   else
     add_read "${MUST_DO_DIR}/"
   fi
@@ -580,7 +610,8 @@ fi
 
 if [ "$SLB_STUCK_ACTIVE" != true ] && { [ "$SLB_EXIT" -eq 1 ] || [ "$SLB_EXIT" -eq 2 ]; }; then
   SLB_FILE_LIST=""
-  if [ -n "$MUST_DO_DIR" ] && [ -f "${MUST_DO_DIR}/must-do.md" ]; then
+  SLB_MD_OWN=$(mustdo_file_for_dir "$MUST_DO_DIR" 2>/dev/null); [ -n "$SLB_MD_OWN" ] || SLB_MD_OWN="${MUST_DO_DIR}/must-do.md"
+  if [ -n "$MUST_DO_DIR" ] && [ -f "$SLB_MD_OWN" ]; then
     SLB_MISTAKE_FILES=""
     SLB_OTHER_FILES=""
     while IFS= read -r FPATH || [ -n "$FPATH" ]; do
@@ -592,7 +623,7 @@ if [ "$SLB_STUCK_ACTIVE" != true ] && { [ "$SLB_EXIT" -eq 1 ] || [ "$SLB_EXIT" -
       else
         SLB_OTHER_FILES="${SLB_OTHER_FILES} ${FPATH};"
       fi
-    done < "${MUST_DO_DIR}/must-do.md"
+    done < "$SLB_MD_OWN"
     SLB_FILE_LIST="${SLB_MISTAKE_FILES}${SLB_OTHER_FILES}"
   fi
 

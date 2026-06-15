@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-04-04T09:00:00.000000",
+  "last_updated": "2026-06-15",
   "total_scripts": 21,
   "total_hooks": 7,
   "total_agents": 4,
@@ -18,13 +18,31 @@
       "purpose": "Outer loop that drives the state machine. Manages PLAN -> NEGOTIATE -> BUILD -> EVALUATE -> COMPLETE cycle. Handles blocked states, budget checks, Telegram daemon lifecycle, and iteration limits.",
       "input": "None (reads state from .claude/state/current-phase.json)",
       "output": "Drives full development cycle to COMPLETE or stops at human gates",
-      "dependencies": ["bash", "jq", "claude CLI"],
+      "dependencies": [
+        "bash",
+        "jq",
+        "claude CLI"
+      ],
       "usage_example": "bash ~/.claude/scripts/run-harness.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "outer-loop", "state-machine", "layer-1"],
-      "related_scripts": ["script_002", "script_003", "script_005", "script_006", "script_007", "script_008", "script_009", "script_010"],
+      "tags": [
+        "harness",
+        "outer-loop",
+        "state-machine",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_002",
+        "script_003",
+        "script_005",
+        "script_006",
+        "script_007",
+        "script_008",
+        "script_009",
+        "script_010"
+      ],
       "notes": "The master orchestrator. Uses lockfile for concurrency protection. Starts Telegram daemon. Includes crash recovery startup. Budget circuit breaker per iteration."
     },
     {
@@ -35,13 +53,23 @@
       "purpose": "Retry wrapper for Claude CLI invocations. Handles crashes, rate limits, and session failures with exponential backoff. Max 3 retries. On exhaustion, writes handoff and blocks agent.",
       "input": "Prompt file path, optional permission mode",
       "output": "Exit code 0 on success, 1 on all retries exhausted",
-      "dependencies": ["bash", "claude CLI"],
+      "dependencies": [
+        "bash",
+        "claude CLI"
+      ],
       "usage_example": "bash ~/.claude/scripts/run-claude-safe.sh .claude/state/current-prompt.md auto-accept",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "retry", "resilience", "layer-1"],
-      "related_scripts": ["script_001"],
+      "tags": [
+        "harness",
+        "retry",
+        "resilience",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001"
+      ],
       "notes": "Exponential backoff: 60s, 120s, 240s. Prompts piped via stdin from file to avoid shell argument length limits."
     },
     {
@@ -52,13 +80,24 @@
       "purpose": "Crash recovery at harness start. Detects stale state from previous crashed sessions, cleans artifacts, kills orphaned processes, writes fresh handoff artifact.",
       "input": "None (reads .claude/state/current-phase.json)",
       "output": "Clean state ready for harness resumption",
-      "dependencies": ["bash", "jq"],
+      "dependencies": [
+        "bash",
+        "jq"
+      ],
       "usage_example": "bash ~/.claude/scripts/startup-recovery.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "recovery", "crash", "layer-1"],
-      "related_scripts": ["script_001", "script_007"],
+      "tags": [
+        "harness",
+        "recovery",
+        "crash",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001",
+        "script_007"
+      ],
       "notes": "Cleans: phase-complete-marker, agent-blocked, harness.lock. Kills orphaned dev-server. Notifies Telegram of recovery."
     },
     {
@@ -69,13 +108,27 @@
       "purpose": "Background daemon that polls Telegram Bot API for human responses. Writes replies to human-response.md. Maintains heartbeat file for harness monitoring. Triggers resume-on-reply if agent was timed out.",
       "input": "TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (environment or hardcoded)",
       "output": "Writes .claude/state/human-response.md when message received",
-      "dependencies": ["bash", "curl", "jq"],
+      "dependencies": [
+        "bash",
+        "curl",
+        "jq"
+      ],
       "usage_example": "bash ~/.claude/scripts/telegram-poll.sh &",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "telegram", "notification", "daemon", "layer-1", "optional"],
-      "related_scripts": ["script_005", "script_006"],
+      "tags": [
+        "harness",
+        "telegram",
+        "notification",
+        "daemon",
+        "layer-1",
+        "optional"
+      ],
+      "related_scripts": [
+        "script_005",
+        "script_006"
+      ],
       "notes": "OPTIONAL — harness works without it. Writes heartbeat to telegram-poll-heartbeat every cycle. Harness monitors heartbeat and restarts if >120s stale."
     },
     {
@@ -86,13 +139,25 @@
       "purpose": "Blocks execution until human responds via Telegram or human-response.md appears. Timeout with state save. Generates resume-on-reply.sh script so Telegram reply triggers restart.",
       "input": "Timeout in minutes (default 30)",
       "output": "Exit 0 when response received, generates resume script on timeout",
-      "dependencies": ["bash"],
+      "dependencies": [
+        "bash"
+      ],
       "usage_example": "bash ~/.claude/scripts/wait-for-human.sh 30",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "blocking", "human-in-loop", "timeout", "layer-1"],
-      "related_scripts": ["script_004", "script_006", "script_007"],
+      "tags": [
+        "harness",
+        "blocking",
+        "human-in-loop",
+        "timeout",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_004",
+        "script_006",
+        "script_007"
+      ],
       "notes": "Sends reminder every 10 minutes. On timeout: saves state via write-handoff.sh, creates resume-on-reply.sh, notifies Telegram."
     },
     {
@@ -103,13 +168,25 @@
       "purpose": "Send notification to Telegram (or WhatsApp via Twilio). Simple curl wrapper for Bot API sendMessage endpoint.",
       "input": "Message text as argument",
       "output": "Telegram message sent",
-      "dependencies": ["bash", "curl"],
+      "dependencies": [
+        "bash",
+        "curl"
+      ],
       "usage_example": "bash ~/.claude/scripts/notify.sh 'Sprint 3 passed evaluation'",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "notification", "telegram", "whatsapp", "layer-1", "optional"],
-      "related_scripts": ["script_004"],
+      "tags": [
+        "harness",
+        "notification",
+        "telegram",
+        "whatsapp",
+        "layer-1",
+        "optional"
+      ],
+      "related_scripts": [
+        "script_004"
+      ],
       "notes": "OPTIONAL — transport layer is interchangeable. Telegram via Bot API, WhatsApp via Twilio. Same interface."
     },
     {
@@ -120,13 +197,24 @@
       "purpose": "Creates rich handoff artifact from current disk state. Includes: completed features (git log), codebase state (file tree), modified files (git diff), architectural decisions, known issues, active contract, test status. Matches Anthropic's documented pattern.",
       "input": "Phase label (e.g., 'SPRINT_3_COMPLETE', 'CRASH_RECOVERY')",
       "output": "Writes .claude/state/handoff-artifact.md",
-      "dependencies": ["bash", "git"],
+      "dependencies": [
+        "bash",
+        "git"
+      ],
       "usage_example": "bash ~/.claude/scripts/write-handoff.sh SPRINT_3_COMPLETE",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "handoff", "context-reset", "layer-1"],
-      "related_scripts": ["script_001", "script_003"],
+      "tags": [
+        "harness",
+        "handoff",
+        "context-reset",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001",
+        "script_003"
+      ],
       "notes": "Critical for context resets at sprint boundaries. A fresh session reads this to orient. Thin handoffs cause context loss — this generates RICH handoffs."
     },
     {
@@ -137,13 +225,24 @@
       "purpose": "Cost/time circuit breaker. Tracks elapsed time and estimated cost (iterations x ~$4). Hard stop with state save and Telegram notification when either limit exceeded.",
       "input": "MAX_COST (default $50), MAX_HOURS (default 4)",
       "output": "Exit 0 if within budget, exit 1 if limit exceeded",
-      "dependencies": ["bash", "jq"],
+      "dependencies": [
+        "bash",
+        "jq"
+      ],
       "usage_example": "bash ~/.claude/scripts/check-budget.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "budget", "circuit-breaker", "layer-1"],
-      "related_scripts": ["script_001", "script_007"],
+      "tags": [
+        "harness",
+        "budget",
+        "circuit-breaker",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001",
+        "script_007"
+      ],
       "notes": "Called at start of each harness iteration. Saves state on exit so work isn't lost."
     },
     {
@@ -154,13 +253,23 @@
       "purpose": "Auto-commit at phase boundaries. Stages all changes, commits with harness label. Only commits if there are actual changes.",
       "input": "Phase name, sprint number",
       "output": "Git commit or 'no changes' message",
-      "dependencies": ["bash", "git"],
+      "dependencies": [
+        "bash",
+        "git"
+      ],
       "usage_example": "bash ~/.claude/scripts/git-checkpoint.sh BUILD 3",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "git", "checkpoint", "layer-1"],
-      "related_scripts": ["script_001"],
+      "tags": [
+        "harness",
+        "git",
+        "checkpoint",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001"
+      ],
       "notes": "Commit message format: 'harness: {PHASE} sprint {N} [auto-checkpoint]'. Called after every successful phase transition."
     },
     {
@@ -171,13 +280,24 @@
       "purpose": "Pre-evaluator health check. Detects project type (Node/Python), starts dev server if not running, waits for response with retry loop.",
       "input": "None (auto-detects from package.json or requirements.txt)",
       "output": "Exit 0 when server responding, exit 1 after 30 retries",
-      "dependencies": ["bash", "curl", "npm or uvicorn"],
+      "dependencies": [
+        "bash",
+        "curl",
+        "npm or uvicorn"
+      ],
       "usage_example": "bash ~/.claude/scripts/ensure-dev-server.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "dev-server", "health-check", "layer-1"],
-      "related_scripts": ["script_001"],
+      "tags": [
+        "harness",
+        "dev-server",
+        "health-check",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001"
+      ],
       "notes": "Saves PID to dev-server.pid for cleanup on crash. Checks ports 5173, 3000, 8000. If fails, agent blocked and human notified."
     },
     {
@@ -188,13 +308,24 @@
       "purpose": "Negative loop detector. Checks git history for repeated modifications to same files (4+ times in 10 commits) and test results for repeating failures. If loop found: injects known fix or blocks agent.",
       "input": "None (reads git log and test results)",
       "output": "Exit 0 if no loop, exit 1 if loop detected (blocks execution)",
-      "dependencies": ["bash", "git", "grep"],
+      "dependencies": [
+        "bash",
+        "git",
+        "grep"
+      ],
       "usage_example": "bash ~/.claude/scripts/detect-loop.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "loop-detection", "deterministic", "layer-2"],
-      "related_scripts": ["script_014"],
+      "tags": [
+        "guard",
+        "loop-detection",
+        "deterministic",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_014"
+      ],
       "notes": "Two paths: (1) Known fix exists → inject into next-fix.md, (2) No known fix → block agent, notify Telegram. Agent CANNOT proceed while blocked. This BLOCKS, it doesn't just advise."
     },
     {
@@ -205,13 +336,25 @@
       "purpose": "Phase-specific validation. Checks file existence, required sections (grep), line counts, known-fixes consultation. Different checks per phase (Research/Plan/Execute).",
       "input": "Phase number",
       "output": "Exit 0 on PASS, exit 1 on FAIL with specific failure reason",
-      "dependencies": ["bash", "grep"],
+      "dependencies": [
+        "bash",
+        "grep"
+      ],
       "usage_example": "bash ~/.claude/scripts/validate-phase.sh 1",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "validation", "phase-transition", "deterministic", "layer-2"],
-      "related_scripts": ["script_001", "script_013"],
+      "tags": [
+        "guard",
+        "validation",
+        "phase-transition",
+        "deterministic",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_001",
+        "script_013"
+      ],
       "notes": "Called by harness hook after agent writes phase-complete-marker. Agent CANNOT advance phases — only the harness can, after this script passes."
     },
     {
@@ -222,13 +365,27 @@
       "purpose": "Pre-evaluator deterministic checks. Runs BEFORE the evaluator LLM loads. Checks: required files exist, no negative loops, tests pass, known-fixes applied. Binary pass/fail.",
       "input": "Sprint number",
       "output": "Exit 0 on PASS (evaluator may proceed), exit 1 on FAIL (return to BUILD)",
-      "dependencies": ["bash", "grep", "git"],
+      "dependencies": [
+        "bash",
+        "grep",
+        "git"
+      ],
       "usage_example": "bash ~/.claude/scripts/evaluate-protocol-compliance.sh 3",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "compliance", "pre-evaluator", "deterministic", "layer-2"],
-      "related_scripts": ["script_011", "script_012", "script_014"],
+      "tags": [
+        "guard",
+        "compliance",
+        "pre-evaluator",
+        "deterministic",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_011",
+        "script_012",
+        "script_014"
+      ],
       "notes": "Separates deterministic checks (Layer 2) from judgment checks (Layer 3). Never use LLM to check 'does the file exist?' — a bash script does that with certainty."
     },
     {
@@ -239,13 +396,25 @@
       "purpose": "Structured verification that a known fix was actually applied in the code (not just claimed in commit message). Uses structured format: file_exists, file_contains (with ordering via before_pattern), test_passes (allowlisted commands only). NO eval.",
       "input": "Reads .claude/state/next-fix.md for verification criteria",
       "output": "Exit 0 if fix verified in code, exit 1 if not applied",
-      "dependencies": ["bash", "grep"],
+      "dependencies": [
+        "bash",
+        "grep"
+      ],
       "usage_example": "bash ~/.claude/scripts/verify-fix-applied.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "fix-verification", "no-eval", "deterministic", "layer-2"],
-      "related_scripts": ["script_011", "script_013"],
+      "tags": [
+        "guard",
+        "fix-verification",
+        "no-eval",
+        "deterministic",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_011",
+        "script_013"
+      ],
       "notes": "NEVER uses eval on markdown content. Three check types only: file_exists, file_contains, test_passes. Test commands must be in allowlist (pytest, npm test, cargo test, python -m unittest). Timeout 120s on test commands."
     },
     {
@@ -256,13 +425,22 @@
       "purpose": "One-command project setup. Creates .claude/ directory structure, minimal CLAUDE.md, empty known-fixes.md, initialises state to PLAN phase. Run once per new project.",
       "input": "None (runs in current directory)",
       "output": "Complete .claude/ structure ready for harness",
-      "dependencies": ["bash"],
+      "dependencies": [
+        "bash"
+      ],
       "usage_example": "bash ~/.claude/scripts/init-project.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "init", "setup", "layer-1"],
-      "related_scripts": ["script_001"],
+      "tags": [
+        "harness",
+        "init",
+        "setup",
+        "layer-1"
+      ],
+      "related_scripts": [
+        "script_001"
+      ],
       "notes": "Creates: .claude/state/, .claude/specs/, .claude/contracts/, .claude/protocols/. CLAUDE.md is minimal — points to active-instructions.md. Does NOT overwrite existing files."
     },
     {
@@ -273,13 +451,22 @@
       "purpose": "Enforces state machine transitions. Validates REQUESTED→CONTRACT_LOCKED→IMPLEMENTED→VERIFIED→ACCEPTED with STUCK entry from any active state. Prevents skipping states.",
       "input": "Current state, requested state",
       "output": "Exit 0 if valid transition, exit 1 if invalid",
-      "dependencies": ["bash"],
+      "dependencies": [
+        "bash"
+      ],
       "usage_example": "bash ~/.claude/scripts/validate-state-transition.sh REQUESTED CONTRACT_LOCKED",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "state-machine", "deterministic", "layer-2"],
-      "related_scripts": ["script_001"],
+      "tags": [
+        "guard",
+        "state-machine",
+        "deterministic",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_001"
+      ],
       "notes": "STUCK can enter from any active state. STUCK exits to previous state after guidance. ACCEPTED is terminal. Moving backward allowed (VERIFIED→IMPLEMENTED)."
     },
     {
@@ -290,13 +477,27 @@
       "purpose": "Auto-detect test framework from project config files. Priority-ordered detection: custom config → Node.js → Python pytest → Python fallback → Rust → Go → Ruby → .NET. Writes tdd-config.json enabling TDD enforcement.",
       "input": "Optional project-root path (default: current dir)",
       "output": "Writes .claude/state/tdd/tdd-config.json with framework, test_cmd, tdd_required",
-      "dependencies": ["bash", "jq", "find"],
+      "dependencies": [
+        "bash",
+        "jq",
+        "find"
+      ],
       "usage_example": "bash ~/.claude/scripts/detect-test-runner.sh /path/to/project",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "tdd", "detection", "deterministic", "layer-2", "phantom-tdd"],
-      "related_scripts": ["script_018", "script_019"],
+      "tags": [
+        "guard",
+        "tdd",
+        "detection",
+        "deterministic",
+        "layer-2",
+        "phantom-tdd"
+      ],
+      "related_scripts": [
+        "script_018",
+        "script_019"
+      ],
       "notes": "Called by harness at BUILD phase start. Supports custom override via .claude/config/test-command.txt. Uses atomic_write from lib-helpers.sh."
     },
     {
@@ -307,13 +508,29 @@
       "purpose": "BUILD→EVALUATE gate for TDD evidence. Checks tdd-events.jsonl for: events file exists, test files written, genuine test runs, suspicious runs, red→green temporal ordering (Signal 4). Binary pass/fail.",
       "input": "Optional project-root path (default: current dir)",
       "output": "Exit 0 = TDD evidence sufficient, exit 1 = insufficient. Writes tdd-validation-report.md.",
-      "dependencies": ["bash", "jq", "grep"],
+      "dependencies": [
+        "bash",
+        "jq",
+        "grep"
+      ],
       "usage_example": "bash ~/.claude/scripts/validate-tdd.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["guard", "tdd", "validation", "deterministic", "layer-2", "phantom-tdd", "signal-4"],
-      "related_scripts": ["script_013", "script_017", "script_019"],
+      "tags": [
+        "guard",
+        "tdd",
+        "validation",
+        "deterministic",
+        "layer-2",
+        "phantom-tdd",
+        "signal-4"
+      ],
+      "related_scripts": [
+        "script_013",
+        "script_017",
+        "script_019"
+      ],
       "notes": "5 checks: (1) events file, (2) test file writes (warning only), (3) genuine test runs, (4) suspicious runs, (5) red→green ordering. Called by evaluate-protocol-compliance.sh as check #7."
     },
     {
@@ -324,14 +541,82 @@
       "purpose": "Signal 5 nuclear backstop — harness independently runs the project test suite. Agent does NOT self-report results. Reads test command from tdd-config.json or falls back to legacy detection.",
       "input": "Optional project-root path (default: current dir)",
       "output": "Exit 0 = tests pass, exit 1 = tests fail. Writes phase-feedback.md on failure with last 30 lines.",
-      "dependencies": ["bash", "jq"],
+      "dependencies": [
+        "bash",
+        "jq"
+      ],
       "usage_example": "bash ~/.claude/scripts/run-project-tests.sh",
       "success_rate": 0.0,
       "last_used": null,
       "use_count": 0,
-      "tags": ["harness", "tdd", "test-execution", "nuclear-backstop", "layer-1", "phantom-tdd", "signal-5"],
-      "related_scripts": ["script_013", "script_017", "script_018"],
+      "tags": [
+        "harness",
+        "tdd",
+        "test-execution",
+        "nuclear-backstop",
+        "layer-1",
+        "phantom-tdd",
+        "signal-5"
+      ],
+      "related_scripts": [
+        "script_013",
+        "script_017",
+        "script_018"
+      ],
       "notes": "Called by evaluate-protocol-compliance.sh as check #4 (replaces inline npm test/pytest logic). Logs HARNESS_TEST_RUN event on success. Uses eval for commands with arguments — trusted Layer 2 source only."
+    },
+    {
+      "id": "script_mustdo_pack",
+      "name": "build-mustdo-pack",
+      "file_path": "~/.claude/scripts/build-mustdo-pack.sh",
+      "layer": 2,
+      "purpose": "Automated Must-Do Pack Builder (D-Raw/D-Clear). Clears ONLY the caller's OWNED must-do file, copies the session transcript verbatim to raw-conversation.jsonl, and relinks raw conversation + validated discussion-agreement + grounding files.",
+      "input": "--own <file> [--transcript <src>|--no-transcript] [--agreement <file>] [--grounding \"f1 f2\"]",
+      "output": "Repopulated owned must-do file + raw-conversation.jsonl; never touches sibling lane files",
+      "dependencies": [
+        "bash"
+      ],
+      "usage_example": "bash ~/.claude/scripts/build-mustdo-pack.sh --own \"docs/must do/must-do.md\" --transcript t.jsonl",
+      "success_rate": 0.0,
+      "last_used": null,
+      "use_count": 0,
+      "tags": [
+        "must-do",
+        "pack",
+        "lane",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_validate_agreement"
+      ],
+      "notes": "Triggered by +++pack signal in on-prompt-submit.sh; PLAN-entry gate in pre-write-gate.sh is the backstop."
+    },
+    {
+      "id": "script_validate_agreement",
+      "name": "validate-agreement",
+      "file_path": "~/.claude/scripts/validate-agreement.sh",
+      "layer": 2,
+      "purpose": "Independent agreement validation (D-Validate). Checks the discussion-agreement file CONTAINS every agreed term from the raw conversation. Default verdict FAIL if any term missing.",
+      "input": "--raw <file> --agreement <file> [--terms \"T1 T2\"]",
+      "output": "Exit 0 = all present (PASS), 1 = missing term (FAIL), 2 = bad args",
+      "dependencies": [
+        "bash",
+        "grep"
+      ],
+      "usage_example": "bash ~/.claude/scripts/validate-agreement.sh --raw raw.jsonl --agreement agree.md",
+      "success_rate": 0.0,
+      "last_used": null,
+      "use_count": 0,
+      "tags": [
+        "must-do",
+        "validation",
+        "builder-verifier",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_mustdo_pack"
+      ],
+      "notes": "Mirrors EVALUATE builder/verifier separation, applied to the plan itself."
     }
   ],
   "hooks": [
@@ -408,9 +693,22 @@
       "purpose": "Reads active watcher slot, generates 4 MCQ questions with rotating distractors from pool. Writes challenge.md with source slot metadata.",
       "input": "Target file path as $1",
       "output": "Writes .claude/pre-flight/challenge.md",
-      "dependencies": ["bash", "jq", "shuf", "grep"],
-      "tags": ["guard", "pre-flight", "mcq", "layer-2"],
-      "related_scripts": ["script_021", "hook_007"],
+      "dependencies": [
+        "bash",
+        "jq",
+        "shuf",
+        "grep"
+      ],
+      "tags": [
+        "guard",
+        "pre-flight",
+        "mcq",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_021",
+        "hook_007"
+      ],
       "notes": "Distractors from ~/.openclaw/distractor-pool/. Uses grep -F -- for dash-leading patterns. Randomizes correct answer position."
     },
     {
@@ -421,9 +719,21 @@
       "purpose": "Validates agent MCQ answers by re-deriving correct answers from watcher slot. No stored key. Consumes challenge and response on pass.",
       "input": "Reads .claude/pre-flight/response.md and challenge.md",
       "output": "Exit 0 = pass (files consumed), exit 1 = fail with specific feedback",
-      "dependencies": ["bash", "grep", "sed"],
-      "tags": ["guard", "pre-flight", "validation", "layer-2"],
-      "related_scripts": ["script_020", "hook_007"],
+      "dependencies": [
+        "bash",
+        "grep",
+        "sed"
+      ],
+      "tags": [
+        "guard",
+        "pre-flight",
+        "validation",
+        "layer-2"
+      ],
+      "related_scripts": [
+        "script_020",
+        "hook_007"
+      ],
       "notes": "Re-derives Q3 by finding option NOT in distractor pool. Uses grep -F -- for dash patterns. Whitespace-tolerant response parsing."
     }
   ],

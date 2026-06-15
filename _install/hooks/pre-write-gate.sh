@@ -126,6 +126,32 @@ if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/d
     fi
   fi
 fi
+# --- MUST-DO PACK PLAN-ENTRY GATE (D-Trigger backstop, C12) ---
+# OPT-IN ONLY (.claude/mustdo-pack.json {"require_pack": true}); default off = zero regression.
+# When in PLAN and writing the product spec, block the first spec write until the caller's owned
+# must-do file exists AND carries a captured raw conversation link (i.e. a pack was built).
+if [ "$CURRENT_PHASE" = "PLAN" ] && [ -f "${STATE_DIR}/../mustdo-pack.json" ]; then
+  PEG_REQ=$(jq -r '.require_pack // false' "${STATE_DIR}/../mustdo-pack.json" 2>/dev/null | tr -d '\r')
+  if [ "$PEG_REQ" = "true" ]; then
+    PEG_TARGET=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null | tr '\\' '/')
+    case "$PEG_TARGET" in
+      */product-spec.md)
+        PEG_DIR=""
+        for PEG_C in "docs/must do" "docs/must-do" ".claude/must-do"; do
+          [ -d "$PEG_C" ] && PEG_DIR="$PEG_C" && break
+        done
+        PEG_OWN=$(mustdo_file_for_dir "$PEG_DIR" 2>/dev/null); [ -n "$PEG_OWN" ] || PEG_OWN="${PEG_DIR}/must-do.md"
+        if [ ! -f "$PEG_OWN" ] || ! grep -qiF "raw-conversation" "$PEG_OWN" 2>/dev/null; then
+          printf "[PACK GATE] BLOCKED: %s — no claimed must-do pack for this session.\n\n" "$PHASE_CTX" >&2
+          printf "Build your pack before writing the spec: send '+++pack' (captures the raw\n" >&2
+          printf "conversation + clears/relinks your owned must-do file at %s),\n" "$PEG_OWN" >&2
+          printf "then write your discussion-agreement and grounding links.\n" >&2
+          exit 2
+        fi
+        ;;
+    esac
+  fi
+fi
 if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   # Agent tool spawns subagents, doesn't write files — exempt from phase gate
   PG_TOOL=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_name // ""' 2>/dev/null)
@@ -265,7 +291,9 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
             fi
           done
 
-          if [ -n "$SLB_MUST_DO_DIR" ] && [ -f "${SLB_MUST_DO_DIR}/must-do.md" ]; then
+          # Resolve THIS caller's OWNED must-do file (lane-aware), not the hardcoded must-do.md.
+          SLB_MUST_DO_FILE=$(mustdo_file_for_dir "$SLB_MUST_DO_DIR" 2>/dev/null); [ -n "$SLB_MUST_DO_FILE" ] || SLB_MUST_DO_FILE="${SLB_MUST_DO_DIR}/must-do.md"
+          if [ -n "$SLB_MUST_DO_DIR" ] && [ -f "$SLB_MUST_DO_FILE" ]; then
             SLB_HAS_REF=false
             while IFS= read -r SLB_LINE || [ -n "$SLB_LINE" ]; do
               SLB_LINE=$(printf '%s' "$SLB_LINE" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -277,7 +305,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
                 SLB_HAS_REF=true
                 break
               fi
-            done < "${SLB_MUST_DO_DIR}/must-do.md"
+            done < "$SLB_MUST_DO_FILE"
 
             if [ "$SLB_HAS_REF" = false ]; then
               SLB_ACK_REASON="does not reference any must-do file basename"
@@ -314,7 +342,8 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
         for SLB_C in "docs/must do" "docs/must-do" ".claude/must-do"; do
           [ -d "$SLB_C" ] && SLB_MD_DIR="$SLB_C" && break
         done
-        if [ -n "$SLB_MD_DIR" ] && [ -f "${SLB_MD_DIR}/must-do.md" ]; then
+        SLB_MD_FILE=$(mustdo_file_for_dir "$SLB_MD_DIR" 2>/dev/null); [ -n "$SLB_MD_FILE" ] || SLB_MD_FILE="${SLB_MD_DIR}/must-do.md"
+        if [ -n "$SLB_MD_DIR" ] && [ -f "$SLB_MD_FILE" ]; then
           printf "  3. Reference at least one must-do file by name\n\n" >&2
           printf "Must-do files to review:\n" >&2
           while IFS= read -r SLB_L; do
@@ -322,7 +351,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
             [ -z "$SLB_L" ] && continue
             case "$SLB_L" in "#"*|"---"*) continue ;; esac
             printf "  - %s\n" "$SLB_L" >&2
-          done < "${SLB_MD_DIR}/must-do.md"
+          done < "$SLB_MD_FILE"
         else
           printf "\n(No must-do folder found — just describe your new approach.)\n" >&2
         fi
@@ -339,7 +368,9 @@ fi
 MUST_DO_MD=""
 for CAND_DIR in "docs/must do" "docs/must-do" ".claude/must-do"; do
   if [ -d "$CAND_DIR" ]; then
-    MUST_DO_MD=$(find "$CAND_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | head -1)
+    # Lane-aware: resolve THIS caller's OWNED must-do file, not just the first *.md.
+    MUST_DO_MD=$(mustdo_file_for_dir "$CAND_DIR" 2>/dev/null)
+    [ -n "$MUST_DO_MD" ] && [ -f "$MUST_DO_MD" ] || MUST_DO_MD=$(find "$CAND_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | head -1)
     [ -n "$MUST_DO_MD" ] && break
   fi
 done
@@ -530,7 +561,8 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
             for EC_PRE_C in "docs/must do" "docs/must-do" ".claude/must-do"; do
               [ -d "$EC_PRE_C" ] && EC_PRE_MD="$EC_PRE_C" && break
             done
-            if [ -n "$EC_PRE_MD" ] && [ -f "${EC_PRE_MD}/must-do.md" ]; then
+            EC_PRE_MDFILE=$(mustdo_file_for_dir "$EC_PRE_MD" 2>/dev/null); [ -n "$EC_PRE_MDFILE" ] || EC_PRE_MDFILE="${EC_PRE_MD}/must-do.md"
+            if [ -n "$EC_PRE_MD" ] && [ -f "$EC_PRE_MDFILE" ]; then
               while IFS= read -r EC_PRE_L || [ -n "$EC_PRE_L" ]; do
                 EC_PRE_L=$(printf '%s' "$EC_PRE_L" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 [ -z "$EC_PRE_L" ] && continue
@@ -541,7 +573,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
                   EC_PRE_HAS_DOC=true
                   break
                 fi
-              done < "${EC_PRE_MD}/must-do.md"
+              done < "$EC_PRE_MDFILE"
             else
               EC_PRE_HAS_DOC=true
             fi
@@ -604,7 +636,8 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
             for EC_RMD_CAND in "docs/must do" "docs/must-do" ".claude/must-do"; do
               [ -d "$EC_RMD_CAND" ] && EC_RMD_DIR="$EC_RMD_CAND" && break
             done
-            if [ -n "$EC_RMD_DIR" ] && [ -f "${EC_RMD_DIR}/must-do.md" ]; then
+            EC_RMD_FILE=$(mustdo_file_for_dir "$EC_RMD_DIR" 2>/dev/null); [ -n "$EC_RMD_FILE" ] || EC_RMD_FILE="${EC_RMD_DIR}/must-do.md"
+            if [ -n "$EC_RMD_DIR" ] && [ -f "$EC_RMD_FILE" ]; then
               while IFS= read -r EC_RML || [ -n "$EC_RML" ]; do
                 EC_RML=$(printf '%s' "$EC_RML" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 [ -z "$EC_RML" ] && continue
@@ -615,7 +648,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
                   EC_HAS_DOC=true
                   break
                 fi
-              done < "${EC_RMD_DIR}/must-do.md"
+              done < "$EC_RMD_FILE"
             else
               EC_HAS_DOC=true
             fi
@@ -662,14 +695,15 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
           printf "     - Reference the specific failed phases listed above\n" >&2
           printf "     - Reference the must-do documents you consulted\n" >&2
           printf "     - Describe HOW you will produce the missing evidence\n" >&2
-          if [ -n "$EC_RMD_DIR" ] && [ -f "${EC_RMD_DIR}/must-do.md" ]; then
+          EC_RMD_FILE2=$(mustdo_file_for_dir "$EC_RMD_DIR" 2>/dev/null); [ -n "$EC_RMD_FILE2" ] || EC_RMD_FILE2="${EC_RMD_DIR}/must-do.md"
+          if [ -n "$EC_RMD_DIR" ] && [ -f "$EC_RMD_FILE2" ]; then
             printf "\nMust-do files to read:\n" >&2
             while IFS= read -r EC_RML2 || [ -n "$EC_RML2" ]; do
               EC_RML2=$(printf '%s' "$EC_RML2" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
               [ -z "$EC_RML2" ] && continue
               case "$EC_RML2" in "#"*|"---"*) continue ;; esac
               printf "  - %s\n" "$EC_RML2" >&2
-            done < "${EC_RMD_DIR}/must-do.md"
+            done < "$EC_RMD_FILE2"
           fi
         fi
         print_gates_ahead
