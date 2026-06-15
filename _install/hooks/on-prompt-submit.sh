@@ -1,4 +1,20 @@
 #!/bin/bash
+# on-prompt-submit.sh — Claude Code UserPromptSubmit hook (Layer 1: harness outer loop)
+#
+# Fires once on every prompt the user submits, BEFORE the model sees it. Because it runs
+# at prompt time (not on a tool write) it can never be blocked by a write gate, which is
+# why the harness's control signals live here. Responsibilities, in order:
+#   1. Kill-switch + signal tokens — exact-trimmed prompts toggle harness state:
+#        '---' disables the harness for this project, '===' re-enables it,
+#        '+++pack' builds the must-do grounding pack from the live transcript.
+#   2. Instance/lane resolution — resolve_instance assigns this session its watcher
+#      lane (drives which must-do file it owns: must-do.md vs must-do-N.md).
+#   3. Context injection — prepends the "harness packet" to the user's prompt: current
+#      phase/sprint, active must-do file list, evidence-checkpoint status, known-fix
+#      injected-context, and a strategy nudge when work has drifted.
+# Reads the prompt payload from stdin (JSON); emits the packet on stdout. Diagnostics go
+# to stderr only. MSYS-safe throughout (tr for backslashes, \r stripping, trailing-newline
+# read guards). See MEMORY.md "Harness Kill-Switch" and "Must-Do" sections for details.
 PROMPT_INPUT=$(cat)
 PROMPT_TEXT=$(printf '%s' "$PROMPT_INPUT" | jq -r '.prompt // ""' 2>/dev/null | tr -d '\r')
 

@@ -43,4 +43,11 @@ if [ -z "$HEADROOM" ]; then
   exit 1
 fi
 
+# Headroom runtime defaults (overridable from the environment):
+#  - HEADROOM_RUST_DETECT=0 : skip the native magika detector, which hangs
+#    on first call on this host; use the pure-Python regex detector instead.
+#  - agent-90 savings profile : aggressive token compression.
+export HEADROOM_RUST_DETECT="${HEADROOM_RUST_DETECT:-0}"
+export HEADROOM_SAVINGS_PROFILE="${HEADROOM_SAVINGS_PROFILE:-agent-90}"
+
 exec "$HEADROOM" wrap claude "$@"

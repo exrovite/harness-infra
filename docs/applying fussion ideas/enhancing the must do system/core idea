@@ -1,0 +1,159 @@
+# Enhancing the Must-Do System — Automated Must-Do Pack Builder
+
+**Status:** DESIGN / pre-PLAN. This document is the compiled record of the conversation between
+the user and Claude (Opus 4.8) on 2026-06-15. It states the exact decisions, the open decisions
+still needing the user's sign-off, and the instructions for carrying them out. The verbatim raw
+conversation is preserved in the Appendix at the bottom — do not edit the appendix.
+
+---
+
+## 1. Goal (what we are building)
+
+Automate the user's existing manual planning ritual so the agent manages the must-do folder itself.
+
+**The manual ritual today (what we are automating):**
+1. User has a conversation with a model about an idea.
+2. The conversation is compiled into a rough plan.
+3. The rough plan is placed in a folder, and a link to it is added to the must-do file.
+4. The must-do file is therefore always the "you are here" index — it links to the current
+   activity AND to every file needed to keep the model grounded.
+
+**What the automation must do** — when the planning conversation ends and the agent is about to
+enter PLAN → NEGOTIATE → BUILD, insert a new step *before* PLAN: **"build your must-do pack"**,
+which:
+- clears the stale links from **its own** must-do file,
+- saves the originating conversation **in raw form** to a file,
+- adds a link to that raw conversation in the must-do file,
+- adds links to every other file/info that grounds the agent in the current task,
+- and from then on the agent manages the must-do folder itself.
+
+**Concurrency requirement:** before touching a must-do file, the agent must determine whether it is
+alone in the folder or other agents are active. If others are active, it must create the **next**
+must-do file and claim it as its own, so the (up to five) files in the folder never get crossed.
+
+---
+
+## 2. Verified current state of the must-do system (facts, confirmed in code 2026-06-15)
+
+The intended design is **one `must-do/` folder holding up to FIVE must-do files**. The current
+implementation is **half-wired** to that model:
+
+**Where the 5-file model IS implemented:**
+- `_install/hooks/pre-write-gate.sh:342` and `_install/scripts/generate-pre-flight-challenge.sh:227`
+  discover files with `find "$CAND_DIR" -maxdepth 1 -name "*.md"` — folder-of-files aware.
+- `generate-pre-flight-challenge.sh` resolves them into a `MUST_DO_RESOLVED[]` array and generates
+  **one MCQ per file** (`Q6, Q7 … 5 + MUST_DO_COUNT`) — genuinely multi-file.
+
+**Where it still assumes a single file (the inconsistency to fix):**
+- Hardcoded `"${DIR}/must-do.md"` in the summary gate (`pre-write-gate.sh:268`, `:317`), the
+  evidence-checkpoint readers (`:533`, `:607`, `:665`), and the prompt injection
+  (`on-prompt-submit.sh:418`, `:583`). `find … | head -1` also picks only the first `.md`.
+- Detection dirs (all three honoured): `docs/must do`, `docs/must-do`, `.claude/must-do`.
+
+**Conclusion:** the folder can hold five files and the pre-flight MCQ honours all five, but the
+summary gate, evidence readers, and injection only look at `must-do.md`. Folder-of-five in name,
+single-file in the gates that matter most for grounding.
+
+---
+
+## 3. Decisions
+
+### 3a. DECIDED (converged in conversation)
+
+- **D1 — The 5-file model is the target.** One `must-do/` folder, up to five must-do files, one
+  owner each. This is the intended design, not something we are introducing.
+- **D2 — Two pieces of work, in order:**
+  1. **Finish the 5-file consistency fix** — make every gate (summary, evidence, injection)
+     operate on **the caller's own must-do file**, not the hardcoded `must-do.md`.
+  2. **Add ownership + auto-pack on top** — session claims a must-do file; a new pre-PLAN step
+     builds the pack into that file.
+- **D3 — Reuse the per-project watcher pool concurrency model.** Do NOT invent a new concurrency
+  system. The watcher pool already provides claim-with-lock, owner = session ID, up-to-5-per-project,
+  create-the-next-if-yours-is-taken, atomic `mkdir` lock, and stale reaping. Must-do ownership
+  binds to it: **`slot-N` ↔ `must-do-N.md`, same owner, same lock, same lifecycle.** One ownership
+  system, never two that can disagree.
+- **D4 — Raw conversation is captured by a hook copying the actual transcript, not by the agent.**
+  The harness already has the literal transcript on disk at
+  `…/projects/<proj>/<session-id>.jsonl` and hooks know that path. "Raw form" = a hook copies (a
+  slice of) that JSONL into the pack — true raw, zero paraphrase. The agent separately writes the
+  compiled `rough-plan.md`. Pack = `raw-conversation.jsonl` (machine-captured) + `rough-plan.md`
+  (agent-compiled) + links to grounding files. This mirrors the beast-mode facts-vs-opinion split:
+  the machine captures the truth, the model adds its interpretation.
+- **D5 — Auto-clear is scoped to the caller's own file only.** A session's pack build clears and
+  repopulates ONLY its own must-do file, never a sibling's. (Forced by concurrency; this is what
+  makes the destructive "remove all links" safe.)
+
+### 3b. OPEN — needs the user's ✓ or override (the five forks)
+
+> These are written as **recommendations**. They are NOT yet final. Confirm or override each.
+
+- **F1 — Ownership binding.** *Recommended:* per-agent must-do files tied to the watcher claim
+  (D3). *Alternative:* must-do ownership as its own separate registry independent of watchers.
+- **F2 — Raw capture method.** *Recommended:* hook copies the actual transcript JSONL (true raw).
+  *Alternative:* the agent's written-up version of the conversation instead of the literal log.
+- **F3 — Auto-clear scope.** *Recommended:* clears only the caller's own file (D5). Confirm this
+  matches the mental model of "remove all the links in the current must-do file."
+- **F4 — Trigger.** *Recommended:* BOTH — an explicit signal (kill-switch family, e.g. a `/plan`
+  token meaning "we're done talking, build the pack") as the normal path, AND a PLAN-entry gate
+  that blocks the first PLAN write until a claimed pack exists, as the backstop.
+- **F5 — Solo simplification.** *Recommended:* when an agent is provably alone in the folder, it
+  keeps using `must-do.md` (no numbering), and only fans out to `must-do-2.md…` under contention,
+  to keep the common case clean.
+- **F6 — Sequencing.** Should the 5-file consistency cleanup (D2.1) be folded into this same
+  plan/sprint, or shipped as its own sprint first before the auto-pack layer? *(raised, undecided)*
+
+---
+
+## 4. Instructions for carrying out the decisions (build outline)
+
+Pending F1–F6 confirmation, the implementation is three components:
+
+1. **5-file consistency fix (D2.1).** Replace hardcoded `must-do.md` references in the summary
+   gate, evidence-checkpoint readers, and prompt injection with a lookup of "this session's
+   must-do file." Stop using `find … | head -1`; resolve the caller's owned file.
+
+2. **Must-do claim layer (D3, F1).** A thin layer over the existing watcher registry: when a
+   session claims watcher `slot-N`, it owns `must-do-N.md`. Reuse `watcher_claim_pp` /
+   `registry_lock` / stale-reap verbatim. "Find another must-do file → is anyone else active → if
+   so claim the next one" is the watcher claim logic, unchanged.
+
+3. **Pre-PLAN pack-builder step + gate (F4) + transcript-capture hook (D4).**
+   - Transcript-capture hook: copies the session's `.jsonl` (or the relevant slice) into the pack
+     as `raw-conversation.jsonl`.
+   - Pack-builder step: clears the caller's own must-do file (D5), writes `rough-plan.md`, and
+     relinks `raw-conversation.jsonl` + grounding files in the must-do file.
+   - Gate: explicit signal triggers it normally; the PLAN-entry gate blocks the first spec write
+     until a claimed pack exists (belt-and-suspenders).
+
+**Net build:** a pack-builder step + gate before PLAN, a transcript-capture hook, and a
+must-do-claim layer that piggybacks the watcher registry — then the existing must-do gates point at
+"my file" instead of "the file."
+
+---
+
+## 5. Relationship to beast-mode (sibling feature)
+
+This shares its core principle with the beast-mode/fusion design (see
+`docs/applying fussion ideas/`): grounding must come from a **machine-assembled record of the
+actual task**, not the model's paraphrase. The must-do pack IS that authoritative "what we're
+actually doing" record that the beast-mode grounding packet also depends on. Build order should
+account for the must-do pack being a dependency of well-grounded fusion.
+
+---
+
+## Appendix — Raw conversation (verbatim, do not edit)
+
+> Preserved exactly as captured on 2026-06-15. This is the source-of-truth conversation that the
+> decisions above were compiled from.
+
+❯ surely before we do this, I want us to talk through another issue that I believe needed to make this work. Usually, before we commit to any idea, I would have a conversation with you or any model in any project that I'm talking to. And after the conversation, that then gets compiled into a rough plan. The rough plan is then placed in a folder with a path link to it in the must do file. So this is the usual process I follow every time to try and make sure the must do file has a link to what is currently happening and also has a link to all the files and information necessary to help keep the model on track. Is there a way we can automate that process so that when I finish talking to a model about a plan, as the model is now starting to do the plan, negotiate, and build phase, we actually add a a task before that, which is to create its must do pack, which will also mean removing all the links in the current must do lab file, make sure it has our initial conversation down in its raw form saved in a file, have a link to that in the must do, and a link to any other information that helps to ground the agent in the activity and task that we are currently doing. So is there a way that we can automate all of that into the process so that the agent manages the must do folder themselves? this needs to take into consideration that if the agent finds another must do file, it needs to determine if it's the only agent working in that folder or if other agents are working. If other agents are working, it has to create the next must do file which it claims as its own so that we don't get confusions with the five files that are currently allowable in the must do folder. Does this all make sense?
+
+● [Claude] Yes, it makes complete sense. Confirmed the shape: automate the planning ritual into a pre-PLAN "build your must-do pack" step. Raised the architectural tension: "remove all links then repopulate" is destructive and safe only if the file is the caller's alone → design must become per-agent must-do files (like watcher slots). Recommended reusing the per-project watcher pool concurrency model and binding slot-N ↔ must-do-N.md. Raw conversation should be captured by a hook copying the transcript JSONL (true raw) + agent writes the rough plan. Trigger: both an explicit signal and a PLAN-entry gate. Then posed five forks (F1–F5).
+
+❯ slightly wrong about the current must do system. If you look through our memory and the things you have implemented, we should have a system that has one must do folder, which then allows five must do files.
+
+● [Claude] Checked the actual code. Confirmed: intended design is one folder / five files, but implementation is half-wired — the 5-file model is honoured by the pre-flight MCQ (find + per-file MCQ) but the summary gate, evidence readers, and injection still hardcode must-do.md. Concluded this strengthens the proposal: five must-do files map one-to-one onto five watcher slots, one owner each. Work splits into (1) finish the 5-file consistency fix, (2) add ownership + auto-pack on top. Asked whether to fold the consistency cleanup into this plan or ship it first as its own sprint.
+
+❯ Please read at file compilation our conversation on this, help me write it out properly in same file so exact decisions we making and instructions decisions carried out is precisely correct and clear.
+
+● [Claude] Rewrote this file into the structured decisions-and-instructions document above, preserving the raw conversation here in the appendix.

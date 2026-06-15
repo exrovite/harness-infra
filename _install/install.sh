@@ -92,6 +92,12 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
 fi
 cp "$SCRIPT_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
 
+# Deploy the canonical must-do system guide (referenced by CLAUDE.md startup pointers)
+if [ -f "$SCRIPT_DIR/MUST-DO-SYSTEM.md" ]; then
+  cp "$SCRIPT_DIR/MUST-DO-SYSTEM.md" "$CLAUDE_DIR/MUST-DO-SYSTEM.md"
+  echo "  -> Installed MUST-DO-SYSTEM.md"
+fi
+
 # --- Step 7: Set up openclaw infrastructure ---
 echo "[7/10] Installing openclaw infrastructure..."
 cp "$SCRIPT_DIR/openclaw/distractor-pool/"* "$OPENCLAW_DIR/distractor-pool/" 2>/dev/null || true

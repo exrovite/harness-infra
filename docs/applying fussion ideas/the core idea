@@ -1,0 +1,186 @@
+❯ Please, I'd like you to read this article, and I would like us to see how we can implement a process in our harness that follows something similar.      But in this case, what we will do is create a a mode called beast-mode And in the beast mode, what's gonna happen is when I send an instruction, this  
+  instruction gets taken immediately and and put it to to subagents running on Claude Opus four point eight and then gives their response to the main    
+  Claude four point eight that's running in the current terminal so that whenever Claude is trying to do anything before it makes any decisions, before  
+  it takes any actions, it's running it through two subagents and then one agent that is the judge that's synthesizing everything so that every action   
+  and every decision, every change is being run through subagents to get this higher level of achievements like is being written here.                   
+  https://openrouter.ai/blog/announcements/fusion-beats-frontier/ Have a read of the article and tell me your understanding of what I am describing here 
+  and your ideas of how we might implement something similar in our harness.                                                                             
+  
+● Let me read the article first.
+
+● Fetch(https://openrouter.ai/blog/announcements/fusion-beats-frontier/)
+  ⎿  Received 43.9KB (200 OK)
+
+● I've read it. Here's my understanding and how I'd map it onto the harness.
+
+  What OpenRouter's "Fusion" actually is
+  A three-stage pipeline run as one call:
+  1. Parallel dispatch — the same prompt goes to a panel of models simultaneously.
+  2. Judge analysis — a judge model reads all panel responses and produces a structured analysis: consensus points, contradictions, partial coverage,
+  unique insights, blind spots. (Note: it doesn't just pick a winner — it maps the disagreement.)
+  3. Synthesis — the calling model writes the final answer grounded in the judge's analysis.
+
+  The result that matters most for you: fusing Opus 4.8 with itself went 58.8% → 65.5%. So the gain isn't only from mixing different vendors — the
+  judge+synthesis step itself is what drives most of the lift. That's the key, because it means a Claude-only beast-mode (Opus panel + Opus judge) is a
+  legitimate, big chunk of the benefit without needing GPT/Gemini keys.
+
+  What you're describing ("beast-mode")
+
+  A harness mode where the main Opus 4.8 in your terminal doesn't act directly. Before any decision/action, it:
+  - fans the question out to 2 Opus 4.8 subagents (the panel),
+  - a 3rd Opus subagent judges/synthesizes their outputs,
+  - and the synthesized result comes back to the main Claude, which then acts on it.
+
+  So you're applying Fusion at the control-loop level — turning the main agent into the "calling model" and inserting a panel→judge gate in front of its
+  actions.
+
+  The honest tension (this shapes the design)
+
+  "Every action and every decision" through 3 Opus calls is the one thing I'd push back on. It would make each step 3–4× the cost and add 30–90s of
+  latency per tool call — reading a file, running a test, a one-line edit would each trigger a full panel. The article's gains are measured on complex
+  research/decision tasks, not on mechanical steps. Beast-mode should fire on consequential decisions (what approach, what to change, did this pass), not  on every keystroke. Same quality lift, ~10× less waste.
+
+  How I'd implement it in our harness
+
+  The harness already has the exact primitives this needs — we'd be composing them, not inventing:
+
+  - Workflow orchestration — does parallel agent() dispatch + a synthesis stage natively. This is literally the Fusion pipeline: parallel([panelA,
+  panelB]) → judge → return. This is the engine.
+  - A beast-mode toggle — same mechanism as your existing kill-switch (---/===): a prompt token or /beast writes .claude/state/beast-mode.flag; hooks
+  read it.
+  - A "fusion gate" — modeled on your pre-flight gate. When beast-mode is on and the main agent is about to take a consequential action, the gate routes
+  the decision through a small fusion workflow and injects the synthesized recommendation back before the action proceeds.
+  - A reusable fusion skill/script — panel(prompt, n=2, model=opus) → judge(prompt, responses) → synthesis, returning the structured
+  consensus/contradictions/blind-spots object. Callable both by the gate and on demand.
+
+  Two viable wiring strategies (this is the main fork):
+
+  - A — Advisory injection (cheaper, safer): at decision points the main agent calls the fusion skill, gets the synthesized analysis, and proceeds. Like
+  a smarter pre-flight. Low risk, easy to build, you stay in control.
+  - B — Hard gate (closer to your literal description): a hook intercepts consequential actions, runs the panel+judge, and blocks until the synthesis is
+  produced and acknowledged. Truest to "every action runs through subagents," but heavier and more brittle (latency, loops, cost).
+
+  Before I write a spec or a mock, four things genuinely change the design:
+
+● User answered Claude's questions:
+  ⎿  · What should beast-mode actually intercept — what counts as an action worth the panel+judge cost? → But how do we determine what is a consequential
+     action determinsitically
+     · How forceful should the fusion step be? → please answer my question first     · Who's on the panel? → answer me first
+     · How should beast-mode be packaged? → answer me first 
+● Good — you're right to anchor on that, because it's the crux. Let me answer your question first, then my four.
+
+  "How do we deterministically decide what's a consequential action?"
+  We don't infer it semantically — that would need an LLM judging intent, which is non-deterministic and exactly what our harness philosophy forbids ("a
+  script checks whether…, never the agent must…"). Instead we classify on observable signals already present at the hook layer. A PreToolUse hook  receives the tool name and tool_input as stdin JSON. So "consequential" becomes a pure function of four deterministic inputs:
+
+  1. Tool type (free, exact):
+  - Read / Glob / Grep → never consequential. Skip.
+  - Write / Edit → candidate.
+  - Bash → consequential only if it matches the mutating/destructive regex set we already maintain in pre-bash-gate.sh (tee, sed -i, redirects, heredoc,
+  cp/mv) — plus git commit|push, rm, deploy scripts.
+
+  2. Target path (free, exact — lists already exist):
+  - Bookkeeping paths (.claude/state/, .agent-memory/, contracts/, specs/, pre-flight/, agentwiki/) → not consequential. These are the same exemption
+  lists every gate already carries.
+  - Source code, the spec, the contract, git/deploy targets → consequential.
+
+  3. Phase (free — state machine already tags it):
+  - The genuinely consequential decisions cluster at phase boundaries, and those are already deterministic file events: writing product-spec.md (the PLAN  decision), finalizing the contract (NEGOTIATE), writing phase-complete-marker.md (a transition), the EVALUATE verdict. We fire fusion on those
+  specific, named events.
+
+  4. Debounce counter (free — the harness already counts writes; you can see "Writes: 1030"):
+  - Fire at most once per file per phase (first touch), or every Nth qualifying write. This bounds cost deterministically instead of firing on every
+  keystroke.
+
+  So the deterministic rule is:
+
+  ▎ Fusion fires iff: tool ∈ {Write, Edit} or Bash matches the mutate/destructive set — AND target path is not in the bookkeeping exemption list — AND 
+  ▎ it's a source/decision artifact — AND the debounce gate allows it (first-touch / Nth / phase-transition).
+
+  Plus an always-consequential set keyed purely by filename/command: phase-complete-marker.md, git commit|push, rm -rf, deploy scripts, contract
+  finalization.
+
+  The knobs (the path lists and N) are all editable config — you tighten or loosen "consequential" by editing lists, never by trusting a model. This is
+  the same shape as the existing pre-flight/evidence gates, so it slots into machinery you already trust.
+
+  Now my four answers (my recommendations)
+
+  1. Trigger scope: Consequential-only, defined by the deterministic classifier above. "Every tool call" is technically possible with the same classifier  (just set the path list to * and N=1), but it's 3–4× cost on reads for no measured benefit. I'd ship consequential-only with "every call" as a config
+  flag you can flip.
+  2. Enforcement: Advisory injection first. The fusion runs, the synthesized analysis (consensus / contradictions / blind-spots) is injected back to the
+  main agent, which then proceeds. It's lower-risk, easy to build on the Workflow engine, and you keep control. We design it so flipping to a hard
+  blocking gate later is a one-line change — but blocking-on-every-action is where latency/loops bite, so prove value advisory-first.
+  3. Panel: Opus-only (2× Opus 4.8 panel + 1× Opus 4.8 judge). The article's own result — Opus fused with itself jumping 58.8% → 65.5% — says the
+  synthesis step delivers most of the lift with zero extra vendors or keys. Mixed-vendor/OpenRouter-Fusion-API are real upgrades, but they add keys,
+  cost, and an external dependency; I'd make the panel a config list so you can add GPT/Gemini later without rework.
+  4. Delivery: Build it in _install, shipped OFF by default behind the beast-mode.flag (kill-switch mechanism). That gives every project/server the
+  capability while guaranteeing it never fires until you turn it on with /beast — same safety posture we used for headroom.
+
+  The engine for all of this already exists: the Workflow tool does parallel([panelA, panelB]) → judge → synthesis natively, which is the Fusion
+  pipeline. So beast-mode is mostly (a) the deterministic classifier hook + (b) a reusable fusion skill wrapping that workflow + (c) the flag/toggle.
+
+  Want me to take this into a PLAN spec, and (per your visual-planning preference) build a quick HTML mock of the beast-mode flow + the classifier
+  decision table for you to mark up before any code?
+
+● Great question — this is the part that makes or breaks it. The two goals pull in opposite directions (de-biasing says withhold information; grounding
+  says share information), and the resolution is to split what's shared into FACTS vs OPINION, then treat them oppositely.
+
+  The core principle: facts are shared, the worker's conclusion is quarantined
+
+  ┌─────────┬─────────────────────────────────────────────────────┬────────────────────────────────────────────────┬─────────────────────────────────┐  │         │                     What it is                      │                  Who sees it                   │               Why               │
+  ├─────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────┼─────────────────────────────────┤
+  │         │ task, target file path, the file's current content, │                                                │ Grounding — nobody can grab the │
+  │ FACTS   │  the literal proposed diff, the contract scope, the │ Everyone, mandatory                            │  wrong end of the stick         │
+  │         │  phase                                              │                                                │                                 │
+  ├─────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ OPINION │ the worker model's proposed answer / recommendation │ Withheld from the panel; revealed to the judge │ De-biasing — panel can't anchor │
+  │         │  / reasoning                                        │  only at synthesis, attribution-stripped       │  on or rubber-stamp the worker  │
+  └─────────┴─────────────────────────────────────────────────────┴────────────────────────────────────────────────┴─────────────────────────────────┘
+
+  Everyone stands on the same ground; nobody is led to the same conclusion.
+
+  How we avoid the panel being biased by the worker
+
+  1. Blind panel. The panel never receives the worker's draft answer — only the question + the facts. Each panelist forms an independent candidate.
+  Anchoring is impossible if the anchor is never shown. (This is the difference between fusion — independent then synthesized — and review — everyone
+  sees the draft and converges on it. We want fusion.)
+  2. The prompt is built by a script, not by the worker. Exactly like the pre-flight gate, where the agent doesn't write its own quiz. The worker can't
+  phrase the question to lead the panel ("don't you agree X is right?"). The harness assembles a neutral, fixed-template prompt from the facts.
+  3. Fresh subagents, no inherited context. Workflow agent() calls spawn clean — they don't inherit the worker's conversation or reasoning chain, so they  can't be primed by it. The only thing that reaches them is the packet we deterministically build. (This is already how subagents work; the risk is
+  purely in what we put in the prompt — which #2 controls.)
+  4. Forced diversity so "Opus×Opus" doesn't collapse to one answer. Give the two panelists different lenses (e.g. "argue the change is correct" vs "find  what's wrong with it", or correctness-lens vs simplicity-lens). The judge then maps real disagreement instead of fake consensus.
+  5. Judge synthesizes from panel + facts, not from the worker. The judge's job is consensus/contradiction/blind-spots over the independent candidates.
+  The worker's opinion enters only at the very end, stripped of "this is the agent's pick," so it's weighed as one more candidate, not the default.
+
+  How we guarantee they're grounded on the truth of what's being worked on
+
+  The strongest grounding is something the harness already has for free: the hook holds the literal action. A PreToolUse hook on Write/Edit receives the
+  exact file path and the exact bytes (new_string/content) in tool_input. So the packet is assembled from authoritative sources, never the worker's
+  paraphrase:
+
+  - Task & scope ← watcher slot + sprint contract (the canonical "what we're doing")
+  - The file being acted on ← tool_input.file_path (ground truth of what, not a description)
+  - Current state ← the file's actual content read from disk
+  - The change itself ← the literal diff from tool_input (they judge the real edit, not a summary of it)
+  - Phase & spec ← state machine + product-spec.md
+
+  This is the same "harness controls the evidence, the builder can't filter it" principle as our evidence-checkpoint system — the verifier gets the
+  source files, not the agent's self-report. You cannot misdirect a judge that's handed the actual file and the actual diff.
+
+  Two cheap guards stop wasted tokens before deep judging:
+
+  6. Relevance/scope pre-check (deterministic, ~free). Before spending a single panel token, a script checks the target path against the contract's
+  declared scope. If the file isn't in scope, that is the finding — fusion returns "out of scope" immediately instead of judging the wrong thing.
+  7. Grounding restatement as the panel's first required output. Each panelist must first restate, in one line, what is being changed and why, drawn from  the packet. If a panelist's restatement doesn't match the packet (deterministic path/keyword check), that vote is discarded — a cheap tripwire for
+  "grabbed the wrong end of the stick" that costs one sentence, not a full judgment.
+
+  Net effect
+
+  - The packet is structured (TASK / FILE / CURRENT / PROPOSED DIFF / SCOPE) and script-assembled → no drift onto tangents, no worker spin.
+  - The panel is blind to the worker's conclusion → no anchoring.
+  - A deterministic scope check + restatement tripwire runs first → tokens aren't burned on misframed or out-of-scope judging.
+
+  This folds cleanly into the design from before: it's mostly the packet-builder script (the new piece) plus the existing Workflow panel→judge engine.
+  The packet-builder is the heart of it — get the facts/opinion split right and bias + grounding are both solved structurally, not by trusting any model.
+  Want me to take everything we've settled (deterministic classifier, advisory-first, Opus-only panel, ship-in-_install-off-by-default, facts-vs-opinion
+  packet) into a PLAN spec plus an HTML mock of the beast-mode flow and the packet layout for you to mark up?
