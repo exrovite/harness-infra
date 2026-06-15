@@ -550,10 +550,13 @@ else
     # Markdown is grounding/plan/notes, never gated source — exempt.
     case "$DON_NORM" in *.md) DON_EXEMPT=true ;; esac
     if [ "$DON_EXEMPT" = false ]; then
+      # Name the EXACT file this session owns (lane-aware), so multi-lane sessions get the
+      # right filename (lane 1 -> must-do.md; lane N -> must-do-(N-1).md), not a hardcoded one.
+      DON_MD_FILE=$(mustdo_file_for_dir "docs/must do" 2>/dev/null); [ -n "$DON_MD_FILE" ] || DON_MD_FILE="docs/must do/must-do.md"
       printf "[MUST-DO GATE] BLOCKED: %s This project has no must-do grounding yet.\n\n" "$PHASE_CTX" >&2
       printf "The must-do system is ON by default (only the '---' kill-switch turns it off).\n" >&2
       printf "Before writing source code you must ground yourself in what this task requires:\n" >&2
-      printf "  1. Create docs/must do/must-do.md listing the files you MUST read/respect for this task\n" >&2
+      printf "  1. Create '%s' listing the files you MUST read/respect for this task\n" "$DON_MD_FILE" >&2
       printf "  2. Read those files, then write a summary to .claude/state/must-do-summary.md\n\n" >&2
       printf "Then retry your write. (Tip: send '+++pack' to capture this conversation and relink grounding.)\n" >&2
       print_gates_ahead
