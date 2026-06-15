@@ -29,6 +29,19 @@ fi
 
 MARKER_FILE="${STATE_DIR}/phase-complete-marker.md"
 
+# --- MUST-DO SUMMARY OWNERSHIP STAMP (session-owned grounding) ---
+# When this session writes its must-do-summary.md, stamp it as the owner so the gates can
+# enforce that each distinct model/session authors its OWN grounding (a summary inherited
+# from another session does not count). Skipped when no session_id is present.
+case "$(basename "${TOOL_FILE_PATH:-}" 2>/dev/null)" in
+  must-do-summary.md)
+    PWC_SID=$(printf '%s' "$HOOK_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+    if [ -n "$PWC_SID" ]; then
+      printf '%s\n' "$PWC_SID" > "${STATE_DIR}/must-do-summary.owner" 2>/dev/null
+    fi
+    ;;
+esac
+
 # Auto-initialize if project has .claude/ but no harness state
 if [ -d ".claude" ] && [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   bash "$HOME/.claude/scripts/init-project.sh" 2>/dev/null

@@ -463,6 +463,23 @@ if [ -n "$MUST_DO_MD" ]; then
       fi
     fi
 
+    # SESSION OWNERSHIP — each distinct model/session must author its OWN grounding.
+    # A summary written by a different session does NOT count: the gate forces this model
+    # to write its own before code. Owner is stamped by post-write-check.sh on summary write.
+    # If the payload carries no session_id (tests / non-session contexts) ownership is skipped.
+    if [ "$NEED_SUMMARY" = false ]; then
+      CUR_SESSION=$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+      if [ -n "$CUR_SESSION" ]; then
+        OWNER_FILE="${STATE_DIR}/must-do-summary.owner"
+        SUMMARY_OWNER=""
+        [ -f "$OWNER_FILE" ] && SUMMARY_OWNER=$(head -1 "$OWNER_FILE" 2>/dev/null | tr -d '\r')
+        if [ "$SUMMARY_OWNER" != "$CUR_SESSION" ]; then
+          NEED_SUMMARY=true
+          NEED_REASON="not_owner"
+        fi
+      fi
+    fi
+
     if [ "$NEED_SUMMARY" = true ]; then
       # Diagnostic header based on reason
       case "$NEED_REASON" in
@@ -480,6 +497,12 @@ if [ -n "$MUST_DO_MD" ]; then
           ;;
         no_mentions)
           printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary doesn't reference any required file basenames.\n\n" "$PHASE_CTX" >&2
+          ;;
+        not_owner)
+          printf "[EVIDENCE GATE] BLOCKED: %s This must-do summary was written by a DIFFERENT model/session.\n\n" "$PHASE_CTX" >&2
+          printf "Each model must ground ITSELF: you have not authored your own must-do summary yet.\n" >&2
+          printf "Inheriting another session's grounding does not count. Read the files below and\n" >&2
+          printf "write your OWN .claude/state/must-do-summary.md (this stamps you as its owner).\n\n" >&2
           ;;
       esac
       print_evidence_gate_note

@@ -517,3 +517,44 @@
 {"ts":"2026-06-14T07:49:35+01:00","file":"G:/harness infra/_install/README.md"}
 {"ts":"2026-06-14T07:50:26+01:00","file":"G:/harness infra/tests/test-headroom-last30days-integration.sh"}
 {"ts":"2026-06-14T07:50:41+01:00","file":"G:/harness infra/tests/test-headroom-last30days-integration.sh"}
+{"ts":"2026-06-14T07:53:39+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/arbor-integration.md"}
+{"ts":"2026-06-14T07:54:03+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-15T06:02:49+01:00","file":"C:/Users/exrov/.claude/settings.json"}
+{"ts":"2026-06-15T08:35:35+01:00","file":"G:/harness infra/tests/test-mustdo-pack.sh"}
+{"ts":"2026-06-15T08:36:04+01:00","file":"G:/harness infra/_install/scripts/lib-helpers.sh"}
+{"ts":"2026-06-15T08:36:37+01:00","file":"C:/Users/exrov/.claude/scripts/lib-helpers.sh"}
+{"ts":"2026-06-15T08:38:07+01:00","file":"G:/harness infra/_install/scripts/build-mustdo-pack.sh"}
+{"ts":"2026-06-15T08:38:22+01:00","file":"G:/harness infra/_install/scripts/validate-agreement.sh"}
+{"ts":"2026-06-15T08:39:16+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:41:12+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:41:57+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:42:15+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:42:31+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:42:54+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T08:46:12+01:00","file":"G:/harness infra/tests/test-mustdo-pack.sh"}
+{"ts":"2026-06-15T08:47:33+01:00","file":"G:/harness infra/_install/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-15T08:48:25+01:00","file":"G:/harness infra/_install/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T09:58:23+01:00","file":"G:/harness infra/_install/MUST-DO-SYSTEM.md"}
+{"ts":"2026-06-15T09:59:35+01:00","file":"C:/Users/exrov/.claude/CLAUDE.md"}
+{"ts":"2026-06-15T09:59:45+01:00","file":"G:/harness infra/_install/CLAUDE.md"}
+{"ts":"2026-06-15T10:00:27+01:00","file":"G:/harness infra/.claude/skills/must-do-skill/SKILL.md"}
+{"ts":"2026-06-15T10:06:32+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-15T10:07:46+01:00","file":"G:/harness infra/_install/install.sh"}
+{"ts":"2026-06-15T10:51:37+01:00","file":"C:/Users/exrov/.claude/plans/gentle-mapping-hejlsberg.md"}
+{"ts":"2026-06-15T10:55:04+01:00","file":"G:/harness infra/tests/test-mustdo-default-on.sh"}
+{"ts":"2026-06-15T10:55:45+01:00","file":"G:/harness infra/tests/test-mustdo-default-on.sh"}
+{"ts":"2026-06-15T10:57:49+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T10:59:36+01:00","file":"G:/harness infra/docs/must do/must-do.md"}
+{"ts":"2026-06-15T11:01:57+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-15T11:03:55+01:00","file":"G:/harness infra/tests/test-mustdo-default-on.sh"}
+{"ts":"2026-06-15T11:04:30+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-06-15T11:11:01+01:00","file":"G:/harness infra/tests/test-sprint29-checkpoint-autoresolve.sh"}
+{"ts":"2026-06-15T11:11:15+01:00","file":"G:/harness infra/tests/test-sprint29-checkpoint-autoresolve.sh"}
+{"ts":"2026-06-15T11:19:52+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/mustdo-default-on.md"}
+{"ts":"2026-06-15T11:20:08+01:00","file":"C:/Users/exrov/.claude/projects/G--harness-infra/memory/MEMORY.md"}
+{"ts":"2026-06-15T13:21:37+01:00","file":"G:/harness infra/tests/test-mustdo-session-owned.sh"}
+{"ts":"2026-06-15T13:22:18+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T13:23:47+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-06-15T13:24:19+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-06-15T13:24:57+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-06-15T13:26:41+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}

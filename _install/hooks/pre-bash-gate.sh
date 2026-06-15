@@ -263,6 +263,21 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
       printf "Read the files listed in %s/must-do.md and write your summary before writing code.\n" "$MDB_DIR" >&2
       print_gates_ahead
       exit 2
+    else
+      # SESSION OWNERSHIP — each model must author its OWN grounding (mirrors pre-write-gate.sh).
+      # A summary written by a different session does not count. Skipped when no session_id.
+      MDB_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+      if [ -n "$MDB_SID" ]; then
+        MDB_OWNER=""
+        [ -f "${STATE_DIR}/must-do-summary.owner" ] && MDB_OWNER=$(head -1 "${STATE_DIR}/must-do-summary.owner" 2>/dev/null | tr -d '\r')
+        if [ "$MDB_OWNER" != "$MDB_SID" ]; then
+          printf "[MUST-DO GATE] BLOCKED: %s This must-do summary was written by a DIFFERENT model/session.\n\n" "$PHASE_CTX" >&2
+          printf "Each model must ground ITSELF — inheriting another session's summary does not count.\n" >&2
+          printf "Write your OWN .claude/state/must-do-summary.md (Write/Edit, not the shell) before writing code.\n" >&2
+          print_gates_ahead
+          exit 2
+        fi
+      fi
     fi
   fi
 fi
