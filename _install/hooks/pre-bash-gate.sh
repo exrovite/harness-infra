@@ -238,6 +238,35 @@ if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   exit 2
 fi
 
+# --- MUST-DO ENFORCEMENT (default-on; mirrors pre-write-gate.sh; closes the bash-bypass hole) ---
+# The must-do system is ON by default in BUILD: a model must ground itself (own a must-do file
+# listing what it must read, + write a summary) before writing source code. Only the '---'
+# kill-switch (harness-disabled.flag, checked at the top of this hook) turns it off.
+if [ "$CURRENT_PHASE" = "BUILD" ]; then
+  # Exempt the grounding-building writes themselves: docs/ paths and any .md file.
+  if ! printf '%s' "$COMMAND" | grep -qiE 'docs/|\.md(\s|"|'"'"'|$)'; then
+    MDB_DIR=""
+    for MDB_CAND in "docs/must do" "docs/must-do" ".claude/must-do"; do
+      [ -d "$MDB_CAND" ] && MDB_DIR="$MDB_CAND" && break
+    done
+    if [ -z "$MDB_DIR" ]; then
+      printf "[MUST-DO GATE] BLOCKED: %s This project has no must-do grounding yet.\n\n" "$PHASE_CTX" >&2
+      printf "The must-do system is ON by default (only the '---' kill-switch turns it off).\n" >&2
+      printf "Before writing source code (incl. via Bash) you must ground yourself:\n" >&2
+      printf "  1. Create docs/must do/must-do.md listing the files you MUST read/respect\n" >&2
+      printf "  2. Read them, then write a summary to .claude/state/must-do-summary.md\n\n" >&2
+      printf "Use the proper Write/Edit tools — don't write source through the shell to bypass this.\n" >&2
+      print_gates_ahead
+      exit 2
+    elif [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
+      printf "[MUST-DO GATE] BLOCKED: %s No must-do summary found (.claude/state/must-do-summary.md).\n\n" "$PHASE_CTX" >&2
+      printf "Read the files listed in %s/must-do.md and write your summary before writing code.\n" "$MDB_DIR" >&2
+      print_gates_ahead
+      exit 2
+    fi
+  fi
+fi
+
 # Ralph STUCK blocks source-code Bash writes while preserving harness-state exits above.
 RALPH_STATE_FILE="${STATE_DIR}/ralph-mode.json"
 if [ -f "$RALPH_STATE_FILE" ] && jq -e '.active == true' "$RALPH_STATE_FILE" >/dev/null 2>&1; then

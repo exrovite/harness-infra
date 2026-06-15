@@ -485,6 +485,10 @@ fi
 
 if [ -n "$MUST_DO_DIR" ] && [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
   add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"
+elif [ -z "$MUST_DO_DIR" ] && [ "$PHASE" = "BUILD" ]; then
+  # Must-do is ON by default: no grounding folder yet -> guide the model to create its own
+  # before it hits the gate that blocks source writes (only '---' kill-switch turns this off).
+  add_action "Create must-do grounding: Write â€” docs/must do/must-do.md (list files you MUST read for this task), then .claude/state/must-do-summary.md. Required before source writes in BUILD."
 fi
 
 # MCQ due detection mirrors pre-flight-gate counter trigger without writing.

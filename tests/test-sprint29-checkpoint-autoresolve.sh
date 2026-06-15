@@ -96,12 +96,23 @@ t6(){
   rm -rf "$SB"
 }
 
+# Must-do is ON by default in BUILD; an evidence checkpoint only ever exists when must-do is
+# active (it is built from the must-do sources), so seed real grounding for BUILD source writes.
+seed_mustdo(){
+  local SB="$1" S="$SB/.claude/state"
+  mkdir -p "$SB/docs/must do"
+  printf 'docs/ref-one.md\n' > "$SB/docs/must do/must-do.md"; : > "$SB/docs/ref-one.md"
+  printf 'I read ref-one.md and understand the constraints in must-do.md fully. ' > "$S/must-do-summary.md"
+  printf 'This summary is intentionally over two hundred characters long so it satisfies the minimum length requirement that the must-do summary gate enforces before it permits any source code writes to proceed.\n' >> "$S/must-do-summary.md"
+}
+
 t7(){
   local SB S IN; SB=$(mksandbox); S="$SB/.claude/state"
   seed_phase "$S" BUILD; seed_counter "$S"
   seed_checkpoint "$S" "2026-06-02T10:00:00+01:00"
   # BUILD writes require a contract — seed it so the gate reaches the evidence clear
   mkdir -p "$SB/.claude/contracts"; : > "$SB/.claude/contracts/sprint-29-contract.md"
+  seed_mustdo "$SB"
   printf '{"verdict":"PASS"}' > "$S/evidence-verdict.json"; sleep 1; touch "$S/evidence-verdict.json"
   IN="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SB/src/foo.js\"}}"
   ( cd "$SB" && printf '%s' "$IN" | HARNESS_STATE_DIR="$S" bash "$HOOKS/pre-write-gate.sh" >/dev/null 2>&1 )
@@ -138,6 +149,7 @@ t10(){
   local SB S IN; SB=$(mksandbox); S="$SB/.claude/state"
   seed_phase "$S" BUILD; seed_counter "$S"
   mkdir -p "$SB/.claude/contracts"; : > "$SB/.claude/contracts/sprint-29-contract.md"
+  seed_mustdo "$SB"
   # STALE: verdict written FIRST (older), checkpoint NEWER
   printf '{"verdict":"PASS"}' > "$S/evidence-verdict.json"
   sleep 1

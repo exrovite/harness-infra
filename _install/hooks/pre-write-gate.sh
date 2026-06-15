@@ -505,6 +505,38 @@ if [ -n "$MUST_DO_MD" ]; then
       printf '%s' "$CURRENT_STEP_MD" > "$STEP_FILE" 2>/dev/null
     fi
   fi
+else
+  # --- MUST-DO DEFAULT-ON (no folder present) ---
+  # The must-do discipline is ON by default, like the rest of the harness — it does NOT wait
+  # for a hand-created docs/must do/ folder. When none exists and the session is about to write
+  # SOURCE CODE in BUILD, block and require the model to create its own grounding first.
+  # The --- kill-switch (harness-disabled.flag, checked at the top of this gate) is the only
+  # off-switch. Exemptions keep this from deadlocking: the model must be free to write the
+  # must-do file, its plan/specs/docs, and harness state in order to satisfy the requirement.
+  if [ "$CURRENT_PHASE" = "BUILD" ]; then
+    DON_TARGET=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
+    DON_NORM=$(printf '%s' "$DON_TARGET" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
+    DON_EXEMPT=false
+    # Empty target (e.g. Agent tool spawns a subagent, writes no file) — never block.
+    [ -z "$DON_NORM" ] && DON_EXEMPT=true
+    if [ "$DON_EXEMPT" = false ]; then
+      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
+        if printf '%s' "$DON_NORM" | grep -qiF "$PAT"; then DON_EXEMPT=true; break; fi
+      done
+    fi
+    # Markdown is grounding/plan/notes, never gated source — exempt.
+    case "$DON_NORM" in *.md) DON_EXEMPT=true ;; esac
+    if [ "$DON_EXEMPT" = false ]; then
+      printf "[MUST-DO GATE] BLOCKED: %s This project has no must-do grounding yet.\n\n" "$PHASE_CTX" >&2
+      printf "The must-do system is ON by default (only the '---' kill-switch turns it off).\n" >&2
+      printf "Before writing source code you must ground yourself in what this task requires:\n" >&2
+      printf "  1. Create docs/must do/must-do.md listing the files you MUST read/respect for this task\n" >&2
+      printf "  2. Read those files, then write a summary to .claude/state/must-do-summary.md\n\n" >&2
+      printf "Then retry your write. (Tip: send '+++pack' to capture this conversation and relink grounding.)\n" >&2
+      print_gates_ahead
+      exit 2
+    fi
+  fi
 fi
 
 # --- EVIDENCE CHECKPOINT BLOCK ---
