@@ -260,26 +260,24 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
       printf "Use the proper Write/Edit tools — don't write source through the shell to bypass this.\n" >&2
       print_gates_ahead
       exit 2
-    elif [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
-      MDB_OWN_FILE=$(mustdo_file_for_dir "$MDB_DIR" 2>/dev/null); [ -n "$MDB_OWN_FILE" ] || MDB_OWN_FILE="${MDB_DIR}/must-do.md"
-      printf "[MUST-DO GATE] BLOCKED: %s No must-do summary found (.claude/state/must-do-summary.md).\n\n" "$PHASE_CTX" >&2
-      printf "Read the files listed in %s and write your summary before writing code.\n" "$MDB_OWN_FILE" >&2
-      print_gates_ahead
-      exit 2
     else
-      # SESSION OWNERSHIP — each model must author its OWN grounding (mirrors pre-write-gate.sh).
-      # A summary written by a different session does not count. Skipped when no session_id.
+      # PER-SESSION grounding (mirrors pre-write-gate.sh): each model validates against its OWN
+      # summary file (must-do-summary.<session_id>.md) so parallel sessions never clobber each
+      # other. No session_id -> fall back to the shared file (tests / non-session callers).
       MDB_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
       if [ -n "$MDB_SID" ]; then
-        MDB_OWNER=""
-        [ -f "${STATE_DIR}/must-do-summary.owner" ] && MDB_OWNER=$(head -1 "${STATE_DIR}/must-do-summary.owner" 2>/dev/null | tr -d '\r')
-        if [ "$MDB_OWNER" != "$MDB_SID" ]; then
-          printf "[MUST-DO GATE] BLOCKED: %s This must-do summary was written by a DIFFERENT model/session.\n\n" "$PHASE_CTX" >&2
-          printf "Each model must ground ITSELF — inheriting another session's summary does not count.\n" >&2
-          printf "Write your OWN .claude/state/must-do-summary.md (Write/Edit, not the shell) before writing code.\n" >&2
-          print_gates_ahead
-          exit 2
-        fi
+        MDB_SUMMARY="${STATE_DIR}/must-do-summary.${MDB_SID}.md"
+      else
+        MDB_SUMMARY="${STATE_DIR}/must-do-summary.md"
+      fi
+      if [ ! -f "$MDB_SUMMARY" ]; then
+        MDB_OWN_FILE=$(mustdo_file_for_dir "$MDB_DIR" 2>/dev/null); [ -n "$MDB_OWN_FILE" ] || MDB_OWN_FILE="${MDB_DIR}/must-do.md"
+        printf "[MUST-DO GATE] BLOCKED: %s You have not authored your own must-do summary yet.\n\n" "$PHASE_CTX" >&2
+        printf "Each model/session keeps its OWN summary (parallel sessions never clobber each other).\n" >&2
+        printf "Read the files listed in %s and write .claude/state/must-do-summary.md (Write/Edit,\n" "$MDB_OWN_FILE" >&2
+        printf "not the shell) before writing code — the harness snapshots it as yours.\n" >&2
+        print_gates_ahead
+        exit 2
       fi
     fi
   fi

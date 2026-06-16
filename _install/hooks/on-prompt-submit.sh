@@ -483,19 +483,19 @@ if { [ "$PHASE" = "NEGOTIATE" ] || [ "$PHASE" = "BUILD" ]; } && [ "$SPRINT" != "
   add_action "Write contract: Write â€” .claude/contracts/sprint-${SPRINT}-contract.md"
 fi
 
-if [ -n "$MUST_DO_DIR" ] && [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
-  add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"
-elif [ -n "$MUST_DO_DIR" ] && [ -f "${STATE_DIR}/must-do-summary.md" ] && [ "$PHASE" = "BUILD" ]; then
-  # Session ownership: a summary inherited from another model does not count. If THIS session
-  # didn't author it, guide the model to write its own before it hits the gate.
+if [ -n "$MUST_DO_DIR" ] && [ "$PHASE" = "BUILD" ]; then
+  # Per-session grounding: each model keeps its OWN summary (must-do-summary.<session_id>.md) so
+  # parallel sessions never clobber each other. Advise when THIS session hasn't authored one yet.
   OPS_SID=$(printf '%s' "$PROMPT_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
   if [ -n "$OPS_SID" ]; then
-    OPS_OWNER=""
-    [ -f "${STATE_DIR}/must-do-summary.owner" ] && OPS_OWNER=$(head -1 "${STATE_DIR}/must-do-summary.owner" 2>/dev/null | tr -d '\r')
-    if [ "$OPS_OWNER" != "$OPS_SID" ]; then
-      add_action "Author your OWN must-do summary: Write â€” .claude/state/must-do-summary.md. The existing summary was written by a different model and won't unlock your source writes."
+    if [ ! -f "${STATE_DIR}/must-do-summary.${OPS_SID}.md" ]; then
+      add_action "Author your OWN must-do summary: Write â€” .claude/state/must-do-summary.md. Each session keeps its own grounding; you haven't written yours yet (won't unlock source writes until you do)."
     fi
+  elif [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
+    add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"
   fi
+elif [ -n "$MUST_DO_DIR" ] && [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
+  add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"
 elif [ -z "$MUST_DO_DIR" ] && [ "$PHASE" = "BUILD" ]; then
   # Must-do is ON by default: no grounding folder yet -> guide the model to create its own
   # before it hits the gate that blocks source writes (only '---' kill-switch turns this off).

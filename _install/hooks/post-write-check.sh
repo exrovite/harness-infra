@@ -29,15 +29,24 @@ fi
 
 MARKER_FILE="${STATE_DIR}/phase-complete-marker.md"
 
-# --- MUST-DO SUMMARY OWNERSHIP STAMP (session-owned grounding) ---
-# When this session writes its must-do-summary.md, stamp it as the owner so the gates can
-# enforce that each distinct model/session authors its OWN grounding (a summary inherited
-# from another session does not count). Skipped when no session_id is present.
+# --- MUST-DO PER-SESSION SUMMARY SNAPSHOT (race-safe session-owned grounding) ---
+# Each distinct model/session must author its OWN grounding. The model writes the canonical
+# .claude/state/must-do-summary.md; here we snapshot it into a per-session file
+# (must-do-summary.<session_id>.md) that the gates validate against. Because the snapshot is
+# keyed by session_id, parallel sessions in one project never clobber each other's grounding.
+# Prefer the Write tool's own content (race-free) over re-reading the shared file. Skipped when
+# no session_id is present (tests / non-session callers fall back to the shared file).
 case "$(basename "${TOOL_FILE_PATH:-}" 2>/dev/null)" in
   must-do-summary.md)
     PWC_SID=$(printf '%s' "$HOOK_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
     if [ -n "$PWC_SID" ]; then
-      printf '%s\n' "$PWC_SID" > "${STATE_DIR}/must-do-summary.owner" 2>/dev/null
+      PWC_DST="${STATE_DIR}/must-do-summary.${PWC_SID}.md"
+      PWC_CONTENT=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.content // empty' 2>/dev/null)
+      if [ -n "$PWC_CONTENT" ]; then
+        printf '%s' "$PWC_CONTENT" > "$PWC_DST" 2>/dev/null
+      elif [ -f "${STATE_DIR}/must-do-summary.md" ]; then
+        cp -f "${STATE_DIR}/must-do-summary.md" "$PWC_DST" 2>/dev/null
+      fi
     fi
     ;;
 esac
