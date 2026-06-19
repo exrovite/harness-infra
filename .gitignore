@@ -27,3 +27,9 @@ scratch/
 # lavish-axi workspace state (created per-project by the lavish server)
 .lavish/
 .lavish-axi/
+
+# Generated claude-glm launcher — contains the injected z.ai token; NEVER commit.
+# (The placeholder TEMPLATE lives at _install/templates/claude-glm.* and IS tracked.)
+claude-glm.cmd
+claude-glm
+**/claude-glm.generated*

@@ -42,7 +42,7 @@ echo "Target:  $CLAUDE_DIR"
 echo ""
 
 # --- Step 1: Create directories ---
-echo "[1/10] Creating directories..."
+echo "[1/11] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"
 mkdir -p "$CLAUDE_DIR/scripts"
 mkdir -p "$CLAUDE_DIR/roles"
@@ -50,13 +50,13 @@ mkdir -p "$OPENCLAW_DIR/watchers"
 mkdir -p "$OPENCLAW_DIR/distractor-pool"
 
 # --- Step 2: Copy hooks ---
-echo "[2/10] Installing hooks..."
+echo "[2/11] Installing hooks..."
 cp "$SCRIPT_DIR/hooks/"* "$CLAUDE_DIR/hooks/"
 chmod +x "$CLAUDE_DIR/hooks/"*
 echo "  -> $(ls "$SCRIPT_DIR/hooks/" | wc -l) hooks installed"
 
 # --- Step 3: Copy role prompts ---
-echo "[3/10] Installing role prompts..."
+echo "[3/11] Installing role prompts..."
 cp "$SCRIPT_DIR/roles/"* "$CLAUDE_DIR/roles/"
 echo "  -> $(ls "$SCRIPT_DIR/roles/" | wc -l) roles installed"
 
@@ -69,13 +69,20 @@ if [ -d "$SCRIPT_DIR/skills" ]; then
 fi
 
 # --- Step 4: Copy scripts ---
-echo "[4/10] Installing scripts..."
+echo "[4/11] Installing scripts..."
 cp "$SCRIPT_DIR/scripts/"* "$CLAUDE_DIR/scripts/"
 chmod +x "$CLAUDE_DIR/scripts/"*
 echo "  -> $(ls "$SCRIPT_DIR/scripts/" | wc -l) scripts installed"
 
+# Copy launcher templates (used by the opt-in GLM step), if shipped.
+if [ -d "$SCRIPT_DIR/templates" ]; then
+  mkdir -p "$CLAUDE_DIR/templates"
+  cp "$SCRIPT_DIR/templates/"* "$CLAUDE_DIR/templates/" 2>/dev/null || true
+  echo "  -> $(ls "$SCRIPT_DIR/templates/" 2>/dev/null | wc -l) template(s) installed"
+fi
+
 # --- Step 5: Copy settings.json ---
-echo "[5/10] Installing settings.json..."
+echo "[5/11] Installing settings.json..."
 if [ -f "$CLAUDE_DIR/settings.json" ]; then
   BACKUP="$CLAUDE_DIR/settings.json.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/settings.json" "$BACKUP"
@@ -84,7 +91,7 @@ fi
 cp "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
 
 # --- Step 6: Copy CLAUDE.md ---
-echo "[6/10] Installing global CLAUDE.md..."
+echo "[6/11] Installing global CLAUDE.md..."
 if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
   BACKUP="$CLAUDE_DIR/CLAUDE.md.bak.$(date +%Y%m%d-%H%M%S)"
   cp "$CLAUDE_DIR/CLAUDE.md" "$BACKUP"
@@ -99,7 +106,7 @@ if [ -f "$SCRIPT_DIR/MUST-DO-SYSTEM.md" ]; then
 fi
 
 # --- Step 7: Set up openclaw infrastructure ---
-echo "[7/10] Installing openclaw infrastructure..."
+echo "[7/11] Installing openclaw infrastructure..."
 cp "$SCRIPT_DIR/openclaw/distractor-pool/"* "$OPENCLAW_DIR/distractor-pool/" 2>/dev/null || true
 
 # Create blank watcher registry if none exists (v3 per-project pool: max_per_project=5)
@@ -130,7 +137,7 @@ done
 # which step 5 already copied to ~/.claude/settings.json. If node/npm is absent this step is skipped
 # with a warning and the harness installs normally; the baked SessionStart command no-ops (via
 # `command -v lavish-axi`) until lavish is present.
-echo "[8/10] Installing bundled lavish-axi (HTML-artifact feedback)..."
+echo "[8/11] Installing bundled lavish-axi (HTML-artifact feedback)..."
 LAVISH_TGZ="$SCRIPT_DIR/vendor/lavish-axi-${LAVISH_VERSION}.tgz"
 if command -v npm >/dev/null 2>&1; then
   if [ -f "$LAVISH_TGZ" ]; then
@@ -165,7 +172,7 @@ fi
 # build fails, this step SKIPs with a warning and the harness installs normally (set -e safe — every
 # fallible command is the condition of an `if`). The transparent wrapper is invoked later, opt-in,
 # via the `claude-hr` launcher (installed in step 4) which runs `headroom wrap claude`.
-echo "[9/10] headroom (isolated token-compression venv + always-on)..."
+echo "[9/11] headroom (isolated token-compression venv + always-on)..."
 # Installs the FIXED headroom (2026-06-14): isolated uv venv, agent-90 profile, HEADROOM_RUST_DETECT=0
 # (the fix that stopped compression hanging), a supervisor watchdog that keeps the proxy alive across
 # reboots, and a HEALTH-GATED global redirect.
@@ -208,7 +215,7 @@ fi
 # (provider=anthropic) if absent and runs `arbor doctor` — but does NOT fabricate API keys; add your
 # key with `bash ~/.claude/scripts/arbor.sh setup`. Arbor is AUTONOMOUS (edits code in worktrees,
 # spends LLM money) and NEVER auto-runs — it only runs when you launch arbor.sh. GUARDED + set -e safe.
-echo "[10/10] Arbor (isolated autonomous research-agent CLI)..."
+echo "[10/11] Arbor (isolated autonomous research-agent CLI)..."
 if [ "${ARBOR_INSTALL:-1}" != "1" ]; then
   echo "  -> SKIP: Arbor install disabled (ARBOR_INSTALL=0). Skills still available; harness unaffected."
 elif command -v uv >/dev/null 2>&1 && command -v git >/dev/null 2>&1; then
@@ -241,6 +248,31 @@ else
   echo "     To enable later: install uv + git, then re-run this installer."
 fi
 
+# --- Step 11: GLM launcher (claude-glm via z.ai through headroom 8791) — OPT-IN, secret-safe ---
+# Packages the proven claude-glm fix: a dedicated CLAUDE_CONFIG_DIR (no OAuth hijack) + the official
+# z.ai ANTHROPIC_AUTH_TOKEN method, routed through the headroom 8791 compression proxy, pinned glm-5.1.
+#
+# OPT-IN: runs ONLY when a z.ai key is provided (env ZAI_API_KEY). With no key, this step SKIPs and the
+# install path is identical to before (single 8787 proxy; normal `claude` untouched). The dual-proxy
+# supervisor only brings up 8791 when glm-setup.sh has written ~/.headroom/glm.enabled, so shipping the
+# updated supervisor is itself a no-op until GLM is enabled. The z.ai key is NEVER written to a tracked
+# file — only to the gitignored generated launcher. Set GLM_INSTALL=0 to skip entirely. set -e safe.
+echo "[11/11] GLM launcher (claude-glm, opt-in)..."
+if [ "${GLM_INSTALL:-1}" = "1" ]; then
+  if [ -n "${ZAI_API_KEY:-}" ]; then
+    if bash "$CLAUDE_DIR/scripts/glm-setup.sh" enable "$ZAI_API_KEY"; then
+      echo "  -> claude-glm enabled (key injected into gitignored launcher; marker set)."
+    else
+      echo "  -> WARN: glm-setup returned non-zero; GLM not enabled. Normal claude unaffected."
+    fi
+  else
+    echo "  -> SKIP: no ZAI_API_KEY in env. GLM stays off (zero change to normal claude/8787)."
+    echo "     Enable later: ZAI_API_KEY=<id.secret> bash ~/.claude/scripts/glm-setup.sh enable"
+  fi
+else
+  echo "  -> SKIP: GLM_INSTALL=0. Enable later: bash ~/.claude/scripts/glm-setup.sh enable"
+fi
+
 echo ""
 echo "=== Installation Complete ==="
 echo ""
@@ -255,6 +287,7 @@ echo "  Distractors:$OPENCLAW_DIR/distractor-pool/"
 echo "  lavish-axi: $(command -v lavish-axi >/dev/null 2>&1 && echo "installed ($(lavish-axi --version 2>/dev/null))" || echo "not installed (optional)")"
 echo "  headroom:   $([ -x "$HEADROOM_VENV/Scripts/headroom" ] || [ -x "$HEADROOM_VENV/bin/headroom" ] && echo "installed (isolated venv: $HEADROOM_VENV)" || echo "not installed (optional)")"
 echo "  arbor:      $([ -x "$ARBOR_VENV/Scripts/arbor.exe" ] || [ -x "$ARBOR_VENV/bin/arbor" ] && echo "installed (isolated venv: $ARBOR_VENV)" || echo "not installed (optional)") + 11 arbor-agent skills"
+echo "  claude-glm: $([ -f "$HOME/.headroom/glm.enabled" ] && echo "enabled (8791 -> z.ai, glm-5.1, isolated config)" || echo "off (opt-in: ZAI_API_KEY=... bash ~/.claude/scripts/glm-setup.sh enable)")"
 echo ""
 echo "To initialize a new project, run from the project directory:"
 echo "  bash ~/.claude/scripts/init-project.sh"

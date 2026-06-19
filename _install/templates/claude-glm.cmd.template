@@ -1,0 +1,32 @@
+@echo off
+REM Launch Claude Code on GLM (Zhipu AI via Z.ai), through the local headroom
+REM compression proxy. Docs: https://docs.z.ai/devpack/faq
+REM
+REM This is a TEMPLATE. The installer renders it to the real launcher with your z.ai
+REM key injected in place of __ZAI_API_KEY__. The rendered launcher is gitignored and
+REM must never be committed.
+REM
+REM Why a dedicated CLAUDE_CONFIG_DIR: if claude.ai OAuth is logged in, it hijacks the
+REM z.ai token (401 Invalid bearer). Running GLM in its OWN config dir (no OAuth login)
+REM lets the clean official z.ai method (ANTHROPIC_AUTH_TOKEN only) authenticate.
+set CLAUDE_CONFIG_DIR=%USERPROFILE%\.claude-glm-config
+
+REM Clear any inherited Anthropic API key so it can never be sent to z.ai (z.ai 401s on it).
+set ANTHROPIC_API_KEY=
+set ANTHROPIC_AUTH_TOKEN=__ZAI_API_KEY__
+
+REM Route through the headroom GLM compression proxy (port 8791 -> https://api.z.ai/api/anthropic).
+REM The Anthropic proxy (port 8787) is untouched.
+set ANTHROPIC_BASE_URL=http://127.0.0.1:8791
+set API_TIMEOUT_MS=3000000
+set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+REM Model: pinned to glm-5.1 for all slots.
+set ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1
+set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5.1
+set ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-5.1
+set ANTHROPIC_MODEL=glm-5.1
+
+set CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1
+
+claude %*
