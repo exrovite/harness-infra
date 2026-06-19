@@ -69,6 +69,28 @@ RENDERED="${TEMPLATE_CONTENT//__ZAI_API_KEY__/$KEY}"
 printf '%s\n' "$RENDERED" > "$OUT"
 [ "$OS" = windows ] || chmod +x "$OUT" 2>/dev/null || true
 
+# Put the isolated GLM config dir UNDER the harness: copy the hooks block + global CLAUDE.md so the
+# same deterministic gates (pre-write/pre-flight/watcher/must-do/evidence) and protocol apply to
+# claude-glm. We copy ONLY .hooks — never .env/auth — so the GLM routing (8791, z.ai token from the
+# launcher) is untouched and the Anthropic 8787 redirect in user settings is NOT inherited.
+SRC_SETTINGS="$HOME/.claude/settings.json"
+SRC_CLAUDEMD="$HOME/.claude/CLAUDE.md"
+if command -v jq >/dev/null 2>&1 && [ -f "$SRC_SETTINGS" ]; then
+  [ -f "$CFGDIR/settings.json" ] || printf '{}' > "$CFGDIR/settings.json"
+  _gtmp="$(mktemp)"
+  if jq --slurpfile src "$SRC_SETTINGS" '.hooks = ($src[0].hooks // {})' "$CFGDIR/settings.json" > "$_gtmp" 2>/dev/null; then
+    mv "$_gtmp" "$CFGDIR/settings.json"
+    echo "[glm] harness hooks merged into $CFGDIR/settings.json (env/auth NOT copied)"
+  else
+    rm -f "$_gtmp" 2>/dev/null || true
+    echo "[glm] WARN: could not merge harness hooks into GLM config (jq failed); GLM runs without gates."
+  fi
+else
+  echo "[glm] note: jq or ~/.claude/settings.json absent; GLM config not placed under harness hooks."
+fi
+[ -f "$SRC_CLAUDEMD" ] && cp "$SRC_CLAUDEMD" "$CFGDIR/CLAUDE.md" 2>/dev/null \
+  && echo "[glm] global CLAUDE.md copied into GLM config dir (harness protocol active for claude-glm)"
+
 : > "$MARKER"   # touch the opt-in marker so the supervisor brings up 8791
 
 echo "[glm] enabled."

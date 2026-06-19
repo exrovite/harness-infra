@@ -104,5 +104,24 @@ if hasx "$GLM_SETUP" "$TOKEN_RE"; then no "C13 glm-setup.sh has a hardcoded toke
 # ---- C3: generated launcher is gitignored ----
 has "$GITIGNORE" 'claude-glm' && ok "C3 .gitignore covers generated claude-glm launcher" || no "C3 .gitignore missing claude-glm rule"
 
+# ---- C18: glm-setup wires the harness into the GLM config dir (hooks merge + CLAUDE.md copy) ----
+has "$GLM_SETUP" '\.hooks =' && ok "C18 glm-setup merges .hooks into GLM config" || no "C18 glm-setup hooks merge missing"
+has "$GLM_SETUP" 'cp "\$SRC_CLAUDEMD"' && ok "C18 glm-setup copies CLAUDE.md into GLM config" || no "C18 glm-setup CLAUDE.md copy missing"
+
+# ---- C19 (functional): enable merges ONLY hooks (never env/auth) + copies CLAUDE.md ----
+SBX="$(mktemp -d)"
+mkdir -p "$SBX/.claude"
+cat > "$SBX/.claude/settings.json" <<'JSON'
+{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:8787"},"hooks":{"PreToolUse":[{"matcher":"Write","hooks":[{"type":"command","command":"bash x.sh"}]}]},"theme":"dark"}
+JSON
+printf 'HARNESS PROTOCOL TEXT\n' > "$SBX/.claude/CLAUDE.md"
+HOME="$SBX" bash "$GLM_SETUP" enable "zzztestkeyzzz.PLACEHOLDER" >/dev/null 2>&1
+GCFG="$SBX/.claude-glm-config/settings.json"
+if [ -f "$GCFG" ] && jq -e '.hooks.PreToolUse' "$GCFG" >/dev/null 2>&1; then ok "C19 GLM config received harness hooks"; else no "C19 GLM config has no hooks"; fi
+if [ -f "$GCFG" ] && [ "$(jq 'has("env")' "$GCFG" 2>/dev/null)" = "false" ]; then ok "C19 GLM config did NOT inherit env/auth block"; else no "C19 GLM config leaked env (8787 redirect would break GLM)"; fi
+if [ -f "$GCFG" ] && ! grep -q 'ANTHROPIC_BASE_URL' "$GCFG"; then ok "C19 no ANTHROPIC_BASE_URL in GLM config"; else no "C19 ANTHROPIC_BASE_URL present in GLM config"; fi
+[ -f "$SBX/.claude-glm-config/CLAUDE.md" ] && ok "C19 global CLAUDE.md copied into GLM config" || no "C19 CLAUDE.md not copied"
+rm -rf "$SBX"
+
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
