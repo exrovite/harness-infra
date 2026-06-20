@@ -10,8 +10,9 @@ STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 WRITE_COUNTER="${STATE_DIR}/write-count.txt"
 WATCHER_REGISTRY="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
 
-# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch bypasses all enforcement ---
-if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+# --- HARNESS KILL-SWITCH (Sprint 33/35): project OFF switch bypasses all enforcement ---
+# Resolved by PROJECT ROOT (nearest .claude up from cwd), so `---` works from any subdir/nested root.
+if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "" 2>/dev/null || [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
   exit 0
 fi
 
@@ -22,6 +23,10 @@ fi
 
 # Read stdin once for all gates (tool input JSON from Claude Code)
 INPUT_DATA=$(cat)
+
+# Kill-switch by TARGET FILE: a write to a file inside an unlocked project is allowed regardless of cwd.
+KS_TGT=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
+if [ -n "$KS_TGT" ] && harness_disabled_resolved "" "$KS_TGT" 2>/dev/null; then exit 0; fi
 
 # Multilane lane resolution (Sprint 31a): override flat STATE_DIR with the lane's (lane 1 = flat,
 # transparent for single instance). Skipped when HARNESS_STATE_DIR is an explicit test override.

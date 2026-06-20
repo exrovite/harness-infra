@@ -58,17 +58,17 @@ OPS="$HOOKS/on-prompt-submit.sh"
 rm -f "$FLAG"; seed_phase BUILD
 OUT=$(printf '{"prompt":"---"}' | bash "$OPS" 2>/dev/null)
 if [ -f "$FLAG" ]; then ok "prompt '---' writes harness-disabled.flag"; else bad "prompt '---' writes harness-disabled.flag"; fi
-if printf '%s' "$OUT" | grep -qi 'HARNESS OFF'; then ok "prompt '---' injects HARNESS OFF banner"; else bad "prompt '---' injects HARNESS OFF banner (got: $OUT)"; fi
+if printf '%s' "$OUT" | grep -qi 'HARNESS UNLOCKED'; then ok "prompt '---' injects HARNESS UNLOCKED banner"; else bad "prompt '---' injects HARNESS UNLOCKED banner (got: $OUT)"; fi
 
 # 3. ordinary prompt while OFF -> only the OFF banner, no full packet
 OUT=$(printf '{"prompt":"please add a feature"}' | bash "$OPS" 2>/dev/null)
-if printf '%s' "$OUT" | grep -qi 'HARNESS OFF'; then ok "OFF: ordinary prompt still shows OFF banner"; else bad "OFF: ordinary prompt still shows OFF banner"; fi
+if printf '%s' "$OUT" | grep -qi 'HARNESS UNLOCKED'; then ok "OFF: ordinary prompt still shows UNLOCKED banner"; else bad "OFF: ordinary prompt still shows UNLOCKED banner"; fi
 if printf '%s' "$OUT" | grep -q 'BUILD LOOP'; then bad "OFF: full packet suppressed (BUILD LOOP leaked)"; else ok "OFF: full packet suppressed"; fi
 
 # 4. `===` deletes flag + ON banner
 OUT=$(printf '{"prompt":"==="}' | bash "$OPS" 2>/dev/null)
 if [ -f "$FLAG" ]; then bad "prompt '===' deletes flag"; else ok "prompt '===' deletes flag"; fi
-if printf '%s' "$OUT" | grep -qi 'HARNESS ON'; then ok "prompt '===' injects HARNESS ON banner"; else bad "prompt '===' injects HARNESS ON banner (got: $OUT)"; fi
+if printf '%s' "$OUT" | grep -qi 'HARNESS LOCKED'; then ok "prompt '===' injects HARNESS LOCKED banner"; else bad "prompt '===' injects HARNESS LOCKED banner (got: $OUT)"; fi
 
 # 5. near-miss tokens do NOT toggle
 for NM in "----" "==" "-- -" "foo---" ; do

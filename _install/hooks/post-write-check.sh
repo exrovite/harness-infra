@@ -22,8 +22,9 @@ else
 fi
 STATE_DIR="${STATE_DIR:-.claude/state}"
 
-# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch — no counting/checkpoints ---
-if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+# --- HARNESS KILL-SWITCH (Sprint 33/35): project OFF switch — no counting/checkpoints ---
+# Resolved by project root (cwd or the written file), so it's honored from any subdir/nested root.
+if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "$TOOL_FILE_PATH" 2>/dev/null || [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
   exit 0
 fi
 

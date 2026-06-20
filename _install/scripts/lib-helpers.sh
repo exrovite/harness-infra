@@ -46,6 +46,47 @@ harness_enable() {
   rm -f "$sd/harness-disabled.flag" 2>/dev/null
 }
 
+# --- Kill-switch path resolution (Sprint 35): make the OFF switch cwd-independent. ---
+# The flag used to be looked up at a cwd-relative .claude/state, so an agent whose hook ran from a
+# different working dir (a subfolder, or a NESTED project root) never saw a flag set elsewhere and
+# stayed locked. These helpers resolve the flag by the PROJECT ROOT instead (nearest ancestor that
+# contains a .claude dir), so `---` is honored regardless of which dir the hook runs from.
+
+# Walk up from a starting dir to the FIRST ancestor containing .claude; echo its .claude/state.
+# Returns 1 (no output) if none found. HARNESS_STATE_DIR (tests/sandboxes) always wins.
+find_project_state_dir() {
+  if [ -n "${HARNESS_STATE_DIR:-}" ]; then printf '%s\n' "$HARNESS_STATE_DIR"; return 0; fi
+  local d; d="$(printf '%s' "${1:-.}" | tr '\\' '/')"
+  [ -n "$d" ] || d="."
+  case "$d" in /*|[A-Za-z]:/*) ;; *) d="$(pwd -W 2>/dev/null || pwd)/$d" ;; esac
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    if [ -d "$d/.claude" ]; then printf '%s/.claude/state\n' "$d"; return 0; fi
+    case "$d" in */*) d="${d%/*}" ;; *) break ;; esac
+  done
+  return 1
+}
+
+# Is the kill-switch flag set for the project owning the cwd OR the target file?
+# $1 = cwd (optional), $2 = target file path (optional). Returns 0 (disabled) if EITHER project root
+# carries the flag — so a write to a file inside an unlocked tree is allowed no matter the hook's cwd.
+# A nested project stays governed by its OWN nearest .claude (walk-up stops at the first one found),
+# so an unlocked parent does not silently unlock a locked child via the file path.
+harness_disabled_resolved() {
+  if [ -n "${HARNESS_STATE_DIR:-}" ]; then
+    [ -f "${HARNESS_STATE_DIR}/harness-disabled.flag" ] && return 0
+    return 1
+  fi
+  local cwd="${1:-}" tgt="${2:-}" sd
+  if [ -n "$cwd" ]; then
+    sd="$(find_project_state_dir "$cwd")" && [ -f "$sd/harness-disabled.flag" ] && return 0
+  fi
+  if [ -n "$tgt" ]; then
+    tgt="$(printf '%s' "$tgt" | tr '\\' '/')"
+    sd="$(find_project_state_dir "$(dirname "$tgt")")" && [ -f "$sd/harness-disabled.flag" ] && return 0
+  fi
+  return 1
+}
+
 # HARNESS KILL-SWITCH (Sprint 33): per-project on/off switch via <state>/harness-disabled.flag.
 # Honors HARNESS_STATE_DIR. Used by on-prompt-submit toggle + all enforcement gates.
 

@@ -13,16 +13,16 @@ COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null)
 # If no harness state, allow everything
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 
-# --- HARNESS KILL-SWITCH (Sprint 33): project OFF switch bypasses all enforcement ---
-if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
+source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+
+# --- HARNESS KILL-SWITCH (Sprint 33/35): resolved by project root (cwd-aware) ---
+if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "" 2>/dev/null || [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
   exit 0
 fi
 
 if [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   exit 0
 fi
-
-source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
 # Multilane lane resolution (Sprint 31a): override flat STATE_DIR with the lane's (lane 1 = flat,
 # transparent for single instance). Skipped when HARNESS_STATE_DIR is an explicit test override.

@@ -42,6 +42,11 @@ fi
 #   '---' -> harness OFF (all gates bypassed)   '===' -> harness ON
 # Project-scoped flag at <state>/harness-disabled.flag. The toggle messages and the
 # OFF banner are injected here; they are never blocked by any write gate.
+# Land the flag at the PROJECT ROOT (nearest .claude up from cwd) so it governs the whole project,
+# regardless of which subdir --- was typed from. Honors HARNESS_STATE_DIR / lane overrides above.
+if [ -z "${HARNESS_STATE_DIR:-}" ] && [ "${LANE:-1}" = "1" ] && type find_project_state_dir >/dev/null 2>&1; then
+  _ks_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" && STATE_DIR="$_ks_root"
+fi
 KS_FLAG="${STATE_DIR}/harness-disabled.flag"
 KS_PROJECT=$(pwd -W 2>/dev/null || pwd); KS_PROJECT=$(basename "$KS_PROJECT" 2>/dev/null)
 KS_TRIMMED=$(printf '%s' "$PROMPT_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
