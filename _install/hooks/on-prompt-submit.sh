@@ -53,7 +53,7 @@ if [ "$KS_TRIMMED" = "---" ]; then
     KS_TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
     printf 'harness disabled at %s\n' "$KS_TS" > "${KS_FLAG}.tmp" 2>/dev/null && mv -f "${KS_FLAG}.tmp" "$KS_FLAG" 2>/dev/null
   fi
-  printf '[HARNESS OFF — %s] All enforcement gates bypassed for this project (phase lock, watcher, pre-flight MCQ, evidence, must-do, contract). Send === to re-enable.' "${KS_PROJECT:-project}"
+  printf '[HARNESS UNLOCKED — %s] All enforcement gates bypassed for this project (phase lock, watcher, pre-flight MCQ, evidence, must-do, contract). Send === to lock.' "${KS_PROJECT:-project}"
   exit 0
 elif [ "$KS_TRIMMED" = "===" ]; then
   if type harness_enable >/dev/null 2>&1; then
@@ -61,12 +61,12 @@ elif [ "$KS_TRIMMED" = "===" ]; then
   else
     rm -f "$KS_FLAG" 2>/dev/null
   fi
-  printf '[HARNESS ON] Enforcement re-enabled for this project.'
+  printf '[HARNESS LOCKED] Enforcement re-enabled for this project. Send --- to unlock.'
   exit 0
 fi
 # If OFF (flag present) and this is an ordinary prompt, inject only the persistent banner.
 if [ -f "$KS_FLAG" ]; then
-  printf '[HARNESS OFF — %s] Enforcement disabled for this project — all gates bypassed. Send === to re-enable.' "${KS_PROJECT:-project}"
+  printf '[HARNESS UNLOCKED — %s] Enforcement disabled for this project — all gates bypassed. Send === to lock.' "${KS_PROJECT:-project}"
   exit 0
 fi
 
