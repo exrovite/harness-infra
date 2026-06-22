@@ -87,7 +87,9 @@ case "$TOOL" in
     printf '%s' "$COMMAND" | grep -qE  '(echo|printf|cat)\s.*>\s*[a-zA-Z."$]' && WRITES_FILES=true
     printf '%s' "$COMMAND" | grep -qE  '<<.+>'                            && WRITES_FILES=true
     printf '%s' "$COMMAND" | grep -qE  '\b(cp|mv)\b\s+.+\s+[a-zA-Z."$]'   && WRITES_FILES=true
-    if [ "$WRITES_FILES" = true ]; then
+    # Scan file-writing commands (C6b) AND high-stakes commands (e.g. git commit) even
+    # though the latter write no file — they must still be reconcile-gated (D9).
+    if [ "$WRITES_FILES" = true ] || printf '%s' "$COMMAND" | grep -qE 'git[[:space:]]+commit'; then
       # Extract filename-like target tokens; surface per candidate (scope match on
       # basename) plus one wildcard pass (file_path empty) for scope-agnostic lessons.
       CANDS="$(printf '%s' "$COMMAND" | grep -oE '[A-Za-z0-9_./-]+\.[A-Za-z0-9]+' 2>/dev/null | sort -u)"
@@ -108,8 +110,68 @@ EOF2
     ;;
 esac
 
-# --- Emit (non-blocking) only if something surfaced ---
+# --- D9 reconcile-gate helpers (forcing on HIGH-STAKES matching actions) ---
+matched_ids() { printf '%s' "$1" | grep -oE '\[M[A-Za-z0-9_]+\]' 2>/dev/null | tr -d '[]' | sort -u; }
+
+is_high_stakes() {
+  case "$TOOL" in
+    Bash) printf '%s' "${COMMAND:-}" | grep -qE 'git[[:space:]]+commit' && return 0 ;;
+    Write|Edit)
+      local bn; bn="$(basename "${FP:-}" 2>/dev/null)"
+      [ "$bn" = "phase-complete-marker.md" ] && return 0
+      local hsf; hsf="$(dirname "$LESSONS")/high-stakes"
+      if [ -f "$hsf" ]; then
+        local pat
+        while IFS= read -r pat || [ -n "$pat" ]; do
+          [ -z "$pat" ] && continue
+          case "$bn" in $pat) return 0 ;; esac
+          case "${FP:-}" in $pat) return 0 ;; esac
+        done < "$hsf"
+      fi
+      ;;
+  esac
+  return 1
+}
+
+# Never block the reconciliation file itself (or .beast/ control writes) -> no deadlock.
+is_exempt_path() {
+  local p="${1:-}" b
+  b="$(basename "$p" 2>/dev/null)"
+  [ "$b" = "beast-reconcile.md" ] && return 0
+  printf '%s' "$p" | grep -qiE '/\.beast/' && return 0
+  return 1
+}
+
+# Reconciliation valid iff each [M#] id appears on a substantive (>=25-char) line.
+reconcile_ok() {
+  local rf="$1"; shift
+  [ -f "$rf" ] || return 1
+  local id
+  for id in "$@"; do
+    grep -qE -- "$id" "$rf" 2>/dev/null || return 1
+    grep -E -- "$id" "$rf" 2>/dev/null | grep -qE '.{25,}' || return 1
+  done
+  return 0
+}
+
+# --- Tiered emit: HIGH-STAKES match -> block-until-reconciled (D9); else inject-only ---
 if [ -n "$(printf '%s' "$PACKET" | tr -d '[:space:]')" ]; then
+  RF="${STATE_DIR}/beast-reconcile.md"
+  IDS="$(matched_ids "$PACKET")"
+  if is_high_stakes && ! is_exempt_path "${FP:-}"; then
+    if reconcile_ok "$RF" $IDS; then
+      jq -cn --arg ctx "$PACKET"$'\n'"[BEAST: reconciliation on file — proceeding]" \
+        '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}' 2>/dev/null
+      exit 0
+    fi
+    {
+      printf '%s\n\n' "$PACKET"
+      printf '[BEAST RECONCILE GATE] BLOCKED — HIGH-STAKES action and past-you has been here.\n'
+      printf 'You MUST reconcile first. Write %s addressing EACH of: %s\n' "$RF" "$(printf '%s' "$IDS" | tr '\n' ' ')"
+      printf 'For each [M#]: state APPLIES or N/A + one concrete reason tied to it, then retry.\n'
+    } >&2
+    exit 2
+  fi
   jq -cn --arg ctx "$PACKET" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}' 2>/dev/null
 fi

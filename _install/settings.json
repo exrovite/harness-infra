@@ -52,6 +52,16 @@
             "command": "bash -c 'echo \"[HOOK] agent-call-tracker fired at $(date)\" >> /tmp/claude-hooks.log 2>/dev/null; bash $HOME/.claude/hooks/agent-call-tracker.sh'"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|Bash|Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/beast-watch-hook.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
