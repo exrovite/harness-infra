@@ -110,6 +110,23 @@ EOF2
     ;;
 esac
 
+# --- Semantic backstop (D6): augment with mempalace project memory (read-only, gated) ---
+# Builds a folder/file/content fingerprint query and asks mempalace for related project memory.
+# [MP<hash>] ids merge into the existing dedup + reconcile-gate. Fail-safe / silent if no CLI.
+MPRECALL="$HOME/.claude/scripts/beast-mp-recall.sh"
+if [ -f "$MPRECALL" ] && { [ "$TOOL" = "Write" ] || [ "$TOOL" = "Edit" ]; }; then
+  ROOT_FP="${STATE_DIR%/.claude/state}"; [ "$ROOT_FP" = "$STATE_DIR" ] && ROOT_FP="$CWD"
+  MP_WING="$(printf '%s' "$ROOT_FP" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/_/g')"
+  Q_BN="$(basename "${FP:-}" 2>/dev/null)"
+  Q_DIR="$(basename "$(dirname "${FP:-.}")" 2>/dev/null)"
+  Q_TOK="$(printf '%s' "${CONTENT:-}" | tr -cs 'A-Za-z0-9_.' ' ' | awk '{for(i=1;i<=NF&&i<=12;i++)printf "%s ",$i}')"
+  MP_QUERY="$(printf '%s %s %s' "$Q_BN" "$Q_DIR" "$Q_TOK" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  if [ -n "$(printf '%s' "$MP_QUERY" | tr -d '[:space:]')" ]; then
+    MP_OUT="$(BEAST_MP_WING="${BEAST_MP_WING:-$MP_WING}" BEAST_MP_TIMEOUT="${BEAST_MP_TIMEOUT:-4}" bash "$MPRECALL" "$MP_QUERY" "" 2>/dev/null)"
+    [ -n "$(printf '%s' "$MP_OUT" | tr -d '[:space:]')" ] && PACKET="${PACKET}"$'\n'"${MP_OUT}"
+  fi
+fi
+
 # --- D9 reconcile-gate helpers (forcing on HIGH-STAKES matching actions) ---
 matched_ids() { printf '%s' "$1" | grep -oE '\[M[A-Za-z0-9_]+\]' 2>/dev/null | tr -d '[]' | sort -u; }
 

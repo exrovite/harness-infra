@@ -63,6 +63,27 @@ CONTENT="$REASON $TIN"
 ACT="$(jq -cn --arg c "$CONTENT" '{file_path:"",content:$c}' 2>/dev/null)"
 [ -n "$ACT" ] || exit 0
 PACKET="$(printf '%s' "$ACT" | bash "$SURFACE" 2>/dev/null)"
+
+# Semantic backstop (D6): ask mempalace for project memory related to the reasoning.
+# THROTTLED (default 15s/session) so it does not fire on every tool call. Read-only, fail-safe.
+MPRECALL="$HOME/.claude/scripts/beast-mp-recall.sh"
+if [ -f "$MPRECALL" ]; then
+  THR="${BEAST_MP_THROTTLE:-15}"
+  TF="${STATE_DIR}/beast-mp-throttle.${SID}"
+  NOW=$(date +%s 2>/dev/null || echo 0)
+  LAST=0; [ -f "$TF" ] && LAST=$(cat "$TF" 2>/dev/null || echo 0)
+  if [ "$THR" = 0 ] || [ $(( NOW - LAST )) -ge "$THR" ]; then
+    printf '%s' "$NOW" > "$TF" 2>/dev/null
+    ROOT_FP="${STATE_DIR%/.claude/state}"; [ "$ROOT_FP" = "$STATE_DIR" ] && ROOT_FP="$CWD"
+    MP_WING="$(printf '%s' "$ROOT_FP" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/_/g')"
+    MP_QUERY="$(printf '%s' "$CONTENT" | tr -cs 'A-Za-z0-9_.' ' ' | awk '{for(i=1;i<=NF&&i<=16;i++)printf "%s ",$i}' | sed 's/[[:space:]]*$//')"
+    if [ -n "$(printf '%s' "$MP_QUERY" | tr -d '[:space:]')" ]; then
+      MP_OUT="$(BEAST_MP_WING="${BEAST_MP_WING:-$MP_WING}" BEAST_MP_TIMEOUT="${BEAST_MP_TIMEOUT:-4}" bash "$MPRECALL" "$MP_QUERY" "" 2>/dev/null)"
+      [ -n "$(printf '%s' "$MP_OUT" | tr -d '[:space:]')" ] && PACKET="${PACKET}"$'\n'"${MP_OUT}"
+    fi
+  fi
+fi
+
 [ -n "$(printf '%s' "$PACKET" | tr -d '[:space:]')" ] || exit 0
 
 # Anti-nag: only surface lessons not already surfaced THIS session.
