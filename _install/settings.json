@@ -102,6 +102,26 @@
             "command": "bash $HOME/.claude/hooks/pre-bash-gate.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/beast-recall-hook.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/beast-recall-hook.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
