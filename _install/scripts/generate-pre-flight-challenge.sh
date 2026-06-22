@@ -238,6 +238,7 @@ if [ -n "$MUST_DO_MD" ]; then
   while IFS= read -r mdline || [ -n "$mdline" ]; do
     mdline=$(printf '%s' "$mdline" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     [ -z "$mdline" ] && continue
+    case "$mdline" in '<!--'*|'#'*|'---'*|*mustdo-session:*) continue ;; esac  # skip stamp/comment (Sprint 37)
     upath=$(printf '%s' "$mdline" | tr '\\\\' '/' | sed 's|^\([A-Za-z]\):|/\L\1|')
     if [ -f "$upath" ]; then
       if printf '%s' "$USED_PATHS" | grep -qxF "$upath" 2>/dev/null; then continue; fi

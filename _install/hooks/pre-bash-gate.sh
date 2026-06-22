@@ -265,6 +265,22 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
       # summary file (must-do-summary.<session_id>.md) so parallel sessions never clobber each
       # other. No session_id -> fall back to the shared file (tests / non-session callers).
       MDB_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+      # Sprint 37: a must-do file authored by ANOTHER session is not your grounding. Block source
+      # Bash writes (the docs/ + *.md exemption above already lets the agent re-author its own file).
+      MDB_OWN=$(mustdo_file_for_dir "$MDB_DIR" 2>/dev/null); [ -n "$MDB_OWN" ] || MDB_OWN="${MDB_DIR}/must-do.md"
+      MDB_STAMP=""; type mustdo_stamp_of >/dev/null 2>&1 && MDB_STAMP=$(mustdo_stamp_of "$MDB_OWN")
+      MDB_FOREIGN=no
+      if [ -n "$MDB_SID" ]; then
+        if [ -n "$MDB_STAMP" ] && [ "$MDB_STAMP" != "$MDB_SID" ]; then MDB_FOREIGN=yes
+        elif [ -z "$MDB_STAMP" ] && type mustdo_is_agentpack >/dev/null 2>&1 && mustdo_is_agentpack "$MDB_OWN"; then MDB_FOREIGN=yes; fi
+      fi
+      if [ "$MDB_FOREIGN" = yes ]; then
+        printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do grounding was authored by a different session.\n\n" "$PHASE_CTX" >&2
+        printf "Send '+++pack' to rebuild your own owned must-do file (previous pack archived to\n" >&2
+        printf "docs/must do/history/), then write your summary — before writing source via Bash.\n" >&2
+        print_gates_ahead
+        exit 2
+      fi
       if [ -n "$MDB_SID" ]; then
         MDB_SUMMARY="${STATE_DIR}/must-do-summary.${MDB_SID}.md"
       else

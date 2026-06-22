@@ -12,7 +12,7 @@
 # Exit: 0 ok, non-zero on bad args / unwritable own file.
 set -u
 
-OWN=""; TRANSCRIPT=""; NO_TRANSCRIPT=0; AGREEMENT=""; GROUNDING=""
+OWN=""; TRANSCRIPT=""; NO_TRANSCRIPT=0; AGREEMENT=""; GROUNDING=""; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --own)         OWN="$2"; shift 2 ;;
@@ -20,6 +20,7 @@ while [ $# -gt 0 ]; do
     --no-transcript) NO_TRANSCRIPT=1; shift ;;
     --agreement)   AGREEMENT="$2"; shift 2 ;;
     --grounding)   GROUNDING="$2"; shift 2 ;;
+    --session)     SESSION="$2"; shift 2 ;;
     *) printf 'build-mustdo-pack: unknown arg: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
@@ -44,9 +45,22 @@ if [ "$NO_TRANSCRIPT" -ne 1 ]; then
   fi
 fi
 
+# 2a) Snapshot-then-write (Sprint 37): before clobbering, COPY a superseded owned file
+#     (foreign-stamped OR unstamped human seed) to <dir>/history/<base>.<cksum>.md so history is
+#     never lost. Non-destructive + idempotent. A file already owned by THIS session is just rewritten.
+if [ -s "$OWN" ]; then
+  _PK_CUR=$(grep -m1 'mustdo-session:' "$OWN" 2>/dev/null | sed -n 's/.*mustdo-session:[[:space:]]*\([^ |>]*\).*/\1/p' | tr -d '\r')
+  if [ -z "$_PK_CUR" ] || [ "$_PK_CUR" != "$SESSION" ]; then
+    _PK_TOK=$(cksum < "$OWN" 2>/dev/null | awk '{print $1}'); [ -n "$_PK_TOK" ] || _PK_TOK=0
+    mkdir -p "$OWN_DIR/history" 2>/dev/null
+    cp -f "$OWN" "$OWN_DIR/history/$(basename "${OWN%.md}").${_PK_TOK}.md" 2>/dev/null
+  fi
+fi
+
 # 2) Clear + repopulate ONLY the caller's own file (D-Clear). This overwrite is the single mutation;
-#    sibling must-do-*.md files are never opened.
+#    sibling must-do-*.md files are never opened. First line is the hook-written ownership stamp.
 {
+  [ -n "$SESSION" ] && printf '<!-- mustdo-session: %s | built: pack -->\n' "$SESSION"
   printf '# Must-Do — current task pack\n\n'
   printf '> Auto-built by build-mustdo-pack.sh. Links below ground the agent in the current task.\n\n'
   printf '## Grounding\n'

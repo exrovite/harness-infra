@@ -52,6 +52,23 @@ case "$(basename "${TOOL_FILE_PATH:-}" 2>/dev/null)" in
     ;;
 esac
 
+# --- MUST-DO OWNERSHIP STAMP (Sprint 37) ---
+# When the agent authors its own must-do file, stamp it with this session so the gate can tell
+# "mine" from "a leftover from another session". Hook-written (never agent-written) = unforgeable.
+# Skips history/ snapshots and the summary file; idempotent; no-op without a session_id.
+PWC_MD_NORM=$(printf '%s' "${TOOL_FILE_PATH:-}" | tr '\\' '/')
+if printf '%s' "$PWC_MD_NORM" | grep -qiE '(^|/)(docs/must[ -]do|\.claude/must-do)/[^/]*\.md$' \
+   && ! printf '%s' "$PWC_MD_NORM" | grep -qi '/history/'; then
+  case "$(basename "$PWC_MD_NORM")" in
+    must-do*.md)
+      PWC_MD_SID=$(printf '%s' "$HOOK_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+      if [ -n "$PWC_MD_SID" ] && [ -f "$TOOL_FILE_PATH" ] && type mustdo_ensure_stamp >/dev/null 2>&1; then
+        mustdo_ensure_stamp "$TOOL_FILE_PATH" "$PWC_MD_SID" create
+      fi
+      ;;
+  esac
+fi
+
 # Auto-initialize if project has .claude/ but no harness state
 if [ -d ".claude" ] && [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   bash "$HOME/.claude/scripts/init-project.sh" 2>/dev/null

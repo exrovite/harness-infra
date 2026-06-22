@@ -384,6 +384,57 @@ if [ -n "$MUST_DO_MD" ]; then
   TARGET_MD=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
   TARGET_MD_NORM=$(printf '%s' "$TARGET_MD" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
 
+  # --- Sprint 37: session-aware ownership of the must-do file ----------------------------------
+  # A must-do file authored by a DIFFERENT session must not satisfy this gate. Three arms:
+  #   no stamp (human seed) / stamp == me / no session  -> fall through to the summary gate (as before)
+  #   stamp == another session + source write           -> BLOCK: author your own grounding (+++pack)
+  #   (re)authoring the owned must-do file itself        -> snapshot foreign body to history/, then allow
+  MD_OWNERSHIP_SKIP=false
+  MD_CUR_SESSION=$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+  MD_STAMP=""; type mustdo_stamp_of >/dev/null 2>&1 && MD_STAMP=$(mustdo_stamp_of "$MUST_DO_MD")
+  MD_OWNED_NORM=$(printf '%s' "$MUST_DO_MD" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
+  # Is the write (re)authoring the owned must-do file? Match by basename + must-do dir so an
+  # absolute target path still matches the relatively-resolved owned file (and vice-versa).
+  MD_IS_OWNED=no
+  if [ -n "$TARGET_MD_NORM" ] && [ "$(basename "$TARGET_MD_NORM")" = "$(basename "$MD_OWNED_NORM")" ] \
+     && printf '%s' "$TARGET_MD_NORM" | grep -qiE '(^|/)(docs/must[ -]do|\.claude/must-do)/'; then
+    MD_IS_OWNED=yes
+  fi
+  if [ "$MD_IS_OWNED" = yes ]; then
+    # The write IS (re)authoring the owned must-do file: preserve any foreign/unstamped body first
+    # (snapshot-then-write, COPY), then let the write through and skip the summary gate for it.
+    if [ -s "$MUST_DO_MD" ] && [ -n "$MD_CUR_SESSION" ] && [ "$MD_STAMP" != "$MD_CUR_SESSION" ]; then
+      type mustdo_snapshot >/dev/null 2>&1 && mustdo_snapshot "$MUST_DO_MD"
+    fi
+    MD_OWNERSHIP_SKIP=true
+  elif { [ -n "$MD_CUR_SESSION" ] && [ -n "$MD_STAMP" ] && [ "$MD_STAMP" != "$MD_CUR_SESSION" ]; } \
+       || { [ -n "$MD_CUR_SESSION" ] && [ -z "$MD_STAMP" ] && type mustdo_is_agentpack >/dev/null 2>&1 && mustdo_is_agentpack "$MUST_DO_MD"; }; then
+    # Foreign-owned grounding: another session's stamp, OR a PRE-EXISTING/legacy agent pack with no
+    # stamp (left in the folder before stamping existed). A plain unstamped human list is NOT caught
+    # here -> it stays a shared seed. Grounding-building writes are exempt (mirror the create-branch list
+    # verbatim, incl. docs/ and *.md); real source writes are blocked until the agent grounds itself.
+    MD_FS_EXEMPT=false
+    [ -z "$TARGET_MD_NORM" ] && MD_FS_EXEMPT=true
+    if [ "$MD_FS_EXEMPT" = false ]; then
+      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
+        if printf '%s' "$TARGET_MD_NORM" | grep -qiF "$PAT"; then MD_FS_EXEMPT=true; break; fi
+      done
+    fi
+    case "$TARGET_MD_NORM" in *.md) MD_FS_EXEMPT=true ;; esac
+    if [ "$MD_FS_EXEMPT" = true ]; then
+      MD_OWNERSHIP_SKIP=true
+    else
+      printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do grounding was authored by a different session.\n\n" "$PHASE_CTX" >&2
+      printf "A leftover must-do file is NOT your grounding — author your own before writing source.\n" >&2
+      printf "  - Send '+++pack' to capture this conversation and rebuild your owned must-do file\n" >&2
+      printf "    (the previous pack is preserved under docs/must do/history/), then write your summary.\n" >&2
+      print_gates_ahead
+      exit 2
+    fi
+  fi
+
+  if [ "$MD_OWNERSHIP_SKIP" = false ]; then
+
   # Exempt harness/state files (agent must be able to write the summary itself)
   MD_EXEMPT=false
   for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
@@ -438,6 +489,7 @@ if [ -n "$MUST_DO_MD" ]; then
       while IFS= read -r mdl || [ -n "$mdl" ]; do
         mdl=$(printf '%s' "$mdl" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         [ -z "$mdl" ] && continue
+        case "$mdl" in '<!--'*|'#'*|'---'*|*mustdo-session:*) continue ;; esac
         BN=$(basename "$(printf '%s' "$mdl" | tr '\\\\' '/')" 2>/dev/null)
         [ -z "$BN" ] && continue
         if grep -qiF "$BN" "$SUMMARY_FILE" 2>/dev/null; then
@@ -504,6 +556,7 @@ if [ -n "$MUST_DO_MD" ]; then
       while IFS= read -r mdl || [ -n "$mdl" ]; do
         mdl=$(printf '%s' "$mdl" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         [ -z "$mdl" ] && continue
+        case "$mdl" in '<!--'*|'#'*|'---'*|*mustdo-session:*) continue ;; esac
         printf "  - %s\n" "$mdl" >&2
       done < "$MUST_DO_MD"
       printf "\nYou MUST:\n" >&2
@@ -522,6 +575,7 @@ if [ -n "$MUST_DO_MD" ]; then
       printf '%s' "$CURRENT_STEP_MD" > "$STEP_FILE" 2>/dev/null
     fi
   fi
+  fi   # end MD_OWNERSHIP_SKIP wrapper (Sprint 37)
 else
   # --- MUST-DO DEFAULT-ON (no folder present) ---
   # The must-do discipline is ON by default, like the rest of the harness — it does NOT wait

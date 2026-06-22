@@ -46,6 +46,32 @@ harness_enable() {
   rm -f "$sd/harness-disabled.flag" 2>/dev/null
 }
 
+# --- BEAST-MODE state (Sprint 35): the intuition-grounding mode. ---
+# Project-scoped flag at <state>/beast-mode.flag. Mirrors the harness helpers and
+# resolves by project root the same way. Beast-mode is a STRICT SUPERSET of
+# harness-on: it can never be on while the harness is disabled (the toggle in
+# on-prompt-submit.sh enforces that by enabling the harness first on `beast-on`).
+beast_is_on() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  [ -f "$sd/beast-mode.flag" ]
+}
+beast_enable() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  mkdir -p "$sd" 2>/dev/null
+  local ts
+  ts=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  if type atomic_write >/dev/null 2>&1; then
+    atomic_write "beast mode on at ${ts}"$'\n' "$sd/beast-mode.flag"
+  else
+    printf 'beast mode on at %s\n' "$ts" > "$sd/beast-mode.flag.tmp" 2>/dev/null \
+      && mv -f "$sd/beast-mode.flag.tmp" "$sd/beast-mode.flag" 2>/dev/null
+  fi
+}
+beast_disable() {
+  local sd="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  rm -f "$sd/beast-mode.flag" 2>/dev/null
+}
+
 # --- Kill-switch path resolution (Sprint 35): make the OFF switch cwd-independent. ---
 # The flag used to be looked up at a cwd-relative .claude/state, so an agent whose hook ran from a
 # different working dir (a subfolder, or a NESTED project root) never saw a flag set elsewhere and
@@ -651,6 +677,65 @@ mustdo_file_for_dir() {
   fi
   F="${DIR}/must-do-$((L - 1)).md"
   if [ -f "$F" ]; then printf '%s' "$F"; else printf '%s/must-do.md' "$DIR"; fi
+}
+
+# ===== Sprint 37: session-aware must-do stamping + non-destructive history snapshot =====
+# A must-do file authored by a session carries a first-line stamp written ONLY by hooks/scripts
+# (never the agent). The gate uses it to tell "mine" from "a leftover from another session".
+# Superseded content is COPIED (never moved) to <dir>/history/, named by content cksum (idempotent).
+
+# mustdo_stamp_of FILE -> echo the session id stamped in FILE (empty if unstamped/missing).
+mustdo_stamp_of() {
+  local F="$1"
+  [ -n "$F" ] && [ -f "$F" ] || return 0
+  grep -m1 'mustdo-session:' "$F" 2>/dev/null \
+    | sed -n 's/.*mustdo-session:[[:space:]]*\([^ |>]*\).*/\1/p' | tr -d '\r'
+}
+
+# mustdo_snapshot FILE -> copy FILE to <dir>/history/<base>.<cksum>.md (idempotent, non-destructive).
+# Never moves: the live owned file is left untouched, so it can never be orphaned by a write that
+# doesn't execute. Identical content maps to the same cksum filename, so repeats add no duplicate.
+mustdo_snapshot() {
+  local F="$1" DIR BN TOK
+  [ -n "$F" ] && [ -s "$F" ] || return 0
+  DIR=$(dirname "$F"); BN=$(basename "$F")
+  TOK=$(cksum < "$F" 2>/dev/null | awk '{print $1}'); [ -n "$TOK" ] || TOK=0
+  mkdir -p "$DIR/history" 2>/dev/null || return 0
+  cp -f "$F" "$DIR/history/${BN%.md}.${TOK}.md" 2>/dev/null
+  return 0
+}
+
+# mustdo_ensure_stamp FILE SESSION [ORIGIN] -> guarantee FILE's first line stamps SESSION.
+# Idempotent: a file already stamped with SESSION is left as-is; a foreign/absent stamp is replaced.
+mustdo_ensure_stamp() {
+  local F="$1" S="$2" O="${3:-create}" CUR TMP
+  [ -n "$F" ] && [ -f "$F" ] && [ -n "$S" ] || return 0
+  CUR=$(mustdo_stamp_of "$F")
+  [ "$CUR" = "$S" ] && return 0
+  TMP=$(mktemp 2>/dev/null) || return 0
+  if [ -n "$CUR" ]; then grep -v 'mustdo-session:' "$F" > "$TMP" 2>/dev/null; else cp -f "$F" "$TMP" 2>/dev/null; fi
+  { printf '<!-- mustdo-session: %s | built: %s -->\n' "$S" "$O"; cat "$TMP"; } > "$F" 2>/dev/null
+  rm -f "$TMP" 2>/dev/null
+  return 0
+}
+
+# mustdo_is_stampline LINE -> rc 0 if LINE is the stamp/comment line readers must skip.
+mustdo_is_stampline() {
+  case "$1" in
+    *mustdo-session:*) return 0 ;;
+    '<!--'*) return 0 ;;
+  esac
+  return 1
+}
+
+# mustdo_is_agentpack FILE -> rc 0 if FILE bears the build-mustdo-pack.sh signature, i.e. it is an
+# AGENT-authored pack rather than a hand-written human list. This lets the gate treat a PRE-EXISTING,
+# UNSTAMPED agent pack (left in a project folder before stamping existed) as a leftover to supersede,
+# while a plain human list stays a shared seed. ASCII-only markers (no em-dash dependency).
+mustdo_is_agentpack() {
+  local F="$1"
+  [ -n "$F" ] && [ -f "$F" ] || return 1
+  grep -qiE 'current task pack|Auto-built by build-mustdo-pack|raw-conversation' "$F" 2>/dev/null
 }
 
 # resolve_instance PAYLOAD PROJECT EVENT [REG] — the chokepoint. Reads session_id from the PASSED

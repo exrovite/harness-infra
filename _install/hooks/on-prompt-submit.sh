@@ -50,6 +50,7 @@ fi
 KS_FLAG="${STATE_DIR}/harness-disabled.flag"
 KS_PROJECT=$(pwd -W 2>/dev/null || pwd); KS_PROJECT=$(basename "$KS_PROJECT" 2>/dev/null)
 KS_TRIMMED=$(printf '%s' "$PROMPT_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+BEAST_FLAG="${STATE_DIR}/beast-mode.flag"
 if [ "$KS_TRIMMED" = "---" ]; then
   if type harness_disable >/dev/null 2>&1; then
     harness_disable "$STATE_DIR"
@@ -58,7 +59,9 @@ if [ "$KS_TRIMMED" = "---" ]; then
     KS_TS=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
     printf 'harness disabled at %s\n' "$KS_TS" > "${KS_FLAG}.tmp" 2>/dev/null && mv -f "${KS_FLAG}.tmp" "$KS_FLAG" 2>/dev/null
   fi
-  printf '[HARNESS UNLOCKED — %s] All enforcement gates bypassed for this project (phase lock, watcher, pre-flight MCQ, evidence, must-do, contract). Send === to lock.' "${KS_PROJECT:-project}"
+  # Beast-mode is a strict superset of harness-on: disabling the harness drops beast too.
+  if type beast_disable >/dev/null 2>&1; then beast_disable "$STATE_DIR"; else rm -f "$BEAST_FLAG" 2>/dev/null; fi
+  printf '[HARNESS UNLOCKED — %s] All enforcement gates bypassed for this project (phase lock, watcher, pre-flight MCQ, evidence, must-do, contract). Beast-mode off. Send === to lock.' "${KS_PROJECT:-project}"
   exit 0
 elif [ "$KS_TRIMMED" = "===" ]; then
   if type harness_enable >/dev/null 2>&1; then
@@ -67,6 +70,33 @@ elif [ "$KS_TRIMMED" = "===" ]; then
     rm -f "$KS_FLAG" 2>/dev/null
   fi
   printf '[HARNESS LOCKED] Enforcement re-enabled for this project. Send --- to unlock.'
+  exit 0
+elif [ "$KS_TRIMMED" = "beast-off" ]; then
+  # Turn beast OFF only; leave the harness exactly as it is.
+  if type beast_disable >/dev/null 2>&1; then beast_disable "$STATE_DIR"; else rm -f "$BEAST_FLAG" 2>/dev/null; fi
+  printf '[BEAST MODE OFF] Intuition grounding disabled for this project. Harness unchanged. Send beast-on to re-arm.'
+  exit 0
+elif [ "$KS_TRIMMED" = "beast-on" ]; then
+  # Superset rule: beast requires the harness ON. If it is disabled, enable it FIRST.
+  BEAST_REENABLED=0
+  if [ -f "$KS_FLAG" ]; then
+    if type harness_enable >/dev/null 2>&1; then harness_enable "$STATE_DIR"; else rm -f "$KS_FLAG" 2>/dev/null; fi
+    BEAST_REENABLED=1
+  fi
+  if type beast_enable >/dev/null 2>&1; then
+    beast_enable "$STATE_DIR"
+  else
+    mkdir -p "$STATE_DIR" 2>/dev/null; printf 'beast mode on\n' > "$BEAST_FLAG" 2>/dev/null
+  fi
+  # One-time curated bulk pack into mempalace (best-effort, headless, no CMD window).
+  if [ -x "${HOME}/.claude/scripts/beast-pack.sh" ] && [ ! -f "${STATE_DIR}/beast-packed.flag" ]; then
+    ( "${HOME}/.claude/scripts/beast-pack.sh" >/dev/null 2>&1 && : > "${STATE_DIR}/beast-packed.flag" ) &
+  fi
+  if [ "$BEAST_REENABLED" = "1" ]; then
+    printf '[HARNESS RE-ENABLED — beast mode requires active gates] [BEAST MODE ON — %s] Intuition grounding active.' "${KS_PROJECT:-project}"
+  else
+    printf '[BEAST MODE ON — %s] Intuition grounding active. Send beast-off to disable.' "${KS_PROJECT:-project}"
+  fi
   exit 0
 fi
 # If OFF (flag present) and this is an ordinary prompt, inject only the persistent banner.
@@ -90,12 +120,14 @@ if [ "$KS_TRIMMED" = "+++pack" ]; then
   fi
   [ -n "${PK_OWN:-}" ] || PK_OWN="${PK_DIR}/must-do.md"
   PK_TRANSCRIPT=$(printf '%s' "$PROMPT_INPUT" | jq -r '.transcript_path // ""' 2>/dev/null | tr -d '\r')
+  # Sprint 37: thread session_id so the built pack carries this session's ownership stamp.
+  PK_SID=$(printf '%s' "$PROMPT_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
   PK_BUILDER="$HOME/.claude/scripts/build-mustdo-pack.sh"
   if [ -f "$PK_BUILDER" ]; then
     if [ -n "$PK_TRANSCRIPT" ] && [ -f "$PK_TRANSCRIPT" ]; then
-      bash "$PK_BUILDER" --own "$PK_OWN" --transcript "$PK_TRANSCRIPT" >/dev/null 2>&1
+      bash "$PK_BUILDER" --own "$PK_OWN" --transcript "$PK_TRANSCRIPT" --session "$PK_SID" >/dev/null 2>&1
     else
-      bash "$PK_BUILDER" --own "$PK_OWN" --no-transcript >/dev/null 2>&1
+      bash "$PK_BUILDER" --own "$PK_OWN" --no-transcript --session "$PK_SID" >/dev/null 2>&1
     fi
     printf '[MUST-DO PACK BUILT] Owned file %s cleared + relinked (raw conversation captured). Now write your discussion-agreement / rough-plan, add grounding links, then proceed to PLAN.' "$PK_OWN"
   else
