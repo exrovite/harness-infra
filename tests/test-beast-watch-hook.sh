@@ -15,6 +15,8 @@ SBX=$(mktemp -d 2>/dev/null || echo "/tmp/bwh-$$")
 export HARNESS_STATE_DIR="$SBX/state"
 export BEAST_LESSONS="$SBX/.beast/lessons.jsonl"
 mkdir -p "$HARNESS_STATE_DIR" "$SBX/.beast"
+export BEAST_MP_FIXTURE=/dev/null            # isolate from the semantic layer (literal in-work recall)
+export BEAST_MP_CACHE_DIR="$SBX/mpcache"     # isolate the query cache from any shared/stale cache
 trap 'rm -rf "$SBX" 2>/dev/null' EXIT
 cat > "$BEAST_LESSONS" <<'EOF'
 {"id":"7","scope":"*","trigger":"kill.?switch|cwd|current directory","lesson":"Kill-switch must resolve by PROJECT ROOT, not cwd.","fix":"Use find_project_state_dir; never read the flag relative to cwd.","dossier":"99353ff"}

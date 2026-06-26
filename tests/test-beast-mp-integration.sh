@@ -28,6 +28,7 @@ cat > "$FIX" <<'EOF'
   ────────────────────────────────────────────────────────
 EOF
 export BEAST_MP_FIXTURE="$FIX"
+export BEAST_MP_WING=g__wing   # match the fixture's wing (post-filter keeps it)
 export BEAST_MP_THROTTLE=0   # disable throttle for the test
 ctx(){ printf '%s' "$1" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null; }
 

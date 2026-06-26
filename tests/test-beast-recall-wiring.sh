@@ -22,6 +22,8 @@ SBX=$(mktemp -d 2>/dev/null || echo "/tmp/brecall-$$")
 export HARNESS_STATE_DIR="$SBX/state"
 export BEAST_LESSONS="$SBX/.beast/lessons.jsonl"
 mkdir -p "$HARNESS_STATE_DIR" "$SBX/.beast" 2>/dev/null
+export BEAST_MP_FIXTURE=/dev/null            # isolate from the semantic layer (literal recall)
+export BEAST_MP_CACHE_DIR="$SBX/mpcache"     # isolate the query cache from any shared/stale cache
 cleanup() { rm -rf "$SBX" 2>/dev/null; }
 trap cleanup EXIT
 

@@ -95,7 +95,8 @@ grep -q 'find_project_state_dir' "$LZ1" && ok "cwd-independent: KG symbol presen
 if [ -f "$LZ1" ] && [ -f "$LZ2" ] && diff -q <(sort "$LZ1") <(sort "$LZ2") >/dev/null 2>&1; then ok "deterministic across different cwds"; else bad "deterministic across different cwds"; fi
 
 # B5: headless — script spawns no console windows
-if grep -qE '\b(start|cmd\.exe|powershell|conhost)\b' "$PACK"; then bad "B5: no CMD-window spawning"; else ok "B5: no CMD-window spawning"; fi
+# detect actual console-spawning (start/cmd.exe/powershell/conhost AS A COMMAND), not the word in data
+if grep -qE '(cmd\.exe|powershell|conhost|(^|[;&|`]|\bdo )\s*start[[:space:]]+["'"'"'/.a-z])' "$PACK"; then bad "B5: no CMD-window spawning"; else ok "B5: no CMD-window spawning"; fi
 
 # Round-trip-ready: feed the KG-sourced lesson's atom to beast-surface -> it surfaces
 export BEAST_LESSONS="$L"
