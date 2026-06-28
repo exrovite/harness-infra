@@ -132,6 +132,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/beast-protocol-gate.sh",
+            "timeout": 8
+          }
+        ]
       }
     ],
     "SessionStart": [
