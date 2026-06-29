@@ -26,6 +26,12 @@ fi
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+# Resolve the PROJECT ROOT for pre-flight writes so we never create a nested .claude in a subdir cwd.
+_pf_sd="$STATE_DIR"
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then
+  _pf_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" && [ -n "$_pf_root" ] && _pf_sd="$_pf_root"
+fi
+PF_BASE="${_pf_sd%/state}/pre-flight"
 
 # --- HARNESS KILL-SWITCH (Sprint 33/35): resolved by project root (cwd or target file) ---
 if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "$TARGET_FILE" 2>/dev/null || [ -f "${STATE_DIR}/harness-disabled.flag" ]; then
@@ -204,7 +210,7 @@ if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
 fi
 
 # --- Counter logic: only fire gate every 4th write, or on step change ---
-COUNTER_FILE=".claude/pre-flight/gate-counter.json"
+COUNTER_FILE="$PF_BASE/gate-counter.json"
 
 # Step 1: Read counter file (initialize if missing or corrupt)
 if [ -f "$COUNTER_FILE" ]; then
@@ -248,14 +254,14 @@ elif [ $((WRITE_COUNT % 4)) -eq 0 ]; then
 # Step 7: Otherwise, allow without MCQ
 else
   WRITE_COUNT=$((WRITE_COUNT + 1))
-  mkdir -p .claude/pre-flight
+  mkdir -p "$PF_BASE"
   jq -n --argjson wc "$WRITE_COUNT" --arg ls "$LAST_STEP" \
     '{"write_count": $wc, "last_step": $ls}' > "$COUNTER_FILE"
   exit 0
 fi
 
 # Save counter state before MCQ check (ensures corrupt/missing files are re-created)
-mkdir -p .claude/pre-flight
+mkdir -p "$PF_BASE"
 jq -n --argjson wc "$WRITE_COUNT" --arg ls "$LAST_STEP" \
   '{"write_count": $wc, "last_step": $ls}' > "$COUNTER_FILE"
 
@@ -263,7 +269,7 @@ jq -n --argjson wc "$WRITE_COUNT" --arg ls "$LAST_STEP" \
 # Per-session pre-flight (Sprint 31a): each agent gets its OWN challenge/response under a session subdir,
 # so concurrent agents in one folder don't thrash on shared files. Flat fallback when no session id.
 PF_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null | tr -cd 'a-zA-Z0-9-' | head -c 40)
-PREFLIGHT_DIR=".claude/pre-flight${PF_SID:+/$PF_SID}"
+PREFLIGHT_DIR="$PF_BASE${PF_SID:+/$PF_SID}"
 RESPONSE_FILE="$PREFLIGHT_DIR/response.md"
 CHALLENGE_FILE="$PREFLIGHT_DIR/challenge.md"
 

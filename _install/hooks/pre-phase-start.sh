@@ -8,6 +8,8 @@
 
 PHASE="$1"
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+# resolve STATE_DIR to the PROJECT ROOT (avoid creating a nested .claude in a subdir cwd)
+if [ -z "${HARNESS_STATE_DIR:-}" ]; then . "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null; type find_project_state_dir >/dev/null 2>&1 && { _r="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)"; [ -n "$_r" ] && STATE_DIR="$_r"; }; fi
 SPEC_FILE=".claude/specs/product-spec.md"
 KNOWN_FIXES=".claude/protocols/known-fixes.md"
 INJECTED_FILE="${STATE_DIR}/injected-context.md"

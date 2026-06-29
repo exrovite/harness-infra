@@ -12,6 +12,23 @@ if [ "$1" = "--with-memory" ] && [ -n "$2" ]; then
   AGENT_MEMORY_SOURCE="$2"
 fi
 
+# --- GUARD: never create a NESTED project root inside an existing project ---
+# Walk up from the PARENT of cwd; if any ancestor already has .claude, this directory is inside an
+# existing project — refuse, so the harness is not fragmented into nested roots (which split the
+# kill-switch/state and were the cause of `.claude` dirs appearing all over a project). The global
+# ~/.claude is the harness INSTALL, not a project root, so we stop the walk at $HOME.
+_np_cwd="$(pwd -W 2>/dev/null || pwd)"
+_np_home="$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -W 2>/dev/null || printf '%s' "${HOME:-}")"
+_np_p="$(dirname "$_np_cwd")"
+while [ -n "$_np_p" ] && [ "$_np_p" != "/" ] && [ "$_np_p" != "." ]; do
+  [ -n "$_np_home" ] && [ "$_np_p" = "$_np_home" ] && break
+  if [ -d "$_np_p/.claude" ]; then
+    printf 'init-project: refusing to create a nested .claude — existing project root at %s\n' "$_np_p" >&2
+    exit 0
+  fi
+  case "$_np_p" in */*) _np_p="${_np_p%/*}" ;; *) break ;; esac
+done
+
 # Create directory structure
 mkdir -p .claude/state/evaluation-results
 mkdir -p .claude/specs

@@ -8,6 +8,8 @@
 # Exit: 0 = within budget, 1 = limit reached (hard stop)
 
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+# resolve STATE_DIR to the PROJECT ROOT (avoid creating a nested .claude in a subdir cwd)
+if [ -z "${HARNESS_STATE_DIR:-}" ]; then . "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null; type find_project_state_dir >/dev/null 2>&1 && { _r="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)"; [ -n "$_r" ] && STATE_DIR="$_r"; }; fi
 MAX_COST_USD="${MAX_COST:-50}"
 MAX_ELAPSED_HOURS="${MAX_HOURS:-4}"
 

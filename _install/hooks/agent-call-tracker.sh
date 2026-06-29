@@ -7,8 +7,14 @@
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+_pf_sd="$STATE_DIR"
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then
+  _pf_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" && [ -n "$_pf_root" ] && _pf_sd="$_pf_root"
+fi
+PF_BASE="${_pf_sd%/state}/pre-flight"
+STATE_DIR="$_pf_sd"
 LEDGER="${STATE_DIR}/verification-ledger.jsonl"
-VERIFY_COUNTER=".claude/pre-flight/verify-counter.json"
+VERIFY_COUNTER="$PF_BASE/verify-counter.json"
 WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 
 # --- Read stdin (PostToolUse Agent provides full JSON on stdin) ---
@@ -109,7 +115,7 @@ if [ -f "$UNVERIFIED" ]; then
 fi
 
 # Reset verify counter
-mkdir -p .claude/pre-flight 2>/dev/null
+mkdir -p "$PF_BASE" 2>/dev/null
 jq -n --arg lr "$TS" '{"no_verify_count":0,"hardened":false,"last_reset":$lr}' > "$VERIFY_COUNTER"
 
 echo "agent-call-tracker: verify counter reset" >&2
