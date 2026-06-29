@@ -9,7 +9,7 @@ source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 _pf_sd="$STATE_DIR"
 if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then
-  _pf_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" && [ -n "$_pf_root" ] && _pf_sd="$_pf_root"
+  _pf_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" ; if [ -n "$_pf_root" ]; then _pf_sd="$_pf_root"; else exit 0; fi
 fi
 PF_BASE="${_pf_sd%/state}/pre-flight"
 STATE_DIR="$_pf_sd"

@@ -85,7 +85,13 @@ find_project_state_dir() {
   local d; d="$(printf '%s' "${1:-.}" | tr '\\' '/')"
   [ -n "$d" ] || d="."
   case "$d" in /*|[A-Za-z]:/*) ;; *) d="$(pwd -W 2>/dev/null || pwd)/$d" ;; esac
+  # The global ~/.claude is the harness INSTALL, not a project root. Never return it (else any folder
+  # under $HOME with no project of its own resolves to — and pollutes — the global state, and folders
+  # elsewhere fall back to creating a local .claude). Skip the dir that IS $HOME; a real project under
+  # $HOME (e.g. $HOME/proj/.claude) still matches because that dir != $HOME.
+  local _home; _home="$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -W 2>/dev/null || printf '%s' "${HOME:-}")"
   while [ -n "$d" ] && [ "$d" != "/" ]; do
+    [ -n "$_home" ] && [ "$d" = "$_home" ] && break
     if [ -d "$d/.claude" ]; then printf '%s/.claude/state\n' "$d"; return 0; fi
     case "$d" in */*) d="${d%/*}" ;; *) break ;; esac
   done
