@@ -18,6 +18,10 @@ MAX_ITERATIONS="${MAX_ITERATIONS:-30}"
 ITERATION=0
 
 # ─── STARTUP ───────────────────────────────────────────────
+# 0. Explicit launch = explicit opt-in: bootstrap this folder as a project if it isn't one yet.
+#    (startup-recovery.sh no longer auto-creates a .claude in a non-project folder, so the explicit
+#    launcher must do it here. init-project.sh still refuses to nest inside an existing project root.)
+[ -n "${HARNESS_STATE_DIR:-}" ] || [ -d ".claude" ] || bash "$SCRIPTS/init-project.sh" 2>/dev/null || true
 # 1. Crash recovery (always first)
 bash "$SCRIPTS/startup-recovery.sh" 2>/dev/null
 

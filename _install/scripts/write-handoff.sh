@@ -8,6 +8,17 @@
 
 PHASE_LABEL="${1:-UNKNOWN}"
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+
+# Never create a .claude in a non-project folder. Resolve to an existing project root; if none, do
+# nothing (a handoff only makes sense inside a real project). Defense-in-depth: callers should already
+# pass HARNESS_STATE_DIR, but this guards direct/future invocations too.
+if [ -z "${HARNESS_STATE_DIR:-}" ]; then
+  . "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+  if type find_project_state_dir >/dev/null 2>&1; then
+    _wh_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)"
+    if [ -n "$_wh_root" ]; then STATE_DIR="$_wh_root"; else exit 0; fi
+  fi
+fi
 HANDOFF_FILE="${STATE_DIR}/handoff-artifact.md"
 
 mkdir -p "$STATE_DIR" 2>/dev/null

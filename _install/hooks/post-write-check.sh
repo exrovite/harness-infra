@@ -26,9 +26,10 @@ STATE_DIR="${STATE_DIR:-.claude/state}"
 # real project root; if there is NO project (no ancestor .claude below $HOME), exit without writing —
 # a stray write here is what minted .claude dirs in scratch folders. Only the bare ".claude/state"
 # default is touched, so explicit HARNESS_STATE_DIR and multilane lane dirs are left alone.
-if [ -z "${HARNESS_STATE_DIR:-}" ] && [ "$STATE_DIR" = ".claude/state" ] && type find_project_state_dir >/dev/null 2>&1; then
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then
   _pwc_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)"
-  if [ -n "$_pwc_root" ]; then STATE_DIR="$_pwc_root"; else exit 0; fi
+  if [ -z "$_pwc_root" ]; then exit 0; fi                          # no project root -> create nothing
+  [ "$STATE_DIR" = ".claude/state" ] && STATE_DIR="$_pwc_root"     # only rewrite the bare lane-1 default (keep multilane lane dirs)
 fi
 
 # --- HARNESS KILL-SWITCH (Sprint 33/35): project OFF switch — no counting/checkpoints ---

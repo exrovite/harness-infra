@@ -9,6 +9,23 @@
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
+
+# Never AUTO-CREATE a .claude project root in a non-harness folder. Resolve to an EXISTING project root;
+# if there is none (no HARNESS_STATE_DIR and no ancestor .claude below $HOME), do nothing. This is what
+# stopped the harness minting .claude in scratch/new folders. Explicit setup goes through
+# `bash init-project.sh` (or run-harness.sh, which calls init-project.sh first) — not this recovery path.
+if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then
+  _sr_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)"
+  if [ -n "$_sr_root" ]; then
+    STATE_DIR="$_sr_root"
+    # Export the resolved root so child scripts (write-handoff.sh, notify.sh, …) write into THIS
+    # project's state instead of a cwd-relative .claude — otherwise running from a subdir mints a
+    # nested .claude. Scoped to this process; does not leak to the parent.
+    export HARNESS_STATE_DIR="$STATE_DIR"
+  else
+    exit 0
+  fi
+fi
 LOCKDIR="${STATE_DIR}/harness.lockdir"
 
 if [ ! -d "$STATE_DIR" ] && [ ! -f "${STATE_DIR}/../state/current-phase.json" ]; then
