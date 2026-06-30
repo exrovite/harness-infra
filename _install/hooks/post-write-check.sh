@@ -6,6 +6,7 @@
 
 # Read tool context from stdin (Claude Code passes tool_input via stdin JSON)
 HOOK_INPUT=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$HOOK_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session must-do fan-out (mustdo_file_for_dir)
 TOOL_FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
 
 # Load helpers

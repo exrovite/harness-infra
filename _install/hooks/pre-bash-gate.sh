@@ -8,6 +8,7 @@
 # python3/echo/tee/sed-i via the Bash tool. This hook closes that gap.
 
 INPUT=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session must-do fan-out (mustdo_file_for_dir)
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null)
 
 # If no harness state, allow everything
@@ -275,8 +276,10 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
         elif [ -z "$MDB_STAMP" ] && type mustdo_is_agentpack >/dev/null 2>&1 && mustdo_is_agentpack "$MDB_OWN"; then MDB_FOREIGN=yes; fi
       fi
       if [ "$MDB_FOREIGN" = yes ]; then
-        printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do grounding was authored by a different session.\n\n" "$PHASE_CTX" >&2
-        printf "Send '+++pack' to rebuild your own owned must-do file (previous pack archived to\n" >&2
+        printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do file carries a DIFFERENT session's stamp — it is not yours.\n\n" "$PHASE_CTX" >&2
+        printf "YOUR OWN must-do file is:  %s\n" "$MDB_OWN" >&2
+        printf "Each session owns exactly ONE must-do file — never overwrite another session's.\n" >&2
+        printf "Send '+++pack' to (re)build YOUR file above (any prior body archived to\n" >&2
         printf "docs/must do/history/), then write your summary — before writing source via Bash.\n" >&2
         print_gates_ahead
         exit 2

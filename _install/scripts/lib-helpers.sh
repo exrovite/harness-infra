@@ -671,18 +671,64 @@ lane_paths() {
   fi
 }
 
-# mustdo_file_for_dir DIR — resolve THIS caller's owned must-do file inside a candidate dir,
-# honoring lane ownership (slot-N <-> must-do-(N-1).md). Uses the global LANE set by resolve_instance.
-# Lane 1 / unset -> "DIR/must-do.md". Lane N>=2 -> "DIR/must-do-(N-1).md" IF it exists, else falls
-# back to "DIR/must-do.md" (back-compat: a lane with no numbered file uses the shared default).
-# Replaces hardcoded "DIR/must-do.md" and "find DIR | head -1" so every gate reads the OWNED file.
+# mustdo_file_for_dir DIR — resolve THIS session's OWNED must-do file inside a candidate dir.
+#
+# DEFAULT per-session fan-out (NO opt-in needed — agents never think to enable multilane): concurrent
+# sessions in ONE project each own a DISTINCT file (must-do.md, must-do-2.md, must-do-3.md, …) so they
+# never share a stamp and can never deadlock ping-ponging +++pack over a single must-do.md. Ownership
+# rides on the per-project watcher pool (slot order == file order), exactly as MUST-DO-SYSTEM.md says.
+#
+# Resolution order:
+#   1. Explicit multilane (LANE>1 via .claude/multi-lane.json) -> must-do-(LANE-1).md  [unchanged].
+#   2. No session id (tests / non-session callers)             -> must-do.md           [back-compat].
+#   3. A file already STAMPED BY ME                            -> that file  [stable across roster shifts].
+#   4. Otherwise, my ORDINAL among this project's ACTIVE sessions (sorted by watcher slot):
+#        ordinal 1 -> must-do.md ; ordinal k>1 -> must-do-k.md   [race-free: slots are uniquely assigned].
+# HARNESS_SESSION_ID is set once per hook from the payload .session_id. Result is memoised per (DIR,SID).
 mustdo_file_for_dir() {
-  local DIR="$1" L="${LANE:-1}" F
-  if [ "$L" = "1" ] || [ -z "$L" ]; then
-    printf '%s/must-do.md' "$DIR"; return 0
+  local DIR="$1" L="${LANE:-1}" SID="${HARNESS_SESSION_ID:-}" F st i REG PN ORD n s TMPF
+  # 1. explicit multilane (opt-in) — unchanged
+  if [ -n "$L" ] && [ "$L" != "1" ]; then
+    F="${DIR}/must-do-$((L - 1)).md"
+    if [ -f "$F" ]; then printf '%s' "$F"; return 0; fi
   fi
-  F="${DIR}/must-do-$((L - 1)).md"
-  if [ -f "$F" ]; then printf '%s' "$F"; else printf '%s/must-do.md' "$DIR"; fi
+  # 2. back-compat: no session id -> shared default
+  if [ -z "$SID" ]; then printf '%s/must-do.md' "$DIR"; return 0; fi
+  # memo (perf): same DIR+SID within one hook invocation -> reuse (avoids re-scanning per call site)
+  if [ "${_MFD_DIR:-}" = "$DIR" ] && [ "${_MFD_SID:-}" = "$SID" ] && [ -n "${_MFD_VAL:-}" ]; then
+    printf '%s' "$_MFD_VAL"; return 0
+  fi
+  # 3. a file already stamped by ME is mine (stable even if the active roster changes)
+  i=0
+  while [ "$i" -le 9 ]; do
+    if [ "$i" -eq 0 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-$((i + 1)).md"; fi
+    if [ -f "$F" ]; then
+      st=$(mustdo_stamp_of "$F")
+      if [ "$st" = "$SID" ]; then _MFD_DIR="$DIR"; _MFD_SID="$SID"; _MFD_VAL="$F"; printf '%s' "$F"; return 0; fi
+    fi
+    i=$((i + 1))
+  done
+  # 4. initial assignment by my ordinal among ACTIVE project sessions (sorted by slot) — race-free
+  REG="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
+  ORD=0
+  PN=$(_proj_norm "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)
+  if [ -n "$PN" ] && [ -f "$REG" ]; then
+    TMPF=$(mktemp 2>/dev/null)
+    if [ -n "$TMPF" ]; then
+      jq -r --arg p "$PN" '[.watchers[]? | select(.status=="active" and .project!=null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))] | sort_by(.slot) | .[].session_id' "$REG" 2>/dev/null | tr -d '\r' > "$TMPF"
+      n=0
+      while IFS= read -r s || [ -n "$s" ]; do
+        [ -z "$s" ] && continue
+        n=$((n + 1))
+        if [ "$s" = "$SID" ]; then ORD="$n"; break; fi
+      done < "$TMPF"
+      rm -f "$TMPF" 2>/dev/null
+    fi
+  fi
+  if [ "$ORD" -le 1 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-${ORD}.md"; fi
+  _MFD_DIR="$DIR"; _MFD_SID="$SID"; _MFD_VAL="$F"
+  printf '%s' "$F"
+  return 0
 }
 
 # ===== Sprint 37: session-aware must-do stamping + non-destructive history snapshot =====

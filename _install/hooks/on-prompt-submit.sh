@@ -16,6 +16,7 @@
 # to stderr only. MSYS-safe throughout (tr for backslashes, \r stripping, trailing-newline
 # read guards). See MEMORY.md "Harness Kill-Switch" and "Must-Do" sections for details.
 PROMPT_INPUT=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$PROMPT_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session must-do fan-out (mustdo_file_for_dir)
 PROMPT_TEXT=$(printf '%s' "$PROMPT_INPUT" | jq -r '.prompt // ""' 2>/dev/null | tr -d '\r')
 
 # on-prompt-submit.sh â€” Claude Code UserPromptSubmit hook
@@ -521,12 +522,16 @@ if { [ "$PHASE" = "NEGOTIATE" ] || [ "$PHASE" = "BUILD" ]; } && [ "$SPRINT" != "
 fi
 
 if [ -n "$MUST_DO_DIR" ] && [ "$PHASE" = "BUILD" ]; then
-  # Per-session grounding: each model keeps its OWN summary (must-do-summary.<session_id>.md) so
-  # parallel sessions never clobber each other. Advise when THIS session hasn't authored one yet.
+  # Per-session grounding: each session OWNS its OWN must-do file (must-do.md / must-do-2.md / …,
+  # assigned by the watcher pool) AND its OWN summary (must-do-summary.<session_id>.md). ALWAYS tell
+  # this session which file is its own, so parallel sessions choose their own and never overwrite
+  # another agent's must-do file (the cause of the +++pack ping-pong deadlock).
   OPS_SID=$(printf '%s' "$PROMPT_INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')
+  OPS_OWN=$(mustdo_file_for_dir "$MUST_DO_DIR" 2>/dev/null); [ -n "$OPS_OWN" ] || OPS_OWN="${MUST_DO_DIR}/must-do.md"
+  add_action "YOUR must-do file is '${OPS_OWN}' — yours alone. Read it + referenced docs. NEVER read, clear, or overwrite another session's must-do file; to (re)build your own send '+++pack' (writes only $(basename "$OPS_OWN" 2>/dev/null))."
   if [ -n "$OPS_SID" ]; then
     if [ ! -f "${STATE_DIR}/must-do-summary.${OPS_SID}.md" ]; then
-      add_action "Author your OWN must-do summary: Write â€” .claude/state/must-do-summary.md. Each session keeps its own grounding; you haven't written yours yet (won't unlock source writes until you do)."
+      add_action "Author your OWN must-do summary: Write â€” .claude/state/must-do-summary.md. The harness snapshots it as YOURS (must-do-summary.${OPS_SID}.md); you haven't written yours yet (won't unlock source writes until you do)."
     fi
   elif [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
     add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"

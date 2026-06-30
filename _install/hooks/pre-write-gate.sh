@@ -23,6 +23,7 @@ fi
 
 # Read stdin once for all gates (tool input JSON from Claude Code)
 INPUT_DATA=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session must-do fan-out (mustdo_file_for_dir)
 
 # Kill-switch by TARGET FILE: a write to a file inside an unlocked project is allowed regardless of cwd.
 KS_TGT=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
@@ -375,7 +376,11 @@ for CAND_DIR in "docs/must do" "docs/must-do" ".claude/must-do"; do
   if [ -d "$CAND_DIR" ]; then
     # Lane-aware: resolve THIS caller's OWNED must-do file, not just the first *.md.
     MUST_DO_MD=$(mustdo_file_for_dir "$CAND_DIR" 2>/dev/null)
-    [ -n "$MUST_DO_MD" ] && [ -f "$MUST_DO_MD" ] || MUST_DO_MD=$(find "$CAND_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | head -1)
+    # Keep the resolved OWNED file even if it does not exist yet — a new session must author its own
+    # (e.g. must-do-2.md). Only scan for an existing *.md when the resolver returned nothing; never
+    # clobber a valid owned path with "the first file in the dir" (that was forcing every session onto
+    # must-do.md and causing the multi-session ownership deadlock).
+    [ -n "$MUST_DO_MD" ] || MUST_DO_MD=$(find "$CAND_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | head -1)
     [ -n "$MUST_DO_MD" ] && break
   fi
 done
@@ -424,10 +429,12 @@ if [ -n "$MUST_DO_MD" ]; then
     if [ "$MD_FS_EXEMPT" = true ]; then
       MD_OWNERSHIP_SKIP=true
     else
-      printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do grounding was authored by a different session.\n\n" "$PHASE_CTX" >&2
-      printf "A leftover must-do file is NOT your grounding — author your own before writing source.\n" >&2
-      printf "  - Send '+++pack' to capture this conversation and rebuild your owned must-do file\n" >&2
-      printf "    (the previous pack is preserved under docs/must do/history/), then write your summary.\n" >&2
+      printf "[MUST-DO OWNERSHIP] BLOCKED: %s This must-do file carries a DIFFERENT session's stamp — it is not yours.\n\n" "$PHASE_CTX" >&2
+      printf "YOUR OWN must-do file is:  %s\n" "$MUST_DO_MD" >&2
+      printf "Each session owns exactly ONE must-do file — never read, clear, or overwrite another\n" >&2
+      printf "session's. Author/use only the file named above.\n" >&2
+      printf "  - Send '+++pack' to (re)build YOUR file (%s) from this conversation\n" "$MUST_DO_MD" >&2
+      printf "    (any prior body is preserved under docs/must do/history/), then write your summary.\n" >&2
       print_gates_ahead
       exit 2
     fi
@@ -495,7 +502,7 @@ if [ -n "$MUST_DO_MD" ]; then
         if grep -qiF "$BN" "$SUMMARY_FILE" 2>/dev/null; then
           MENTIONS=$((MENTIONS + 1))
         fi
-      done < "$MUST_DO_MD"
+      done < "$([ -f "$MUST_DO_MD" ] && printf '%s' "$MUST_DO_MD" || printf '/dev/null')"
 
       # Check if summary is for the current step (stale if step changed)
       if [ -f "$STEP_FILE" ] && [ -n "$CURRENT_STEP_MD" ]; then
@@ -558,7 +565,7 @@ if [ -n "$MUST_DO_MD" ]; then
         [ -z "$mdl" ] && continue
         case "$mdl" in '<!--'*|'#'*|'---'*|*mustdo-session:*) continue ;; esac
         printf "  - %s\n" "$mdl" >&2
-      done < "$MUST_DO_MD"
+      done < "$([ -f "$MUST_DO_MD" ] && printf '%s' "$MUST_DO_MD" || printf '/dev/null')"
       printf "\nYou MUST:\n" >&2
       printf "  1. READ every file listed above\n" >&2
       printf "  2. WRITE a summary to .claude/state/must-do-summary.md\n" >&2
