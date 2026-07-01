@@ -101,6 +101,11 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     REAPED=$(watcher_reap_stale "" "$WATCHER_REGISTRY" 2>/dev/null)
     [ -n "$REAPED" ] && printf "startup-recovery: reaped stale (heartbeat) watcher slots:%s\n" " $REAPED" >&2
   fi
+  # Reap orphaned must-do summary lanes whose owning session is dead (keeps .claude/state clean).
+  if type mustdo_reap_stale_summaries >/dev/null 2>&1; then
+    SUM_REAPED=$(mustdo_reap_stale_summaries "$STATE_DIR" "$WATCHER_REGISTRY" 2>/dev/null)
+    [ -n "$SUM_REAPED" ] && printf "startup-recovery: reaped stale summary lanes:%s\n" " $SUM_REAPED" >&2
+  fi
   NOW_EPOCH=$(date +%s)
   STALE_THRESHOLD=14400  # 4 hours
 

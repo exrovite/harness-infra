@@ -29,6 +29,20 @@ export HARNESS_SESSION_ID="$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // "
 KS_TGT=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
 if [ -n "$KS_TGT" ] && harness_disabled_resolved "" "$KS_TGT" 2>/dev/null; then exit 0; fi
 
+# HARD SESSION ISOLATION: refuse to write into ANOTHER, still-LIVE session's must-do property (its
+# summary lane must-do-summary.<sid>.md, or its owned/stamped must-do file). Your OWN is always writable;
+# a dead/reaped owner's property is reclaimable (NOT blocked) so no one is ever locked out; fail-open when
+# this session has no id. Checked before any path exemption (summaries live in the always-writable state dir).
+if [ -n "${HARNESS_SESSION_ID:-}" ] && [ -n "$KS_TGT" ] && type mustdo_peer_write_blocked >/dev/null 2>&1; then
+  _ISO_PEER=$(mustdo_peer_write_blocked "$KS_TGT" "$HARNESS_SESSION_ID")
+  if [ -n "$_ISO_PEER" ]; then
+    printf "[SESSION ISOLATION] BLOCKED: %s belongs to a DIFFERENT, still-active session — you may not write it.\n\n" "$KS_TGT" >&2
+    printf "Write ONLY your own must-do file / summary lane (the prompt packet names both). Another\n" >&2
+    printf "session's property is off-limits while it is alive; it becomes reclaimable once that session ends.\n" >&2
+    exit 2
+  fi
+fi
+
 # Multilane lane resolution (Sprint 31a): override flat STATE_DIR with the lane's (lane 1 = flat,
 # transparent for single instance). Skipped when HARNESS_STATE_DIR is an explicit test override.
 if [ -z "${HARNESS_STATE_DIR:-}" ] && type resolve_instance >/dev/null 2>&1; then

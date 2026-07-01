@@ -21,6 +21,23 @@ if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "" 2>/dev/null || [ 
   exit 0
 fi
 
+# HARD SESSION ISOLATION (Bash): a WRITE command may not target ANOTHER, still-LIVE session's must-do
+# property (its summary lane or owned must-do file), whatever the path (relative, absolute, /tmp).
+# Own is fine; a dead/reaped owner's property is reclaimable; fail-open when no session id. Gated on a
+# write indicator (redirect / tee / cp / mv / sed -i / dd / truncate / heredoc / python open) so pure
+# reads are not blocked. Runs before the .claude/state bootstrap exemption (summaries live there).
+if [ -n "${HARNESS_SESSION_ID:-}" ] && type mustdo_peer_write_blocked >/dev/null 2>&1 \
+   && printf '%s' "$COMMAND" | grep -qE '>|\b(tee|cp|mv|dd|truncate|install)\b|sed\b[^|]*-i|<<|python[^|]*\bopen\b'; then
+  for _iso_tok in $(printf '%s' "$COMMAND" | grep -oiE 'must-do[A-Za-z0-9._-]*\.(md|txt)' 2>/dev/null | sort -u); do
+    _ISO_PEER=$(mustdo_peer_write_blocked "$_iso_tok" "$HARNESS_SESSION_ID")
+    if [ -n "$_ISO_PEER" ]; then
+      printf "[SESSION ISOLATION] BLOCKED: this Bash command writes %s, which belongs to a DIFFERENT active session — off-limits.\n\n" "$_iso_tok" >&2
+      printf "Write only your OWN must-do file / summary lane. A peer's property is reclaimable only after it ends.\n" >&2
+      exit 2
+    fi
+  done
+fi
+
 if [ ! -f "${STATE_DIR}/current-phase.json" ]; then
   exit 0
 fi

@@ -56,6 +56,11 @@ fi
 if [ -z "${HARNESS_STATE_DIR:-}" ] && [ "${LANE:-1}" = "1" ] && type find_project_state_dir >/dev/null 2>&1; then
   _ks_root="$(find_project_state_dir "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)" && STATE_DIR="$_ks_root"
 fi
+# Reap stale must-do summary lanes (dead sessions) from THIS project's resolved state dir, so
+# .claude/state doesn't fill with orphaned per-session summaries. Own + live sessions are kept.
+if [ -n "${HARNESS_SESSION_ID:-}" ] && type mustdo_reap_stale_summaries >/dev/null 2>&1; then
+  mustdo_reap_stale_summaries "$STATE_DIR" >/dev/null 2>&1
+fi
 KS_FLAG="${STATE_DIR}/harness-disabled.flag"
 KS_PROJECT=$(pwd -W 2>/dev/null || pwd); KS_PROJECT=$(basename "$KS_PROJECT" 2>/dev/null)
 KS_TRIMMED=$(printf '%s' "$PROMPT_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')

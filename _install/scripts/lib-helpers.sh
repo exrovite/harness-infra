@@ -559,6 +559,98 @@ watcher_reap_stale() {
   return 0
 }
 
+# session_is_live SID [REG] — rc 0 iff SID has an ACTIVE watcher whose heartbeat (last_seen, else
+# claimed_at) is within the stale threshold. This is the SAME liveness signal watcher_reap_stale uses,
+# so "live" == "not yet reaped". A dead/reaped session is NOT live, so its must-do file/summary becomes
+# reclaimable + cleanable — that is what prevents a hard ownership block from locking everyone out.
+session_is_live() {
+  local SID="$1"
+  local REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local STALE="${HARNESS_WATCHER_STALE_SECONDS:-1200}" TS NOW_EPOCH TE
+  [ -n "$SID" ] || return 1
+  [ -f "$REG" ] || return 1
+  TS=$(jq -r --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")][0] | (.last_seen // .claimed_at // empty)' "$REG" 2>/dev/null | tr -d '\r')
+  [ -n "$TS" ] || return 1
+  NOW_EPOCH=$(date +%s 2>/dev/null) || return 0   # if we cannot compute time, treat as live (fail-safe: do not reap/allow-clobber)
+  TE=$(date -d "$TS" +%s 2>/dev/null || echo "$NOW_EPOCH")
+  [ $((NOW_EPOCH - TE)) -le "$STALE" ] 2>/dev/null && return 0 || return 1
+}
+
+# mustdo_reap_stale_summaries [STATE_DIR] [REG] — remove per-session must-do summary + step files whose
+# owning session is NOT live (dead/reaped), so .claude/state does not fill with orphans. Never removes the
+# current session's own (HARNESS_SESSION_ID) or the shared must-do-summary.md. A small age grace avoids
+# racing a session that just wrote its summary before its watcher landed in the registry. Echoes removed sids.
+mustdo_reap_stale_summaries() {
+  local SD="${1:-${HARNESS_STATE_DIR:-.claude/state}}"
+  local REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local GRACE="${HARNESS_SUMMARY_GRACE_SECONDS:-300}" ME NOW_EPOCH f base sid me_ok mt removed
+  [ -d "$SD" ] || return 0
+  ME="${HARNESS_SESSION_ID:-}"
+  NOW_EPOCH=$(date +%s 2>/dev/null) || return 0
+  removed=""
+  for f in "$SD"/must-do-summary.*.md; do
+    [ -f "$f" ] || continue
+    base=$(basename "$f")
+    sid="${base#must-do-summary.}"; sid="${sid%.md}"
+    [ -n "$sid" ] || continue
+    [ "$sid" = "$ME" ] && continue                       # never my own
+    session_is_live "$sid" "$REG" && continue            # owner still alive -> keep
+    mt=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+    [ $((NOW_EPOCH - mt)) -gt "$GRACE" ] 2>/dev/null || continue   # too fresh -> keep (avoid claim race)
+    rm -f "$f" "$SD/must-do-summary-step.${sid}.txt" 2>/dev/null
+    removed="$removed $sid"
+  done
+  removed=$(printf '%s' "$removed" | xargs 2>/dev/null)
+  [ -n "$removed" ] && printf '%s' "$removed"
+  return 0
+}
+
+# mustdo_cross_session_owner TARGET [REG] — if TARGET is a PER-SESSION must-do property owned by some
+# session, echo that owning session id; else echo nothing. Recognizes: a summary lane file
+# (must-do-summary.<sid>.md / must-do-summary-step.<sid>.txt — the shared must-do-summary.md is NOT owned)
+# and a must-do file inside a must-do dir (owner = its stamp). The gate blocks a write only when this
+# owner is a DIFFERENT, still-LIVE session — so a dead owner's property stays reclaimable.
+mustdo_cross_session_owner() {
+  local T="$1" norm base sid
+  [ -n "$T" ] || return 0
+  norm=$(printf '%s' "$T" | tr '\\' '/')
+  base=$(basename "$norm")
+  case "$base" in
+    must-do-summary.md|must-do-summary-step.txt) return 0 ;;   # shared scratch — not session-owned
+    must-do-summary.*.md)
+      sid="${base#must-do-summary.}"; sid="${sid%.md}"
+      [ -n "$sid" ] && printf '%s' "$sid"; return 0 ;;
+    must-do-summary-step.*.txt)
+      sid="${base#must-do-summary-step.}"; sid="${sid%.txt}"
+      [ -n "$sid" ] && printf '%s' "$sid"; return 0 ;;
+    must-do.md|must-do-[0-9]*.md)
+      if printf '%s' "$norm" | grep -qiE '(^|/)(docs/must[ -]do|\.claude/must-do)/'; then
+        type mustdo_stamp_of >/dev/null 2>&1 && mustdo_stamp_of "$T"
+      else
+        # bare basename (e.g. from a Bash token): probe the standard must-do dirs in cwd
+        local d
+        for d in "docs/must do" "docs/must-do" ".claude/must-do"; do
+          if [ -f "$d/$base" ]; then type mustdo_stamp_of >/dev/null 2>&1 && mustdo_stamp_of "$d/$base"; return 0; fi
+        done
+      fi
+      return 0 ;;
+  esac
+  return 0
+}
+
+# mustdo_peer_write_blocked TARGET MY_SID [REG] — rc 0 (BLOCK) iff TARGET is another, still-LIVE session's
+# must-do property. Own property, unowned targets, and DEAD owners (reclaimable) -> rc 1 (allow). Fail-open
+# when MY_SID is empty (session-less callers / tests). Echoes the offending owner sid on block.
+mustdo_peer_write_blocked() {
+  local T="$1" ME="$2" REG="${3:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}" OWNER
+  [ -n "$ME" ] || return 1
+  OWNER=$(mustdo_cross_session_owner "$T" "$REG")
+  [ -n "$OWNER" ] || return 1
+  [ "$OWNER" = "$ME" ] && return 1
+  if session_is_live "$OWNER" "$REG"; then printf '%s' "$OWNER"; return 0; fi
+  return 1
+}
+
 check_watcher_for_project() {
   local PROJECT_PATH="$1"
   local REGISTRY="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
