@@ -1,17 +1,28 @@
-# Must-Do Summary — Default-On Must-Do System
+# Must-Do Grounding — Sprint 34 (Secret-Safe GLM Add-On)
 
-Task: invert the must-do system from opt-in to default-on, switchable off only via the `---` kill-switch.
+Session c687defc. Read before BUILD writes.
 
-Files I have read and must respect:
+## Files read
+- **gentle-mapping-hejlsberg.md** — the plan that made the must-do system DEFAULT-ON. Key facts I must
+  respect: the kill-switch check `if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then exit 0; fi` sits
+  at the TOP of every gate (pre-write-gate.sh:13, pre-bash-gate.sh:17, pre-flight-gate.sh:28) so `---`
+  always wins; the must-do summary gate is BUILD-scoped; exemptions cover `.claude/state/`,
+  `.claude/contracts/`, `.claude/specs/`, `.openclaw/watchers/`, `.agent-memory/`, `.claude/pre-flight/`,
+  `agentwiki/`, `.lavish-axi/`, and the no-folder branch adds `docs/` + `*.md`. `_install/*` is kept
+  byte-identical to live `~/.claude/*`.
+- **_install/hooks/pre-write-gate.sh**, **_install/hooks/pre-bash-gate.sh**,
+  **_install/hooks/on-prompt-submit.sh** — the three gate hooks the must-do default-on plan modifies.
+  My task does NOT edit these; I must avoid touching them and keep them intact.
+- **test-mustdo-default-on.sh** — TDD that drives the LIVE hooks through a `HARNESS_STATE_DIR` sandbox
+  and asserts default-on verdicts (block without grounding, kill-switch wins, no deadlock writing the
+  must-do file, anti-regression for the folder+summary path).
 
-1. **gentle-mapping-hejlsberg.md** (approved plan) — defines three changes: Change 1 pre-write-gate.sh no-folder else-branch (DONE, verified); Change 2 pre-bash-gate.sh mirror to close the bash bypass (NEXT); Change 3 on-prompt-submit.sh advisory action (~lines 454-488). Kill-switch always wins (checked at top of every gate). No-folder branch must exempt `docs/` and `*.md` to avoid deadlock. Out of scope: +++pack PLAN gate, MCQ generator, evidence-checkpoint.
-
-2. **_install/hooks/pre-write-gate.sh** + live copy — Change 1 already applied as an `else` branch on `if [ -n "$MUST_DO_MD" ]`. Must stay byte-identical live↔_install after sync.
-
-3. **_install/hooks/pre-bash-gate.sh** + live copy — must insert mirrored must-do enforcement after the phase gate (after the `fi` closing BUILD-only phase gate, before `# Ralph STUCK`). BUILD-scoped, exempt docs/ and .md, honor kill-switch.
-
-4. **_install/hooks/on-prompt-submit.sh** + live copy — advisory packet action when no folder in BUILD.
-
-5. **tests/test-mustdo-default-on.sh** — 11 checks via HARNESS_STATE_DIR sandbox driving live hooks. Pre-write tests 1-5 pass; pre-bash 6a/6b need Change 2.
-
-Constraints carried forward: isolated venvs only; never break the Anthropic API connection; Anthropic models only. Mirror every hook edit to both live and _install; run full suite; spawn EVALUATE verifier before commit.
+## Relevance to my CURRENT task
+I am adding a GLM install-pack add-on: launcher templates, a marker-gated dual-capable supervisor
+(`headroom-supervisor.ps1`/`.sh`), `glm-setup.sh`, an opt-in Step 11 in `install.sh`, `.gitignore`, and
+`tests/test-glm-packaging.sh`. This is NEW code under `_install/scripts`, `_install/templates`, and
+`tests/` — it does **not** modify the gate hooks above. The grounding confirms: (1) keep `_install` and
+live `~/.claude` in parity ONLY for files I actually change (the gate hooks are out of scope), (2) write
+my own tests first (TDD) following the sandbox pattern, (3) never commit the z.ai token, (4) the
+supervisor must stay byte-equivalent for the no-GLM (no `glm.enabled` marker) path so I don't regress the
+8787 compression behavior. No gate-hook edits, no kill-switch changes.

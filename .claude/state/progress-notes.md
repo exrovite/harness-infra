@@ -1,35 +1,35 @@
-# Progress Notes — Harness Infrastructure
+# Progress Notes — Sprint 35: Beast-Mode (intuition grounding)
 
-## Current: Sprint 33 — Harness Kill-Switch — IMPLEMENTED & VALIDATED
+## Status: BUILD complete, awaiting independent validation of the control proof.
 
-**Feature:** per-project on/off switch driven by exact-match prompt tokens.
-- Prompt EXACTLY `---` (trimmed) → writes `.claude/state/harness-disabled.flag` (harness OFF)
-- Prompt EXACTLY `===` (trimmed) → deletes the flag (harness ON)
-- While OFF: every enforcement hook short-circuits (exit 0) at the TOP, before any
-  phase/watcher/MCQ/evidence/must-do/contract logic. `on-prompt-submit.sh` injects a
-  `[HARNESS OFF — <project>]` banner every turn instead of the full packet.
-- Project-scoped (flag in project-local `.claude/state/`); never affects other projects.
-- Exact-match only — `----`, `==`, `foo---` do NOT toggle; padded `   ---   ` trims & toggles.
+## Built
+- **Helpers** (`lib-helpers.sh`): `beast_is_on` / `beast_enable` / `beast_disable`,
+  project-root resolved, atomic. Mirror of the harness_* helpers.
+- **Toggle** (`on-prompt-submit.sh`): `beast-on` / `beast-off` exact-match, full truth
+  table — `beast-on` auto-enables the harness first if disabled (prints the exact
+  `[HARNESS RE-ENABLED — beast mode requires active gates]` notice); `beast-off` leaves
+  harness on; `---` drops both; `===` restores harness only. Superset rule enforced.
+- **Intuition core** (`beast-surface.sh`): deterministic recall. Scans an action's stable
+  atoms (scope glob + trigger regex) against `.beast/lessons.jsonl`; emits an adversarial
+  injection naming matched lessons + fixes, or SILENCE. Pure, no LLM at recall.
+- **Lesson store** (`.beast/lessons.jsonl`): two genuinely-true project lessons
+  (MSYS sed→tr; cwd-vs-project-root / `find_project_state_dir`, commit 99353ff).
+- **_install mirror**: on-prompt-submit.sh, lib-helpers.sh, beast-surface.sh — parity OK.
 
-**Files edited (live `~/.claude/` AND repo `_install/` mirror):**
-- `scripts/lib-helpers.sh` — `harness_is_disabled` / `harness_disable` / `harness_enable`
-- `hooks/on-prompt-submit.sh` — toggle detection + OFF banner (short-circuits packet)
-- `hooks/pre-write-gate.sh`, `pre-bash-gate.sh`, `pre-flight-gate.sh`, `post-write-check.sh`
-  — `if [ -f "${STATE_DIR}/harness-disabled.flag" ]; then exit 0; fi` near top
+## Tests (TDD-first, all green)
+- `tests/test-beast-toggle.sh` 21/21 (live hook, truth table).
+- `tests/test-beast-surface.sh` 9/9 (deterministic surfacing).
+- `tests/test-intuition-control.sh` 8/8 (machine-produced injection carries the
+  unguessable symbol; silence on unrelated).
+- `tests/test-killswitch.sh` 22/22 (regression, unchanged).
 
-**Tests:** `tests/test-killswitch.sh` — 22/22 PASS (helpers, toggle both directions, OFF
-banner, packet suppression, near-miss rejection, all 4 gates bypass with flag, no write
-counting while OFF). Run against the LIVE hooks via `HARNESS_STATE_DIR` sandbox.
+## Proof of control (the goal)
+`.claude/evidence/intuition-control-proof.md`. A/B with real sub-agents, project-specific
+unguessable lesson, N=3:
+- Reconciled ("M2 applies"): ON 3/3, OFF 0/3.
+- Project-correct resolution: ON 3/3, OFF 0/3 (OFF reproduced the documented bug).
+- Negative control (sed lesson the model already knows): no delta — method is sound.
 
-**Verification:** two independent verifier sub-agents, both VERDICT: PASS. Mirror parity
-confirmed (5 hooks + lib-helpers in both trees). `bash -n` clean on all. MSYS-safe
-(trim uses `sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'`, no backslash subs).
-
-**Spec:** `.claude/specs/harness-killswitch-spec.md` (was Sprint 30 QUEUED). Open questions
-resolved: active crons left alone; no auto-timeout (stays OFF until `===`).
-
----
-
-## Prior: Sprint 32 — lavish-axi Harness Integration — COMPLETE (commit 0f0b2b2)
-GOAL: make lavish-axi (human↔agent HTML-artifact feedback) a first-class harness citizen, shipped in _install.
-User decisions: npm-global pinned (0.1.20) · always-on SessionStart · full harness-native.
+## Next
+Independent rigorous validator must REPRODUCE the A/B itself and render PASS/FAIL on
+"the agent is controlled by the intuition system."
