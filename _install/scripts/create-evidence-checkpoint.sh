@@ -122,9 +122,17 @@ WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 if [ -f "$WATCHER_REGISTRY" ]; then
   WC_PROJECT=$(pwd -W 2>/dev/null || pwd)
   WC_PROJECT=$(printf '%s' "$WC_PROJECT" | tr '\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
-  WC_SLOT=$(jq -r --arg proj "$WC_PROJECT" \
-    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
-    "$WATCHER_REGISTRY" 2>/dev/null)
+  # THIS session's own watcher checklist (inherited HARNESS_SESSION_ID from the calling hook), not the
+  # project's first/stale watcher — so the evidence checkpoint verifies the agent's OWN declared plan.
+  if [ -n "${HARNESS_SESSION_ID:-}" ]; then
+    WC_SLOT=$(jq -r --arg s "$HARNESS_SESSION_ID" \
+      '[.watchers[]? | select(.session_id==$s and .status=="active")][0].slot // empty' \
+      "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r' | head -1)
+  else
+    WC_SLOT=$(jq -r --arg proj "$WC_PROJECT" \
+      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
+      "$WATCHER_REGISTRY" 2>/dev/null)
+  fi
   if [ -n "$WC_SLOT" ]; then
     WC_FILE="$HOME/.openclaw/watchers/slot-${WC_SLOT}.md"
     if [ -f "$WC_FILE" ]; then

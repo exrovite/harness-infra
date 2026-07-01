@@ -12,6 +12,9 @@ TOOL_FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // .to
 # Load helpers
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
 
+# Heartbeat: refresh THIS session's watcher on file writes (covers long, write-heavy turns between crons).
+[ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_touch_session >/dev/null 2>&1 && watcher_touch_session "$HARNESS_SESSION_ID" 2>/dev/null
+
 # Multilane lane resolution (Sprint 31a): lane 1 = flat (transparent for single instance).
 # Honor an explicit HARNESS_STATE_DIR override (tests/sandboxes) first.
 if [ -n "${HARNESS_STATE_DIR:-}" ]; then

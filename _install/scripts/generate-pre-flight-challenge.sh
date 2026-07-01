@@ -24,13 +24,21 @@ if [ ! -f "$WATCHER_REGISTRY" ]; then
   exit 1
 fi
 
-# Find the slot number for this project
-SLOT_NUM=$(jq --arg proj "$CURRENT_PROJECT" \
-  '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
-  "$WATCHER_REGISTRY" 2>/dev/null)
+# Find the slot number for THIS SESSION's own watcher (PF_SID). The challenge must be derived from the
+# agent's OWN task, not the project's first/stale watcher — otherwise one session answers another's
+# questions. Fall back to the project's first slot only when no session id was passed (back-compat).
+if [ -n "$PF_SID" ]; then
+  SLOT_NUM=$(jq -r --arg s "$PF_SID" \
+    '[.watchers[]? | select(.session_id==$s and .status=="active")][0].slot // empty' \
+    "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r' | head -1)
+else
+  SLOT_NUM=$(jq --arg proj "$CURRENT_PROJECT" \
+    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
+    "$WATCHER_REGISTRY" 2>/dev/null)
+fi
 
 if [ -z "$SLOT_NUM" ]; then
-  printf "generate-pre-flight-challenge: no active watcher for this project\n" >&2
+  printf "generate-pre-flight-challenge: no active watcher for this session\n" >&2
   exit 1
 fi
 

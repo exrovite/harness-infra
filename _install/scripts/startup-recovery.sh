@@ -94,6 +94,13 @@ fi
 # Uses bash date -d instead of jq strptime (strptime broken on Windows/MSYS)
 WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 if [ -f "$WATCHER_REGISTRY" ]; then
+  # Heartbeat-based reap (AC30): free watchers whose last_seen is stale (owning session gone). This is
+  # the responsive path (~20 min); the claimed_at 4h/72h reaps below are the legacy fallback for
+  # watchers that predate the heartbeat.
+  if type watcher_reap_stale >/dev/null 2>&1; then
+    REAPED=$(watcher_reap_stale "" "$WATCHER_REGISTRY" 2>/dev/null)
+    [ -n "$REAPED" ] && printf "startup-recovery: reaped stale (heartbeat) watcher slots:%s\n" " $REAPED" >&2
+  fi
   NOW_EPOCH=$(date +%s)
   STALE_THRESHOLD=14400  # 4 hours
 

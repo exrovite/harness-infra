@@ -28,6 +28,14 @@ WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 HELPERS="$HOME/.claude/scripts/lib-helpers.sh"
 [ -f "$HELPERS" ] && source "$HELPERS" 2>/dev/null
 
+# Heartbeat + intelligent stale-slot reap: refresh THIS session's watcher, then free watchers whose
+# heartbeat is stale (owning session gone). Every session's */3 reminder cron keeps this fresh, so the
+# shared pool self-cleans within the stale window. Cheap, registry-locked, never touches an alive session.
+if [ -n "${HARNESS_SESSION_ID:-}" ]; then
+  type watcher_touch_session >/dev/null 2>&1 && watcher_touch_session "$HARNESS_SESSION_ID" 2>/dev/null
+  type watcher_reap_stale   >/dev/null 2>&1 && watcher_reap_stale >/dev/null 2>&1
+fi
+
 # Multilane lane resolution (Sprint 31a): UserPromptSubmit is where a lane is CLAIMED on the live
 # registry (lane 1 = flat, transparent). Honor explicit HARNESS_STATE_DIR test override.
 LANE=1

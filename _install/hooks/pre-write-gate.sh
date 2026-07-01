@@ -470,9 +470,14 @@ if [ -n "$MUST_DO_MD" ]; then
     if [ -f "$WATCHER_REGISTRY" ]; then
       CURRENT_PROJECT_MD=$(pwd -W 2>/dev/null || pwd)
       CURRENT_PROJECT_MD=$(printf '%s' "$CURRENT_PROJECT_MD" | tr '\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
-      SLOT_NUM_MD=$(jq -r --arg proj "$CURRENT_PROJECT_MD" \
-        '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
-        "$WATCHER_REGISTRY" 2>/dev/null)
+      # THIS session's own watcher slot (its own current step) — not the project's first/stale watcher.
+      if [ -n "${CUR_SESSION:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+        SLOT_NUM_MD=$(watcher_slot_for_session "$CUR_SESSION" "$WATCHER_REGISTRY")
+      else
+        SLOT_NUM_MD=$(jq -r --arg proj "$CURRENT_PROJECT_MD" \
+          '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
+          "$WATCHER_REGISTRY" 2>/dev/null)
+      fi
       if [ -n "$SLOT_NUM_MD" ]; then
         SLOT_FILE_MD="$HOME/.openclaw/watchers/slot-${SLOT_NUM_MD}.md"
         if [ -f "$SLOT_FILE_MD" ]; then
@@ -857,15 +862,23 @@ fi
 CURRENT_PROJECT=$(pwd -W 2>/dev/null || pwd)
 CURRENT_PROJECT=$(printf '%s' "$CURRENT_PROJECT" | tr '\\\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
 
-# 2+ writes — check if watcher AND cron are active FOR THIS PROJECT
+# 2+ writes — check that THIS SESSION has its OWN watcher AND cron (each concurrent session claims its
+# own slot; a sibling's watcher must NOT satisfy this session, or the session rides another's task).
 if [ -f "$WATCHER_REGISTRY" ]; then
-  # Count watchers that match this project (case-insensitive, slash-normalized)
-  ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
-    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
-    "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
-  ACTIVE_CRON=$(jq --arg proj "$CURRENT_PROJECT" \
-    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj) and .cron_job_id != null and .cron_interval == "*/3 * * * *")] | length' \
-    "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+  if [ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+    if [ -n "$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")" ]; then ACTIVE_WATCHERS=1; else ACTIVE_WATCHERS=0; fi
+    ACTIVE_CRON=$(jq -r --arg s "$HARNESS_SESSION_ID" \
+      '[.watchers[]? | select(.session_id==$s and .status=="active" and .cron_job_id!=null and .cron_interval=="*/3 * * * *")] | length' \
+      "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r'); [ -n "$ACTIVE_CRON" ] || ACTIVE_CRON=0
+  else
+    # Back-compat (session id unknown — tests): project-level count.
+    ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
+      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
+      "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+    ACTIVE_CRON=$(jq --arg proj "$CURRENT_PROJECT" \
+      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj) and .cron_job_id != null and .cron_interval == "*/3 * * * *")] | length' \
+      "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+  fi
 
   if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
     # Per-project watcher pool: this project gets up to 5 of its OWN watchers — never blocked by others.

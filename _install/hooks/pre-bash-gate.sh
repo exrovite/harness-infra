@@ -502,9 +502,14 @@ if [ "$WRITES" -ge 2 ]; then
   if [ -f "$WATCHER_REGISTRY" ]; then
     CURRENT_PROJECT=$(pwd -W 2>/dev/null || pwd)
     CURRENT_PROJECT=$(printf '%s' "$CURRENT_PROJECT" | tr '\\\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
-    ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
-      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
-      "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+    # Require THIS SESSION's own watcher (not any sibling's for the project).
+    if [ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+      if [ -n "$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")" ]; then ACTIVE_WATCHERS=1; else ACTIVE_WATCHERS=0; fi
+    else
+      ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
+        '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
+        "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+    fi
 
     if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
       CLAIM_SID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null | tr -d '\r')

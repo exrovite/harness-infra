@@ -299,14 +299,29 @@ compute_pending_gates() {
     ACTIVE_CRON=$(jq --arg proj "$PROJECT_NORM" \
       '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj) and .cron_job_id != null and .cron_interval == "*/3 * * * *")] | length' \
       "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
-    ACTIVE_SLOT=$(jq -r --arg proj "$PROJECT_NORM" \
-      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))][0].slot // empty' \
-      "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r' | head -1)
-
-    if [ "${ACTIVE_WATCHERS:-0}" -eq 0 ] 2>/dev/null; then
-      add_pending_gate "ADMIN" "watcher claim" "claim an active watcher for this project"
-    elif [ "${ACTIVE_CRON:-0}" -eq 0 ] 2>/dev/null; then
-      add_pending_gate "ADMIN" "cron reminder" "set */3 * * * * reminder on the watcher"
+    if [ -n "${HARNESS_SESSION_ID:-}" ]; then
+      # PER-SESSION: this session must have its OWN watcher (each concurrent session claims its own slot),
+      # and its step/gate is keyed to that slot — never the project's first/stale watcher.
+      ACTIVE_SLOT=$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")
+      local ACTIVE_CRON_MINE
+      ACTIVE_CRON_MINE=$(jq -r --arg s "$HARNESS_SESSION_ID" \
+        '[.watchers[]? | select(.session_id==$s and .status=="active" and .cron_job_id!=null and .cron_interval=="*/3 * * * *")] | length' \
+        "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r'); [ -n "$ACTIVE_CRON_MINE" ] || ACTIVE_CRON_MINE=0
+      if [ -z "$ACTIVE_SLOT" ]; then
+        add_pending_gate "ADMIN" "watcher claim" "claim YOUR OWN active watcher (each session needs its own slot)"
+      elif [ "$ACTIVE_CRON_MINE" -eq 0 ] 2>/dev/null; then
+        add_pending_gate "ADMIN" "cron reminder" "set */3 * * * * reminder on YOUR watcher"
+      fi
+    else
+      # Back-compat (session id unknown — tests / session-less callers): project-level check.
+      ACTIVE_SLOT=$(jq -r --arg proj "$PROJECT_NORM" \
+        '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))][0].slot // empty' \
+        "$WATCHER_REGISTRY" 2>/dev/null | tr -d '\r' | head -1)
+      if [ "${ACTIVE_WATCHERS:-0}" -eq 0 ] 2>/dev/null; then
+        add_pending_gate "ADMIN" "watcher claim" "claim an active watcher for this project"
+      elif [ "${ACTIVE_CRON:-0}" -eq 0 ] 2>/dev/null; then
+        add_pending_gate "ADMIN" "cron reminder" "set */3 * * * * reminder on the watcher"
+      fi
     fi
   elif [ "$CURRENT_PHASE" = "BUILD" ]; then
     add_pending_gate "ADMIN" "watcher claim" "watcher registry is missing or no project watcher is active"
@@ -477,12 +492,86 @@ cron_resume() {
 
 # check_watcher_for_project Ã¢â‚¬â€ Return active watcher slot for a project, or empty string
 # Usage: check_watcher_for_project "G:/path" [registry_path]
+# watcher_slot_for_session SID [REGISTRY] — echo THIS session's active watcher slot (empty if none).
+# Session-scoped: concurrent sessions in one project each resolve to their OWN watcher, so every
+# per-session artifact (pre-flight challenge, current step, evidence checklist) reflects the agent's OWN
+# task, never the project's first/stale watcher. session_id is globally unique -> no project filter needed.
+watcher_slot_for_session() {
+  local SID="$1"
+  local REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  [ -n "$SID" ] || return 0
+  [ -f "$REG" ] || return 0
+  jq -r --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")][0].slot // empty' \
+    "$REG" 2>/dev/null | tr -d '\r' | head -1
+}
+
+# watcher_touch_session SID [REG] — refresh THIS session's active-watcher heartbeat (last_seen = now).
+# No-op if the session has no active watcher. Because every session runs a */3 reminder cron, an alive
+# session refreshes its heartbeat at least every ~3 min (the cron fires while idle) — so a stale
+# heartbeat reliably means the session is gone, letting watcher_reap_stale free the slot quickly + safely.
+watcher_touch_session() {
+  local SID="$1"
+  local REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local NOW UPD
+  [ -n "$SID" ] || return 0
+  [ -f "$REG" ] || return 0
+  jq -e --arg s "$SID" '[.watchers[]?|select(.session_id==$s and .status=="active")]|length>0' "$REG" >/dev/null 2>&1 || return 0
+  NOW=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
+  _reg_lock_for "$REG" || return 0
+  UPD=$(jq --arg s "$SID" --arg t "$NOW" \
+    '.watchers |= map(if (.session_id==$s and .status=="active") then (.last_seen=$t) else . end)' "$REG" 2>/dev/null)
+  [ -n "$UPD" ] && printf '%s\n' "$UPD" > "$REG"
+  _reg_unlock_for "$REG"
+  return 0
+}
+
+# watcher_reap_stale [STALE_SECONDS] [REG] — free active watchers whose heartbeat (last_seen, else
+# claimed_at) is older than STALE_SECONDS (default 1200 = 20 min ≈ many missed */3 crons -> session
+# gone). Registry-locked; NEVER reaps HARNESS_SESSION_ID's own watcher. Removes the entry (frees the
+# slot + the per-project cap) and resets slot-N.md to available. Echoes the reaped slots.
+watcher_reap_stale() {
+  local STALE="${1:-${HARNESS_WATCHER_STALE_SECONDS:-1200}}"
+  local REG="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local NOW_EPOCH ME INFO SN TS TE SLOTS UPD
+  [ -f "$REG" ] || return 0
+  NOW_EPOCH=$(date +%s 2>/dev/null) || return 0
+  ME="${HARNESS_SESSION_ID:-}"
+  SLOTS=""
+  for INFO in $(jq -r --arg me "$ME" \
+      '.watchers[]? | select(.status=="active" and (.session_id // "") != $me) | "\(.slot)|\(.last_seen // .claimed_at // "null")"' \
+      "$REG" 2>/dev/null); do
+    SN="${INFO%%|*}"; TS="${INFO#*|}"
+    [ "$TS" = "null" ] && continue
+    TE=$(date -d "$TS" +%s 2>/dev/null || echo "$NOW_EPOCH")
+    if [ $((NOW_EPOCH - TE)) -gt "$STALE" ] 2>/dev/null; then SLOTS="$SLOTS $SN"; fi
+  done
+  SLOTS=$(printf '%s' "$SLOTS" | xargs 2>/dev/null)
+  [ -n "$SLOTS" ] || return 0
+  local WDIR; WDIR=$(dirname "$REG")   # slot-N.md files are siblings of the registry
+  _reg_lock_for "$REG" || return 0
+  for SN in $SLOTS; do
+    UPD=$(jq --argjson s "$SN" '.watchers |= map(select(.slot != $s))' "$REG" 2>/dev/null)
+    [ -n "$UPD" ] && printf '%s\n' "$UPD" > "$REG"
+    printf '# Watcher Slot %s\n\n**Status**: available\n' "$SN" > "${WDIR}/slot-${SN}.md" 2>/dev/null
+  done
+  _reg_unlock_for "$REG"
+  printf '%s' "$SLOTS"
+  return 0
+}
+
 check_watcher_for_project() {
   local PROJECT_PATH="$1"
   local REGISTRY="${2:-${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}}"
+  local SID="${3:-${HARNESS_SESSION_ID:-}}"
 
   if [ -z "$PROJECT_PATH" ] || [ ! -f "$REGISTRY" ]; then
     return 1
+  fi
+
+  # Prefer THIS session's own watcher slot; fall back to the project's first only when no session id
+  # is available (session-less callers / tests).
+  if [ -n "$SID" ]; then
+    watcher_slot_for_session "$SID" "$REGISTRY"; return 0
   fi
 
   local PROJECT_NORM
@@ -852,7 +941,7 @@ watcher_claim_pp() {
   while case " $USED " in *" $SLOT "*) true ;; *) false ;; esac; do SLOT=$((SLOT + 1)); done
   # drop any stale non-active entry on that slot, append the new active watcher
   NEW=$(jq -c --argjson sl "$SLOT" --arg s "$SID" --arg p "$PROJ" --arg t "$NOW" \
-    '.watchers |= (map(select((.slot != $sl) or (.status == "active"))) + [{"slot":$sl,"project":$p,"session_id":$s,"status":"active","claimed_by":"Claude","claimed_at":$t,"cron_job_id":null,"cron_interval":null,"task":null}])' \
+    '.watchers |= (map(select((.slot != $sl) or (.status == "active"))) + [{"slot":$sl,"project":$p,"session_id":$s,"status":"active","claimed_by":"Claude","claimed_at":$t,"last_seen":$t,"cron_job_id":null,"cron_interval":null,"task":null}])' \
     "$REG" 2>/dev/null)
   [ -n "$NEW" ] && printf '%s' "$NEW" > "$REG"
   _reg_unlock_for "$REG"

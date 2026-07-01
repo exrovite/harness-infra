@@ -19,6 +19,7 @@ WATCHER_REGISTRY="$HOME/.openclaw/watchers/REGISTRY.json"
 
 # --- Read stdin (PostToolUse Agent provides full JSON on stdin) ---
 INPUT=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session watcher slot resolution
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.tool_input.prompt // ""' 2>/dev/null)
 
 if [ -z "$PROMPT" ]; then
@@ -67,9 +68,14 @@ CURRENT_PROJECT=$(printf '%s' "$CURRENT_PROJECT" | tr '\\' '/' | sed 's|/$||' | 
 
 CURRENT_STEP=""
 if [ -f "$WATCHER_REGISTRY" ]; then
-  SLOT_NUM=$(jq -r --arg proj "$CURRENT_PROJECT" \
-    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
-    "$WATCHER_REGISTRY" 2>/dev/null)
+  # THIS session's own watcher slot (its own current step), not the project's first/stale watcher.
+  if [ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+    SLOT_NUM=$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")
+  else
+    SLOT_NUM=$(jq -r --arg proj "$CURRENT_PROJECT" \
+      '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot // empty' \
+      "$WATCHER_REGISTRY" 2>/dev/null)
+  fi
   if [ -n "$SLOT_NUM" ]; then
     SLOT_FILE="$HOME/.openclaw/watchers/slot-${SLOT_NUM}.md"
     if [ -f "$SLOT_FILE" ]; then

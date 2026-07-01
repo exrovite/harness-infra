@@ -8,6 +8,7 @@
 
 # --- Read tool input from stdin ---
 INPUT=$(cat)
+export HARNESS_SESSION_ID="$(printf '%s' "$INPUT" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session watcher/challenge resolution
 TARGET_FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
 
 # --- Exemptions ---
@@ -200,13 +201,20 @@ if [ ! -f "$WATCHER_REGISTRY" ]; then
   exit 0
 fi
 
-ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
-  '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
-  "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
-
-if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
-  # No active watcher — defer to pre-write-gate.sh
-  exit 0
+# Only pre-flight THIS session once IT has its own watcher (its own task). If this session has no watcher
+# yet, defer to pre-write-gate (which requires the session to claim its own). Never key off another
+# session's watcher.
+if [ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+  if [ -z "$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")" ]; then
+    exit 0
+  fi
+else
+  ACTIVE_WATCHERS=$(jq --arg proj "$CURRENT_PROJECT" \
+    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
+    "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
+  if [ "$ACTIVE_WATCHERS" -eq 0 ]; then
+    exit 0
+  fi
 fi
 
 # --- Counter logic: only fire gate every 4th write, or on step change ---
@@ -225,10 +233,14 @@ else
   LAST_STEP=""
 fi
 
-# Step 2: Look up active slot file
-SLOT_NUM=$(jq -r --arg proj "$CURRENT_PROJECT" \
-  '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot' \
-  "$WATCHER_REGISTRY" 2>/dev/null)
+# Step 2: Look up THIS SESSION's own watcher slot (never the project's first/stale watcher).
+if [ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_slot_for_session >/dev/null 2>&1; then
+  SLOT_NUM=$(watcher_slot_for_session "$HARNESS_SESSION_ID" "$WATCHER_REGISTRY")
+else
+  SLOT_NUM=$(jq -r --arg proj "$CURRENT_PROJECT" \
+    '[.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | .[0].slot' \
+    "$WATCHER_REGISTRY" 2>/dev/null)
+fi
 SLOT_FILE="$HOME/.openclaw/watchers/slot-${SLOT_NUM}.md"
 
 # Step 3: Extract current step (first unchecked TO-DO item)
