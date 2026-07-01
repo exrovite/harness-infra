@@ -257,7 +257,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
       printf "The must-do system is ON by default (only the '---' kill-switch turns it off).\n" >&2
       printf "Before writing source code (incl. via Bash) you must ground yourself:\n" >&2
       printf "  1. Create '%s' listing the files you MUST read/respect\n" "$MDB_NEW_FILE" >&2
-      printf "  2. Read them, then write a summary to .claude/state/must-do-summary.md\n\n" >&2
+      printf "  2. Read them, then write a summary to YOUR lane: .claude/state/must-do-summary%s.md\n\n" "${HARNESS_SESSION_ID:+.${HARNESS_SESSION_ID}}" >&2
       printf "Use the proper Write/Edit tools — don't write source through the shell to bypass this.\n" >&2
       print_gates_ahead
       exit 2
@@ -293,7 +293,7 @@ if [ "$CURRENT_PHASE" = "BUILD" ]; then
         MDB_OWN_FILE=$(mustdo_file_for_dir "$MDB_DIR" 2>/dev/null); [ -n "$MDB_OWN_FILE" ] || MDB_OWN_FILE="${MDB_DIR}/must-do.md"
         printf "[MUST-DO GATE] BLOCKED: %s You have not authored your own must-do summary yet.\n\n" "$PHASE_CTX" >&2
         printf "Each model/session keeps its OWN summary (parallel sessions never clobber each other).\n" >&2
-        printf "Read the files listed in %s and write .claude/state/must-do-summary.md (Write/Edit,\n" "$MDB_OWN_FILE" >&2
+        printf "Read the files listed in %s and write YOUR lane .claude/state/must-do-summary%s.md (Write/Edit,\n" "$MDB_OWN_FILE" "${MDB_SID:+.${MDB_SID}}" >&2
         printf "not the shell) before writing code — the harness snapshots it as yours.\n" >&2
         print_gates_ahead
         exit 2

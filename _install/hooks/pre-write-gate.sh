@@ -538,18 +538,22 @@ if [ -n "$MUST_DO_MD" ]; then
     fi
 
     if [ "$NEED_SUMMARY" = true ]; then
+      # YOUR own summary lane (per-session) — agents write THIS file directly, never the shared scratch.
+      SUMMARY_REL=".claude/state/must-do-summary${CUR_SESSION:+.${CUR_SESSION}}.md"
+      STEP_REL=".claude/state/must-do-summary-step${CUR_SESSION:+.${CUR_SESSION}}.txt"
       # Diagnostic header based on reason
       case "$NEED_REASON" in
         no_file)
           printf "[EVIDENCE GATE] BLOCKED: %s You have not authored your own must-do grounding yet.\n\n" "$PHASE_CTX" >&2
-          printf "Each model/session keeps its OWN summary (so parallel sessions never clobber each\n" >&2
-          printf "other). Write .claude/state/must-do-summary.md — the harness snapshots it as yours.\n\n" >&2
+          printf "Each session keeps its OWN summary lane (so parallel sessions never clobber each other).\n" >&2
+          printf "Write YOUR lane file:  %s\n" "$SUMMARY_REL" >&2
+          printf "Write THAT exact file — never the shared must-do-summary.md or another session's summary.\n\n" >&2
           ;;
         stale_step)
           printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary is stale — watcher step changed.\n\n" "$PHASE_CTX" >&2
           printf "  Watcher is on: %s\n" "$CURRENT_STEP_MD" >&2
           printf "  Summary was for: %s\n\n" "$SAVED_STEP" >&2
-          printf "Rewrite your summary AND update .claude/state/must-do-summary-step.txt\n\n" >&2
+          printf "Rewrite YOUR summary (%s) AND update %s\n\n" "$SUMMARY_REL" "$STEP_REL" >&2
           ;;
         too_short)
           printf "[EVIDENCE GATE] BLOCKED: %s Must-do summary is too short (%d chars, minimum 200).\n\n" "$PHASE_CTX" "$SUMMARY_LEN" >&2
@@ -568,7 +572,8 @@ if [ -n "$MUST_DO_MD" ]; then
       done < "$([ -f "$MUST_DO_MD" ] && printf '%s' "$MUST_DO_MD" || printf '/dev/null')"
       printf "\nYou MUST:\n" >&2
       printf "  1. READ every file listed above\n" >&2
-      printf "  2. WRITE a summary to .claude/state/must-do-summary.md\n" >&2
+      printf "  2. WRITE a summary to YOUR OWN lane: .claude/state/must-do-summary%s.md\n" "${CUR_SESSION:+.${CUR_SESSION}}" >&2
+      printf "     (write THAT exact file — never the shared must-do-summary.md or another session's)\n" >&2
       printf "     explaining what you learned that is relevant to your CURRENT TASK\n" >&2
       printf "  3. The summary must be at least 200 characters\n" >&2
       printf "  4. The summary must reference the files you read (use their filenames)\n" >&2
@@ -612,7 +617,7 @@ else
       printf "The must-do system is ON by default (only the '---' kill-switch turns it off).\n" >&2
       printf "Before writing source code you must ground yourself in what this task requires:\n" >&2
       printf "  1. Create '%s' listing the files you MUST read/respect for this task\n" "$DON_MD_FILE" >&2
-      printf "  2. Read those files, then write a summary to .claude/state/must-do-summary.md\n\n" >&2
+      printf "  2. Read those files, then write a summary to YOUR lane: .claude/state/must-do-summary%s.md\n\n" "${HARNESS_SESSION_ID:+.${HARNESS_SESSION_ID}}" >&2
       printf "Then retry your write. (Tip: send '+++pack' to capture this conversation and relink grounding.)\n" >&2
       print_gates_ahead
       exit 2

@@ -531,7 +531,7 @@ if [ -n "$MUST_DO_DIR" ] && [ "$PHASE" = "BUILD" ]; then
   add_action "YOUR must-do file is '${OPS_OWN}' — yours alone. Read it + referenced docs. NEVER read, clear, or overwrite another session's must-do file; to (re)build your own send '+++pack' (writes only $(basename "$OPS_OWN" 2>/dev/null))."
   if [ -n "$OPS_SID" ]; then
     if [ ! -f "${STATE_DIR}/must-do-summary.${OPS_SID}.md" ]; then
-      add_action "Author your OWN must-do summary: Write â€” .claude/state/must-do-summary.md. The harness snapshots it as YOURS (must-do-summary.${OPS_SID}.md); you haven't written yours yet (won't unlock source writes until you do)."
+      add_action "Author your OWN must-do summary in YOUR lane: Write â€” .claude/state/must-do-summary.${OPS_SID}.md (write THIS exact file — it is yours; do NOT write the shared must-do-summary.md and NEVER read or overwrite another session's summary). You haven't written yours yet (won't unlock source writes until you do)."
     fi
   elif [ ! -f "${STATE_DIR}/must-do-summary.md" ]; then
     add_action "Write must-do summary: Write â€” .claude/state/must-do-summary.md after reading must-do docs"
@@ -948,8 +948,16 @@ PENDING ITEMS: ${PENDING_ITEMS}"
 fi
 
 # --- MUST-DO SUMMARY INJECTION ---
-# Preserve existing injection and append-only log behavior.
-MUST_DO_SUMMARY="${STATE_DIR}/must-do-summary.md"
+# Inject ONLY this session's OWN summary lane (must-do-summary.<session_id>.md) — never another
+# session's shared scratch (that is what made an agent read+overwrite a peer's summary). With a
+# session id but no own summary yet, inject nothing; the packet action tells it to author its own lane.
+if [ -n "${HARNESS_SESSION_ID:-}" ]; then
+  MUST_DO_SUMMARY="${STATE_DIR}/must-do-summary.${HARNESS_SESSION_ID}.md"
+  MUST_DO_STEP_FILE="${STATE_DIR}/must-do-summary-step.${HARNESS_SESSION_ID}.txt"
+else
+  MUST_DO_SUMMARY="${STATE_DIR}/must-do-summary.md"
+  MUST_DO_STEP_FILE="${STATE_DIR}/must-do-summary-step.txt"
+fi
 if [ -f "$MUST_DO_SUMMARY" ]; then
   SUMMARY_TEXT=$(head -c 800 "$MUST_DO_SUMMARY" 2>/dev/null | one_line)
   if [ -n "$SUMMARY_TEXT" ]; then
@@ -957,7 +965,7 @@ if [ -f "$MUST_DO_SUMMARY" ]; then
 [MUST-DO ACTIVE] ${SUMMARY_TEXT}"
     INJECT_LOG="${STATE_DIR}/must-do-injection-log.jsonl"
     INJECT_TS=$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S)
-    INJECT_STEP=$(cat "${STATE_DIR}/must-do-summary-step.txt" 2>/dev/null | tr -d '\r\n')
+    INJECT_STEP=$(cat "$MUST_DO_STEP_FILE" 2>/dev/null | tr -d '\r\n')
     printf '{"ts":"%s","step":"%s","chars":%d}\n' "$INJECT_TS" "$INJECT_STEP" "${#SUMMARY_TEXT}" >> "$INJECT_LOG" 2>/dev/null
   fi
 fi
