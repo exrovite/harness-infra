@@ -32,10 +32,12 @@ bp(){ jq -nc --arg s "$1" --arg c "$2" '{session_id:$s,tool_name:"Bash",tool_inp
 runw(){ ( cd "$D" && printf '%s' "$2" | HARNESS_STATE_DIR="$D/.claude/state" HARNESS_REGISTRY="$REG" bash "$HOOKS/pre-write-gate.sh" 2>"$EF" >/dev/null ); }
 runb(){ ( cd "$D" && printf '%s' "$2" | HARNESS_STATE_DIR="$D/.claude/state" HARNESS_REGISTRY="$REG" bash "$HOOKS/pre-bash-gate.sh" 2>"$EF" >/dev/null ); }
 
-# CONTROL — B with no watcher resolves to A's must-do.md -> ownership block (the old deadlock condition)
+# INVARIANT — B is NEVER routed to A's LIVE must-do.md, even with no watcher of its own (the greedy
+# resolver skips a live peer's grounded file). So B is never "different session" ownership-blocked; it is
+# simply told to author its OWN grounding. (Old behavior collided B onto must-do.md -> foreign block.)
 regA
 runw "x" "$(wp "$SB" "src/foo.py")"
-if grep -qi 'different session' "$EF"; then ok "CONTROL B (no own file) blocked by A's must-do.md — reproduces the deadlock condition"; else bad "CONTROL expected ownership block [$(tr -d '\n' <"$EF"|head -c100)]"; fi
+if grep -qi 'different session' "$EF"; then bad "B wrongly ownership-blocked by A's live must-do.md [$(tr -d '\n' <"$EF"|head -c100)]"; else ok "B is never routed to a live peer's must-do.md (no foreign-ownership block, even without a watcher)"; fi
 
 # FIX (Write) — B with its OWN watcher slot2 resolves to must-do-2.md -> NOT blocked by A's file
 regAB

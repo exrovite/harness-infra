@@ -27,6 +27,8 @@ fi
 STATE_DIR="${HARNESS_STATE_DIR:-.claude/state}"
 
 source "$HOME/.claude/scripts/lib-helpers.sh" 2>/dev/null
+# Heartbeat on every pre-flight (Write/Edit) attempt so a busy agent never goes stale mid-work.
+[ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_touch_session >/dev/null 2>&1 && watcher_touch_session "$HARNESS_SESSION_ID" 2>/dev/null
 # Resolve the PROJECT ROOT for pre-flight writes so we never create a nested .claude in a subdir cwd.
 _pf_sd="$STATE_DIR"
 if [ -z "${HARNESS_STATE_DIR:-}" ] && type find_project_state_dir >/dev/null 2>&1; then

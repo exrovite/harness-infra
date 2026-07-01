@@ -21,6 +21,9 @@ if harness_disabled_resolved "$(pwd -W 2>/dev/null || pwd)" "" 2>/dev/null || [ 
   exit 0
 fi
 
+# Heartbeat on EVERY Bash command so a busy (Bash-heavy) agent never goes stale and gets reaped mid-work.
+[ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_touch_session >/dev/null 2>&1 && watcher_touch_session "$HARNESS_SESSION_ID" 2>/dev/null
+
 # HARD SESSION ISOLATION (Bash): a WRITE command may not target ANOTHER, still-LIVE session's must-do
 # property (its summary lane or owned must-do file), whatever the path (relative, absolute, /tmp).
 # Own is fine; a dead/reaped owner's property is reclaimable; fail-open when no session id. Gated on a

@@ -24,6 +24,9 @@ fi
 # Read stdin once for all gates (tool input JSON from Claude Code)
 INPUT_DATA=$(cat)
 export HARNESS_SESSION_ID="$(printf '%s' "$INPUT_DATA" | jq -r '.session_id // ""' 2>/dev/null | tr -d '\r')"  # per-session must-do fan-out (mustdo_file_for_dir)
+# Heartbeat on EVERY Write/Edit attempt (even ones about to be blocked) so a busy agent never goes stale
+# and gets its watcher/summary reaped mid-work. Any tool activity = alive.
+[ -n "${HARNESS_SESSION_ID:-}" ] && type watcher_touch_session >/dev/null 2>&1 && watcher_touch_session "$HARNESS_SESSION_ID" 2>/dev/null
 
 # Kill-switch by TARGET FILE: a write to a file inside an unlocked project is allowed regardless of cwd.
 KS_TGT=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)

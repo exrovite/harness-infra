@@ -569,9 +569,13 @@ session_is_live() {
   local STALE="${HARNESS_WATCHER_STALE_SECONDS:-1200}" TS NOW_EPOCH TE
   [ -n "$SID" ] || return 1
   [ -f "$REG" ] || return 1
-  TS=$(jq -r --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")][0] | (.last_seen // .claimed_at // empty)' "$REG" 2>/dev/null | tr -d '\r')
-  [ -n "$TS" ] || return 1
-  NOW_EPOCH=$(date +%s 2>/dev/null) || return 0   # if we cannot compute time, treat as live (fail-safe: do not reap/allow-clobber)
+  # Must have an ACTIVE watcher at all; if not, the session is gone (not live).
+  jq -e --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")] | length > 0' "$REG" >/dev/null 2>&1 || return 1
+  TS=$(jq -r --arg s "$SID" '[.watchers[]? | select(.session_id==$s and .status=="active")][0] | (.last_seen // .claimed_at // "")' "$REG" 2>/dev/null | tr -d '\r')
+  # Active watcher but no heartbeat/claim timestamp -> assume LIVE (fail-safe: do not steal its file or
+  # reap it; matches watcher_reap_stale, which skips entries with no timestamp).
+  [ -n "$TS" ] || return 0
+  NOW_EPOCH=$(date +%s 2>/dev/null) || return 0   # if we cannot compute time, treat as live (fail-safe)
   TE=$(date -d "$TS" +%s 2>/dev/null || echo "$NOW_EPOCH")
   [ $((NOW_EPOCH - TE)) -le "$STALE" ] 2>/dev/null && return 0 || return 1
 }
@@ -889,24 +893,50 @@ mustdo_file_for_dir() {
     fi
     i=$((i + 1))
   done
-  # 4. initial assignment by my ordinal among ACTIVE project sessions (sorted by slot) — race-free
+  # 4. no file stamped by me -> claim the lowest-numbered file NOT owned by a LIVE OTHER session
+  #    (unstamped / mine / dead-owner), with ties among concurrent unstamped sessions broken by my rank
+  #    in slot order. This never collides with a LIVE peer's grounded file (the ordinal-churn bug: a
+  #    lower-slot session was assigned must-do.md that a higher-slot session already owned) and never
+  #    orphans mine (pass-3 keeps mine stable). Dead owners' files are reclaimable.
   REG="${HARNESS_REGISTRY:-$HOME/.openclaw/watchers/REGISTRY.json}"
-  ORD=0
+  local CLAIM_IDX="" RANK=0 pick="" cnt=0 s_owns j sst
+  # 4a. claimable file indices (0 = must-do.md, k = must-do-(k+1).md)
+  i=0
+  while [ "$i" -le 9 ]; do
+    if [ "$i" -eq 0 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-$((i + 1)).md"; fi
+    st=""; [ -f "$F" ] && st=$(mustdo_stamp_of "$F")
+    if [ -z "$st" ] || [ "$st" = "$SID" ] || ! session_is_live "$st" "$REG"; then
+      CLAIM_IDX="$CLAIM_IDX $i"
+    fi
+    i=$((i + 1))
+  done
+  # 4b. my rank = ACTIVE sessions (slot order) BEFORE me that do NOT already own a stamped file
   PN=$(_proj_norm "$(pwd -W 2>/dev/null || pwd)" 2>/dev/null)
   if [ -n "$PN" ] && [ -f "$REG" ]; then
     TMPF=$(mktemp 2>/dev/null)
     if [ -n "$TMPF" ]; then
       jq -r --arg p "$PN" '[.watchers[]? | select(.status=="active" and .project!=null and ((.project|gsub("\\\\";"/")|sub("/+$";"")|ascii_downcase)==$p))] | sort_by(.slot) | .[].session_id' "$REG" 2>/dev/null | tr -d '\r' > "$TMPF"
-      n=0
       while IFS= read -r s || [ -n "$s" ]; do
         [ -z "$s" ] && continue
-        n=$((n + 1))
-        if [ "$s" = "$SID" ]; then ORD="$n"; break; fi
+        [ "$s" = "$SID" ] && break
+        s_owns=no; j=0
+        while [ "$j" -le 9 ]; do
+          if [ "$j" -eq 0 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-$((j + 1)).md"; fi
+          if [ -f "$F" ]; then sst=$(mustdo_stamp_of "$F"); [ "$sst" = "$s" ] && { s_owns=yes; break; }; fi
+          j=$((j + 1))
+        done
+        [ "$s_owns" = no ] && RANK=$((RANK + 1))
       done < "$TMPF"
       rm -f "$TMPF" 2>/dev/null
     fi
   fi
-  if [ "$ORD" -le 1 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-${ORD}.md"; fi
+  # 4c. the RANK-th claimable index is mine
+  for i in $CLAIM_IDX; do
+    if [ "$cnt" -eq "$RANK" ]; then pick="$i"; break; fi
+    cnt=$((cnt + 1))
+  done
+  [ -n "$pick" ] || pick=0
+  if [ "$pick" -eq 0 ]; then F="${DIR}/must-do.md"; else F="${DIR}/must-do-$((pick + 1)).md"; fi
   _MFD_DIR="$DIR"; _MFD_SID="$SID"; _MFD_VAL="$F"
   printf '%s' "$F"
   return 0
