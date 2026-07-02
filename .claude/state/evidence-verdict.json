@@ -1,25 +1,49 @@
 {
-  "verdict": "PASS",
-  "timestamp": "2026-07-02T07:50:51+01:00",
+  "verdict": "FAIL",
+  "timestamp": "2026-07-02T10:06:45+01:00",
+  "sprint": 51,
+  "verifier": "independent adversarial sub-agent (re-validation pass)",
   "findings": [
-    {"criterion": "AC1", "pass": true, "note": "Round 1: suite + own sandbox (state write rc=0, Agent rc=0, source rc=2 under watcher lock). Unchanged."},
-    {"criterion": "AC2", "pass": true, "note": "Round 1: Agent allowed without summary lane; source write blocked naming must-do-summary.<sid>.md. Unchanged."},
-    {"criterion": "AC3", "pass": true, "note": "Round 1: read-only Bash allowed, concept source-write blocked, ack/state Bash writes allowed. Unchanged."},
-    {"criterion": "AC4", "pass": true, "note": "Iteration 3 residual VERIFIED: .claude/evidence/ bootstrap exemption now also in pre-bash-gate.sh (line 248, 'Sprint 50 (audit B1, residual)'), byte-identical live vs _install, bash -n clean. Own EVALUATE-phase sandbox: Bash 'echo x > .claude/evidence/f.txt' rc=0 and a tee to .claude/evidence/ rc=0, while 'echo x > src/app.js' still rc=2 (EVALUATE phase block). Suite AC4a/AC4b/AC4c all pass. Round-1 pre-write-gate + pre-flight-gate exemptions unchanged."},
-    {"criterion": "AC5", "pass": true, "note": "Suite re-run green this round (34/34). Unchanged."},
-    {"criterion": "AC6", "pass": true, "note": "Round 1: sandbox challenge clean of key metadata, answer-key sidecar, correct=PASS wrong=FAIL. Unchanged."},
-    {"criterion": "AC7", "pass": true, "note": "Round 2: staged trimming verified in both copies + own >2000-char packet sandbox (BLOCKED BY survives, must-do echo shrunk, no hard-cut marker). Unchanged in iteration 3 (on-prompt-submit.sh cmp identical)."},
-    {"criterion": "AC8", "pass": true, "note": "Round 1: full hardening cycle hand-run. Unchanged."},
-    {"criterion": "AC9", "pass": true, "note": "Round 1: per-session counter across gates, post-write-check, packet. Unchanged."},
-    {"criterion": "AC10", "pass": true, "note": "Round 2: while IFS= read -r loops in startup-recovery.sh (117-118, 167-168). Unchanged in iteration 3 (cmp identical)."},
-    {"criterion": "AC11", "pass": true, "note": "Round 1: pos && !rep confirmed empirically; no report-request quotes; >=1 genuine win. Standing caveat: window-based concept co-occurrence."},
-    {"criterion": "AC12", "pass": true, "note": "Round 1: registry keys clean, claim->slot, reap->removal. Unchanged."},
-    {"criterion": "AC13", "pass": true, "note": "Round 1: phase/sprint 50, archive/ populated, backlog + knowledge-gaps regenerated. Unchanged."},
-    {"criterion": "AC14", "pass": true, "note": "Iteration 3: pre-bash-gate.sh live vs _install byte-identical + bash -n clean; the OTHER 9 changed files re-cmp'd this round - zero drift."},
-    {"criterion": "AC15", "pass": true, "note": "Suite now 34 checks (AC4c added), 34/34 green this round; red evidence verified round 1; AC7 tests verified discriminating round 2."},
-    {"criterion": "AC16", "pass": true, "note": "Round 2: my own unmasked 43-suite sweep, zero failures. Iteration 3: builder's sprint50-final-sweep.txt re-captured properly - 43 per-suite lines, all exit=0, no nonzero exits; report corrected 46->43. The delta (one exemption line in pre-bash-gate's bootstrap block, before enforcement) cannot regress other suites and the 34/34 TDD suite plus AC4c confirm."},
-    {"criterion": "AC17", "pass": true, "note": "Round 1/2: beast suites green, surfacing functional inject-only. Beast files unchanged in iteration 3."},
-    {"criterion": "AC18", "pass": true, "note": "Report documents iteration 3 (line 108, 'residual B1, found live during COMPLETE prep') alongside iteration 2 and all dispositions; suite count corrected to 43."}
+    {
+      "criterion": "AC1",
+      "pass": false,
+      "note": "BLOCKER (the only one): the AC4 fix itself is UNCOMMITTED — git status --porcelain shows 'M _install/hooks/post-write-check.sh' (modified tracked SOURCE file, not per-session state), so the remediation is also unpushed. Additionally untracked non-exempt file: .claude/evidence/sprint51-ac4-fix.txt (not .claude/state/, not .agent-memory/, not a pre-flight counter — named per instructions; commit it or gitignore .claude/evidence/). All other churn is exempt class: .claude/state/* (incl. tracked deletions of evidence-verdict.json and phase-complete-marker.md), .agent-memory/working/*, .claude/pre-flight/verify-counter.json. git log origin/master..master is empty only because the fix commit does not exist yet. Remediation: git add _install/hooks/post-write-check.sh (+ the evidence file or its ignore rule), commit, push."
+    },
+    {
+      "criterion": "AC2",
+      "pass": true,
+      "note": "cmp ~/.claude/hooks/post-write-check.sh _install/hooks/post-write-check.sh -> byte-identical (PARITY-OK). Prior AC2 evidence unchanged (full parity loop, allowed exceptions headroom-supervisor.sh + glm-setup.sh, shipped CLAUDE.md/MUST-DO-SYSTEM.md/skills/roles/openclaw/README/LICENSES)."
+    },
+    {
+      "criterion": "AC3",
+      "pass": true,
+      "note": "Re-scanned after the fix: grep -rlU $'\\r' _install --include='*.sh' -> empty; no CR in _install/settings.json, _install/CLAUDE.md, REGISTRY-template.json; .gitattributes still pins *.sh text eol=lf."
+    },
+    {
+      "criterion": "AC4",
+      "pass": true,
+      "note": "FIX VERIFIED FROM DISK: line 158 in BOTH ~/.claude/hooks/post-write-check.sh and _install/hooks/post-write-check.sh now reads 'If YES to any: claim a watcher at ~/.openclaw/watchers/'. grep -rn exrov over _install/hooks + _install/scripts -> zero hits; drive-letter scan ([CDEFG]:/ or :\\) outside comments -> zero hits. All other AC4 evidence from the first pass unchanged (pwd -W fallbacks, uname-guarded powershell/schtasks, guarded taskkill, no %VAR%, no .exe dependence)."
+    },
+    {
+      "criterion": "AC5",
+      "pass": true,
+      "note": "bash -n clean on both fixed copies of post-write-check.sh; shebang '#!/bin/bash' line 1 intact. Prior full-sweep AC5 evidence unchanged; install.sh chmod lines 63/75/82."
+    },
+    {
+      "criterion": "AC6",
+      "pass": true,
+      "note": "install.sh untouched by the fix (git status shows no change to it). Prior evidence stands: jq hard-check L35-40, guarded npm/uv/git/ZAI steps 8-11, settings.json + CLAUDE.md backup-before-copy, registry created only when absent, clean v3 REGISTRY-template.json, placeholder-only GLM templates."
+    },
+    {
+      "criterion": "AC7",
+      "pass": true,
+      "note": "Spot-rerun after the fix, all GREEN: tests/test-audit-fixes-sprint50.sh, tests/test-fresh-folder-no-claude.sh, tests/test-sprint31a-integration.sh (all exercise post-write-check). Full 43-suite sweep already zero-FAIL earlier this pass; the only change since is a one-line message-string edit inside post-write-check.sh, covered by the three green suites."
+    },
+    {
+      "criterion": "AC8",
+      "pass": false,
+      "note": "Overall FAIL solely on AC1: the verified-correct AC4 remediation is not committed/pushed, and one untracked non-exempt evidence file exists. One commit+push away from PASS — no code defects remain."
+    }
   ],
-  "summary": "PASS covering BUILD iteration 3. The residual B1 fix is real and functional: pre-bash-gate.sh now carries the .claude/evidence/ bootstrap exemption (line 248) in BOTH live and _install copies (byte-identical, bash -n clean); in my own fresh EVALUATE-phase sandbox a Bash evidence write passes (rc=0, redirect and tee forms) while a Bash source write is still blocked (rc=2). The TDD suite is 34/34 including the new AC4c. The other 9 changed files show zero drift since my round-2 PASS. Both round-2 minor findings are addressed: sprint50-final-sweep.txt now contains 43 per-suite entries all exit=0, and the report corrects the suite count and documents iteration 3. Note (accepted trade-off, documented in the code comment): the exemption is a blanket command-text match like the other bootstrap paths. All 18 acceptance criteria remain PASS."
+  "summary": "AC4 defect is FIXED and verified from disk (both copies read '~/.openclaw/watchers/', zero exrov/drive-letter hits in _install/hooks+scripts outside comments), parity byte-identical, bash -n clean, spot suites green, CRLF scan clean. FAIL remains ONLY because AC1 is not satisfied at verification time: 'M _install/hooks/post-write-check.sh' is an uncommitted tracked source change (hence unpushed) and .claude/evidence/sprint51-ac4-fix.txt is untracked and not in the exempt classes. Remediation: commit + push the fixed hook (and commit or gitignore the evidence file), then AC1-AC8 all pass."
 }

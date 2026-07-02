@@ -1,0 +1,1 @@
+AC4 remediation evidence: post-write-check.sh:158 fixed to ~/.openclaw/watchers/, parity kept, bash -n clean

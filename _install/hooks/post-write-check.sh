@@ -155,7 +155,7 @@ Ask yourself:
 2. Does this task have 3 or more steps that I need to track?
 3. Could I drift or forget where I am if context gets long?
 
-If YES to any: claim a watcher at C:\\Users\\exrov\\.openclaw\\watchers\\
+If YES to any: claim a watcher at ~/.openclaw/watchers/
 If NO (quick edit or simple question): continue without one.
 
 Also check:

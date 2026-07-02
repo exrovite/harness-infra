@@ -614,3 +614,17 @@
 {"ts":"2026-07-02T04:38:11+01:00","file":"G:/harness infra/tests/test-preflight-session-keyed.sh"}
 {"ts":"2026-07-02T04:46:41+01:00","file":"G:/harness infra/.claude/reports/sprint-50-audit-fixes.md"}
 {"ts":"2026-07-02T04:55:11+01:00","file":"G:/harness infra/tests/test-sprint31a-integration.sh"}
+{"ts":"2026-07-02T06:19:51+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-07-02T06:21:39+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T06:24:44+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T06:24:53+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T06:30:57+01:00","file":"G:/harness infra/tests/test-ralph-loop.sh"}
+{"ts":"2026-07-02T06:31:07+01:00","file":"G:/harness infra/tests/test-ralph-loop.sh"}
+{"ts":"2026-07-02T06:33:16+01:00","file":"G:/harness infra/tests/test-beast-wins-extract.sh"}
+{"ts":"2026-07-02T06:33:27+01:00","file":"G:/harness infra/tests/test-fresh-folder-no-claude.sh"}
+{"ts":"2026-07-02T06:34:24+01:00","file":"G:/harness infra/tests/test-audit-fixes-sprint50.sh"}
+{"ts":"2026-07-02T06:40:37+01:00","file":"G:/harness infra/tests/test-ralph-loop.sh"}
+{"ts":"2026-07-02T06:56:24+01:00","file":"G:/harness infra/.claude/reports/sprint-50-audit-fixes.md"}
+{"ts":"2026-07-02T07:26:20+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-07-02T07:37:44+01:00","file":"G:/harness infra/tests/test-audit-fixes-sprint50.sh"}
+{"ts":"2026-07-02T07:38:37+01:00","file":"G:/harness infra/.claude/reports/sprint-50-audit-fixes.md"}
