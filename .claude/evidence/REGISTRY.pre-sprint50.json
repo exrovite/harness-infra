@@ -1,0 +1,171 @@
+{
+  "version": "3.0.0",
+  "created": "2026-04-02",
+  "description": "5 reusable Watcher slots.",
+  "watchers": [
+    {
+      "slot": 6,
+      "status": "available",
+      "claimed_by": null,
+      "claimed_at": null,
+      "cron_job_id": null
+    },
+    {
+      "slot": 7,
+      "status": "available",
+      "claimed_by": null,
+      "claimed_at": null,
+      "cron_job_id": null
+    },
+    {
+      "slot": 8,
+      "status": "available",
+      "claimed_by": null,
+      "claimed_at": null,
+      "cron_job_id": null
+    },
+    {
+      "slot": 9,
+      "status": "available",
+      "claimed_by": null,
+      "claimed_at": null,
+      "cron_job_id": null
+    },
+    {
+      "slot": 1,
+      "project": "G:/harness infra",
+      "session_id": "624b9285-3b10-4f2b-a1ed-225eb2b6256d",
+      "status": "active",
+      "claimed_by": "Claude",
+      "claimed_at": "2026-07-02T04:02:03+01:00",
+      "last_seen": "2026-07-02T04:23:43+01:00",
+      "cron_job_id": "73c138b2",
+      "cron_interval": "*/3 * * * *",
+      "task": null
+    }
+  ],
+  "max_lanes_per_project": 5,
+  "instances": [
+    {
+      "session_id": "b5ec8729-2262-4e2d-bc7d-1aadd9940bc7",
+      "project": "G:/Pri 4B work/Private Content Wizard Web",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-07T03:55:41+01:00",
+      "last_seen": "2026-06-07T03:55:41+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "L2",
+      "project": "C:/Users/exrov/AppData/Local/Temp/claude/tmp.rAbysDQQ6L",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-07T03:57:16+01:00",
+      "last_seen": "2026-06-07T03:57:16+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "40e357f6-fd0c-4a5d-9760-a0e415cef4ef",
+      "project": "G:/Pri 4B work/Private Content Wizard Web",
+      "lane": 2,
+      "status": "active",
+      "claimed_at": "2026-06-07T04:03:23+01:00",
+      "last_seen": "2026-06-07T04:03:23+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "c836c5fa-0bd8-48e8-89a3-c3478c74ef6e",
+      "project": "G:/harness infra",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-07T04:09:33+01:00",
+      "last_seen": "2026-06-07T04:09:33+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "b3cd9a38-d2e2-4d27-8d7b-5324483d211f",
+      "project": "G:/Magenta work",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-07T08:39:54+01:00",
+      "last_seen": "2026-06-07T08:39:54+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "5abb2382-b077-423e-ae2c-636d37e36f44",
+      "project": "G:/Pri 4B work/Private Content Wizard Web",
+      "lane": 3,
+      "status": "active",
+      "claimed_at": "2026-06-08T05:00:32+01:00",
+      "last_seen": "2026-06-08T05:00:32+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "d7962b1c-b2b8-47e6-87b6-eef831db16ce",
+      "project": "C:/Users/exrov/Videos/final_transcriptions",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-08T05:40:54+01:00",
+      "last_seen": "2026-06-08T05:40:54+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "034ab1d4-8c83-4174-b1c0-f624ee59b208",
+      "project": "G:/Onebright",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-08T05:43:00+01:00",
+      "last_seen": "2026-06-08T05:43:00+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "bc7b7d70-4010-4400-ae2f-e60dbd3fb829",
+      "project": "G:/Onebright",
+      "lane": 2,
+      "status": "active",
+      "claimed_at": "2026-06-08T05:59:29+01:00",
+      "last_seen": "2026-06-08T05:59:29+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "778c8f21-291c-4b50-b442-76a1cbe00784",
+      "project": "G:/Onebright",
+      "lane": 3,
+      "status": "active",
+      "claimed_at": "2026-06-08T06:10:07+01:00",
+      "last_seen": "2026-06-08T06:10:07+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "a7ad024e-1032-4d64-988f-50df4c42d217",
+      "project": "G:/Getting insurance clients",
+      "lane": 1,
+      "status": "active",
+      "claimed_at": "2026-06-08T07:31:34+01:00",
+      "last_seen": "2026-06-08T07:31:34+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    },
+    {
+      "session_id": "d62b633d-9ad8-45ca-ad37-6ffd283bbc57",
+      "project": "G:/Pri 4B work/Private Content Wizard Web",
+      "lane": 4,
+      "status": "active",
+      "claimed_at": "2026-06-08T08:04:26+01:00",
+      "last_seen": "2026-06-08T08:04:26+01:00",
+      "cron_job_id": null,
+      "cron_interval": null
+    }
+  ],
+  "max_per_project": 5
+}

@@ -29,6 +29,14 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -W 2>/dev/null || pwd)"
 
 CLAUDE_DIR="$HOME/.claude"
 OPENCLAW_DIR="$HOME/.openclaw"
+
+# --- Hard prerequisite: jq (every gate/hook parses JSON with it) ---
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required but not found." >&2
+  echo "  Install it first:  Debian/Ubuntu: sudo apt-get install jq | Fedora: sudo dnf install jq" >&2
+  echo "                     macOS: brew install jq | Windows (Git Bash): winget install jqlang.jq" >&2
+  exit 1
+fi
 LAVISH_VERSION="0.1.20"
 HEADROOM_VENV="$CLAUDE_DIR/headroom-venv"   # ISOLATED Python 3.10 venv just for headroom
 HEADROOM_PYTHON="3.10"

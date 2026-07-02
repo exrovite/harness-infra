@@ -1,0 +1,40 @@
+== AC1: watcher admin lock exemptions (state paths + Agent) ==
+  PASS: AC1a: locked writes + no watcher -> .claude/state/ write ALLOWED
+  PASS: AC1b: locked writes + no watcher -> Agent tool ALLOWED
+  PASS: AC1c [keep]: locked writes + no watcher -> source write still BLOCKED
+== AC2: must-do summary gate exempts Agent (empty target) ==
+  PASS: AC2a: no summary lane + Agent spawn -> ALLOWED
+  PASS: AC2b [keep]: no summary lane + source write -> BLOCKED naming own lane
+== AC3: beast-protocol-gate read-only pass + Bash ack/state exemption ==
+  PASS: AC3a: read-only Bash touching concept -> ALLOWED (no ack)
+  PASS: AC3b [keep]: Bash WRITE touching concept, no ack -> BLOCKED
+  PASS: AC3c: Bash writing the ack file itself -> ALLOWED
+  PASS: AC3d [keep]: Write source touching concept, no ack -> BLOCKED
+== AC4: .claude/evidence/ exempt in phase gate + pre-flight feedback gate ==
+  PASS: AC4a: EVALUATE phase + evidence .json write -> ALLOWED
+  PASS: AC4b: phase-feedback FAIL + evidence write via pre-flight-gate -> ALLOWED
+== AC5: pre-bash write detection additions ==
+  PASS: AC5: PLAN phase detects+blocks: echo x >> src/f.js
+  PASS: AC5: PLAN phase detects+blocks: dd if=/dev/zero of=src/f.bin count=1
+  PASS: AC5: PLAN phase detects+blocks: git apply fix.patch
+  PASS: AC5: PLAN phase detects+blocks: patch -p1 < fix.patch
+  PASS: AC5: PLAN phase detects+blocks: perl -e "open(F,\">src/f.pl\");print F 1"
+  PASS: AC5 [keep]: read-only allowed: git status
+  PASS: AC5 [keep]: read-only allowed: grep -r foo src/
+  PASS: AC5 [keep]: read-only allowed: ls -la src
+== AC6/AC8: pre-flight answer key sidecar, distractor uniqueness, hardening ==
+  PASS: AC6a: challenge.md carries NO answer-key metadata
+  PASS: AC6b: sidecar answer-key exists
+  PASS: AC6c: no distractor appears verbatim in its question's source file
+  PASS: AC6d [keep]: correct answers validate PASS
+  PASS: AC6e [keep]: wrong Q6 answer FAILS validation
+  PASS: AC8a: 5th 'No' arms hardening WITH last_reset stamped
+  PASS: AC8b: hardened + no fresh verification -> validation BLOCKED
+  PASS: AC8c: fresh ledger entry newer than last_reset -> unblocked
+== AC9: per-session write counter ==
+  PASS: AC9a: post-write-check increments per-session counter
+  PASS: AC9b: NEW session gets its own free writes despite shared count=9
+== AC10: space-safe grounding links in build-mustdo-pack ==
+  PASS: AC10a: grounding path with spaces emits exactly ONE link
+
+RESULT: 30 passed, 0 failed

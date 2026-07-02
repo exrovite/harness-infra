@@ -1,0 +1,11 @@
+q5_yes_label: B
+q6_correct_label: A
+q6_source: gentle-mapping-hejlsberg.md
+q7_correct_label: D
+q7_source: pre-write-gate.sh
+q8_correct_label: C
+q8_source: pre-bash-gate.sh
+q9_correct_label: C
+q9_source: on-prompt-submit.sh
+q10_correct_label: D
+q10_source: test-mustdo-default-on.sh

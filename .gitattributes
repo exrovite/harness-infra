@@ -1,1 +1,5 @@
-* text=auto eol=lf
+# Enforce Unix line endings for everything the harness executes — CRLF in a shipped .sh
+# hard-breaks Linux bash (found in Sprint 51 Linux-readiness audit).
+*.sh text eol=lf
+*.json text eol=lf
+*.md text eol=lf

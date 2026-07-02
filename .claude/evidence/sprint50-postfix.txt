@@ -1,0 +1,215 @@
+== tests/test-audit-fixes-sprint50.sh ==
+  PASS: AC10a: grounding path with spaces emits exactly ONE link
+
+RESULT: 30 passed, 0 failed
+exit=0
+== tests/test-beast-mp-cache.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=8 FAIL=0
+exit=0
+== tests/test-beast-mp-integration.sh ==
+PASS  mempalace empty -> recall fail-safe (rc 0)
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-beast-mp-recall.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=13 FAIL=0
+exit=0
+== tests/test-beast-pack.sh ==
+PASS  beast-pack.sh bash -n clean
+---------------------------------------------
+PASS=19 FAIL=0
+exit=0
+== tests/test-beast-pack-quality.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-beast-protocol-gate.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=14 FAIL=0
+exit=0
+== tests/test-beast-recall-wiring.sh ==
+PASS  beast-recall-hook.sh bash -n clean
+---------------------------------------------
+PASS=15 FAIL=0
+exit=0
+== tests/test-beast-reconcile-gate.sh ==
+PASS  T11 bash -n clean
+----------------------------------------
+PASS=11 FAIL=0
+exit=0
+== tests/test-beast-roundtrip.sh ==
+PASS  C15: deterministic recall
+---------------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-beast-surface.sh ==
+PASS  beast-surface.sh bash -n clean
+---------------------------------------------
+PASS=9 FAIL=0
+exit=0
+== tests/test-beast-toggle.sh ==
+PASS  A8 lib-helpers.sh bash -n clean
+---------------------------------------------
+PASS=21 FAIL=0
+exit=0
+== tests/test-beast-watch-hook.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=11 FAIL=0
+exit=0
+== tests/test-beast-wins-extract.sh ==
+PASS  bash -n clean
+----------------------------------------
+PASS=11 FAIL=1
+exit=0
+== tests/test-evidence-checkpoint.sh ==
+Passed: 19 / 19
+Failed: 0 / 19
+STATUS: ALL TESTS PASSED
+exit=0
+== tests/test-fresh-folder-no-claude.sh ==
+FAIL  real project: post-write-check did not record (over-corrected)
+----------------------------------------
+PASS=7 FAIL=1
+exit=0
+== tests/test-glm-headroom.sh ==
+  PASS: GLM config dir has no OAuth login (clean z.ai auth)
+  PASS: Anthropic proxy 8787 still up (pid 1844), separate from GLM 8791 (pid 16256)
+== RESULT: 10 passed, 0 failed ==
+exit=0
+== tests/test-glm-packaging.sh ==
+  PASS: C19 no ANTHROPIC_BASE_URL in GLM config
+  PASS: C19 global CLAUDE.md copied into GLM config
+== RESULT: 38 passed, 0 failed ==
+exit=0
+== tests/test-headroom-last30days-integration.sh ==
+  PASS: A9 README documents Arbor
+  PASS: A10 install.sh step 10 labeled Arbor
+== RESULT: 49 passed, 0 failed ==
+exit=0
+== tests/test-intuition-control.sh ==
+PASS  surfacing is deterministic (identical on repeat)
+---------------------------------------------
+PASS=8 FAIL=0
+exit=0
+== tests/test-killswitch.sh ==
+PASS  post-write-check does not count writes when OFF
+---------------------------------------------
+PASS=22 FAIL=0
+exit=0
+== tests/test-killswitch-resolve.sh ==
+  PASS: --- from subdir writes flag to project ROOT
+
+RESULT: 7 passed, 0 failed
+exit=0
+== tests/test-lavish-integration.sh ==
+  PASS: C5a lavish-axi MIT notice present
+  PASS: C5b axi-sdk-js MIT notice present
+-- RESULT: 19 passed, 0 failed --
+exit=0
+== tests/test-mustdo-default-fanout.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=9 FAIL=0
+exit=0
+== tests/test-mustdo-default-on.sh ==
+  PASS: 6d. bash writing docs/must do/must-do.md -> not blocked (exit != 2)
+
+RESULT: 11 passed, 0 failed
+exit=0
+== tests/test-mustdo-fanout-gate.sh ==
+PASS  B's own file resolves to must-do-2.md (distinct from A's)
+----------------------------------------
+PASS=4 FAIL=0
+exit=0
+== tests/test-mustdo-ownership-churn.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-mustdo-pack.sh ==
+  PASS: PLAN-entry gate does NOT block on pack once pack exists
+
+RESULT: 25 passed, 0 failed
+exit=0
+== tests/test-mustdo-session-aware.sh ==
+  PASS: C19 bash legacy pack -> blocked
+  PASS: C20 legacy pack snapshotted before re-author
+-- RESULT: 23 passed, 0 failed --
+exit=0
+== tests/test-mustdo-session-owned.sh ==
+  PASS: T8 pre-bash own file allowed (rc=0)
+  PASS: T9 race: B's write did not break A's grounding (rc=0)
+-- RESULT: 10 passed, 0 failed --
+exit=0
+== tests/test-mustdo-summary-lane.sh ==
+PASS  bash -n on-prompt-submit
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-nested-root-guard.sh ==
+PASS  bash -n init-project.sh
+----------------------------------------
+PASS=12 FAIL=0
+exit=0
+== tests/test-no-autocreate-claude.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-perproject-gate-integration.sh ==
+  PASS: single project still capped at 5 of its own (6th refused)
+  PASS: pre-write-gate.sh block instructs watcher_claim_pp (old fixed-index jq removed)
+-- RESULT: 7 passed, 0 failed --
+exit=0
+== tests/test-perproject-watchers.sh ==
+  PASS: t_release frees quota + removes entry; re-claim allowed
+  PASS: t_unique_slots active watchers have distinct global slot numbers
+-- RESULT: 6 passed, 0 failed --
+exit=0
+== tests/test-preflight-session-keyed.sh ==
+  PASS: validating session A (wrong answers) does not touch session B's files
+  PASS: no-session -> flat .claude/pre-flight (back-compat)
+-- RESULT: 4 passed, 0 failed --
+exit=0
+== tests/test-ralph-loop.sh ==
+
+Passed: 34
+Failed: 2
+exit=0
+== tests/test-session-isolation.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=12 FAIL=0
+exit=0
+== tests/test-session-scoping.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-sprint29-checkpoint-autoresolve.sh ==
+  PASS: T10a pre-bash-gate did NOT clear on STALE pass
+  PASS: T10b pre-bash-gate cleared on FRESH pass
+-- RESULT: 11 passed, 0 failed --
+exit=0
+== tests/test-sprint31a-foundation.sh ==
+  PASS: t_migrate_preserves_watchers v1 .watchers preserved + .instances added
+  PASS: t_claim_on_v1_keeps_watchers claim adds instance, preserves watchers
+-- RESULT: 10 passed, 0 failed --
+exit=0
+== tests/test-sprint31a-integration.sh ==
+  PASS: t_lane1_transparent lane-1 = flat phase, no lane briefing (transparent)
+  FAIL: t_lane2_state_write_isolated (lane2=n flat=n)
+-- RESULT: 2 passed, 1 failed --
+exit=0
+== tests/test-watcher-reap.sh ==
+PASS  bash -n lib-helpers
+----------------------------------------
+PASS=11 FAIL=0
+exit=0

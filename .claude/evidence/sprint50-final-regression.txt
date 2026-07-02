@@ -1,0 +1,172 @@
+== tests/test-audit-fixes-sprint50.sh ==
+
+RESULT: 30 passed, 0 failed
+exit=0
+== tests/test-beast-mp-cache.sh ==
+----------------------------------------
+PASS=8 FAIL=0
+exit=0
+== tests/test-beast-mp-integration.sh ==
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-beast-mp-recall.sh ==
+----------------------------------------
+PASS=13 FAIL=0
+exit=0
+== tests/test-beast-pack.sh ==
+---------------------------------------------
+PASS=19 FAIL=0
+exit=0
+== tests/test-beast-pack-quality.sh ==
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-beast-protocol-gate.sh ==
+----------------------------------------
+PASS=14 FAIL=0
+exit=0
+== tests/test-beast-recall-wiring.sh ==
+---------------------------------------------
+PASS=15 FAIL=0
+exit=0
+== tests/test-beast-reconcile-gate.sh ==
+----------------------------------------
+PASS=11 FAIL=0
+exit=0
+== tests/test-beast-roundtrip.sh ==
+---------------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-beast-surface.sh ==
+---------------------------------------------
+PASS=9 FAIL=0
+exit=0
+== tests/test-beast-toggle.sh ==
+---------------------------------------------
+PASS=21 FAIL=0
+exit=0
+== tests/test-beast-watch-hook.sh ==
+----------------------------------------
+PASS=11 FAIL=0
+exit=0
+== tests/test-beast-wins-extract.sh ==
+----------------------------------------
+PASS=11 FAIL=1
+exit=0
+== tests/test-evidence-checkpoint.sh ==
+Failed: 0 / 19
+STATUS: ALL TESTS PASSED
+exit=0
+== tests/test-fresh-folder-no-claude.sh ==
+----------------------------------------
+PASS=7 FAIL=1
+exit=0
+== tests/test-glm-headroom.sh ==
+  PASS: Anthropic proxy 8787 still up (pid 1844), separate from GLM 8791 (pid 16256)
+== RESULT: 10 passed, 0 failed ==
+exit=0
+== tests/test-glm-packaging.sh ==
+  PASS: C19 global CLAUDE.md copied into GLM config
+== RESULT: 38 passed, 0 failed ==
+exit=0
+== tests/test-headroom-last30days-integration.sh ==
+  PASS: A10 install.sh step 10 labeled Arbor
+== RESULT: 49 passed, 0 failed ==
+exit=0
+== tests/test-intuition-control.sh ==
+---------------------------------------------
+PASS=8 FAIL=0
+exit=0
+== tests/test-killswitch.sh ==
+---------------------------------------------
+PASS=22 FAIL=0
+exit=0
+== tests/test-killswitch-resolve.sh ==
+
+RESULT: 7 passed, 0 failed
+exit=0
+== tests/test-lavish-integration.sh ==
+  PASS: C5b axi-sdk-js MIT notice present
+-- RESULT: 19 passed, 0 failed --
+exit=0
+== tests/test-mustdo-default-fanout.sh ==
+----------------------------------------
+PASS=9 FAIL=0
+exit=0
+== tests/test-mustdo-default-on.sh ==
+
+RESULT: 11 passed, 0 failed
+exit=0
+== tests/test-mustdo-fanout-gate.sh ==
+----------------------------------------
+PASS=4 FAIL=0
+exit=0
+== tests/test-mustdo-ownership-churn.sh ==
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-mustdo-pack.sh ==
+
+RESULT: 25 passed, 0 failed
+exit=0
+== tests/test-mustdo-session-aware.sh ==
+  PASS: C20 legacy pack snapshotted before re-author
+-- RESULT: 23 passed, 0 failed --
+exit=0
+== tests/test-mustdo-session-owned.sh ==
+  PASS: T9 race: B's write did not break A's grounding (rc=0)
+-- RESULT: 10 passed, 0 failed --
+exit=0
+== tests/test-mustdo-summary-lane.sh ==
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-nested-root-guard.sh ==
+----------------------------------------
+PASS=12 FAIL=0
+exit=0
+== tests/test-no-autocreate-claude.sh ==
+----------------------------------------
+PASS=6 FAIL=0
+exit=0
+== tests/test-perproject-gate-integration.sh ==
+  PASS: pre-write-gate.sh block instructs watcher_claim_pp (old fixed-index jq removed)
+-- RESULT: 7 passed, 0 failed --
+exit=0
+== tests/test-perproject-watchers.sh ==
+  PASS: t_unique_slots active watchers have distinct global slot numbers
+-- RESULT: 6 passed, 0 failed --
+exit=0
+== tests/test-preflight-session-keyed.sh ==
+  PASS: no-session -> flat .claude/pre-flight (back-compat)
+-- RESULT: 4 passed, 0 failed --
+exit=0
+== tests/test-ralph-loop.sh ==
+Passed: 34
+Failed: 2
+exit=0
+== tests/test-session-isolation.sh ==
+----------------------------------------
+PASS=12 FAIL=0
+exit=0
+== tests/test-session-scoping.sh ==
+----------------------------------------
+PASS=7 FAIL=0
+exit=0
+== tests/test-sprint29-checkpoint-autoresolve.sh ==
+  PASS: T10b pre-bash-gate cleared on FRESH pass
+-- RESULT: 11 passed, 0 failed --
+exit=0
+== tests/test-sprint31a-foundation.sh ==
+  PASS: t_claim_on_v1_keeps_watchers claim adds instance, preserves watchers
+-- RESULT: 10 passed, 0 failed --
+exit=0
+== tests/test-sprint31a-integration.sh ==
+  PASS: t_lane2_state_write_isolated lane-2 write-count under lane-2/, flat untouched
+-- RESULT: 3 passed, 0 failed --
+exit=0
+== tests/test-watcher-reap.sh ==
+----------------------------------------
+PASS=11 FAIL=0
+exit=0
