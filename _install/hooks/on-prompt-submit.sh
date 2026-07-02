@@ -222,7 +222,10 @@ if [ -f "${STATE_DIR}/current-phase.json" ] && jq '.' "${STATE_DIR}/current-phas
 fi
 
 # --- READ WRITE COUNT ---
-WRITES=$(cat "${STATE_DIR}/write-count.txt" 2>/dev/null || printf "0")
+# Sprint 50 (audit A5): per-session counter — the packet reports the same number the gates enforce.
+OPS_WC="${STATE_DIR}/write-count.txt"
+[ -n "${HARNESS_SESSION_ID:-}" ] && [ -f "${STATE_DIR}/write-count.${HARNESS_SESSION_ID}.txt" ] && OPS_WC="${STATE_DIR}/write-count.${HARNESS_SESSION_ID}.txt"
+WRITES=$(cat "$OPS_WC" 2>/dev/null || printf "0")
 WRITES=$(printf '%s' "$WRITES" | grep -o '[0-9]*' | head -1)
 WRITES=${WRITES:-0}
 
@@ -984,6 +987,20 @@ if [ -f "$MUST_DO_SUMMARY" ]; then
 fi
 
 # Contract budget: Sprint 21 raises the hard safety cap to 2000 chars.
+# Sprint 50 (audit B4): trim LOW-VALUE sections first so hard blocks / actions are never silently
+# cut by the tail truncation. Order: shrink must-do echo -> drop must-do echo -> drop warnings ->
+# hard cut (last resort only).
+if [ "${#CONTEXT_MSG}" -gt 2000 ] && [ -n "${SUMMARY_TEXT:-}" ]; then
+  B4_SHORT=$(printf '%.200s' "$SUMMARY_TEXT")
+  CONTEXT_MSG="${CONTEXT_MSG/"$SUMMARY_TEXT"/$B4_SHORT}"
+fi
+if [ "${#CONTEXT_MSG}" -gt 2000 ] && [ -n "${SUMMARY_TEXT:-}" ]; then
+  B4_SHORT=$(printf '%.200s' "$SUMMARY_TEXT")
+  CONTEXT_MSG="${CONTEXT_MSG/"[MUST-DO ACTIVE] $B4_SHORT"/}"
+fi
+if [ "${#CONTEXT_MSG}" -gt 2000 ] && [ -n "${WARNINGS:-}" ]; then
+  CONTEXT_MSG="${CONTEXT_MSG/"$WARNINGS"/}"
+fi
 if [ "${#CONTEXT_MSG}" -gt 2000 ]; then
   CONTEXT_MSG=$(printf '%s' "$CONTEXT_MSG" | head -c 1990)
   CONTEXT_MSG="${CONTEXT_MSG}â€¦"

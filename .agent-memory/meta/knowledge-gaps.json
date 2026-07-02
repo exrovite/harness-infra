@@ -1,86 +1,11 @@
 {
-  "version": "1.0.0",
-  "last_updated": "2026-04-04T09:00:00.000000",
+  "version": "2.0.0",
+  "last_updated": "2026-07-02T04:30:00+01:00",
+  "note": "Regenerated Sprint 50 — the April 2026 file claimed zero scripts built; reality: full harness shipped and hardened through Sprint 50.",
   "gaps": [
-    {
-      "id": "gap_001",
-      "topic": "Harness scripts not yet built",
-      "severity": "critical",
-      "description": "All 15 harness scripts exist as design specifications only. Zero lines of actual bash code written. Zero production runs.",
-      "what_we_know": "Full specifications in SCRIPT_REGISTRY.json with input/output/dependencies documented",
-      "what_we_need": "Actual bash implementations, tested on Windows (Git Bash) and Linux",
-      "blocking": ["All harness functionality"],
-      "resolution_path": "Build scripts in ~/.claude/scripts/ following specifications. Test each individually, then integration test the full loop."
-    },
-    {
-      "id": "gap_002",
-      "topic": "Evaluator calibration not performed",
-      "severity": "high",
-      "description": "The evaluator agent needs to be independently tuned for scepticism. Anthropic needed several rounds of calibration. We haven't started.",
-      "what_we_know": "Evaluator should default to fail if in doubt. Must use tools (Playwright) not just read code. Calibration gate plants deliberate failure.",
-      "what_we_need": "Iterative tuning of evaluator prompt across multiple real sprints",
-      "blocking": ["7-layer verification protocol"],
-      "resolution_path": "Run evaluator on known-good and known-bad codebases. Adjust scepticism level until calibration gate consistently catches planted failures."
-    },
-    {
-      "id": "gap_003",
-      "topic": "Windows compatibility of bash scripts",
-      "severity": "high",
-      "description": "All harness scripts assume bash (Git Bash on Windows). Need to verify: jq availability, process management (kill, PID files), lockfiles, curl, git. Windows path handling (forward slashes).",
-      "what_we_know": "User is on Windows 10, using Git Bash via Claude Code",
-      "what_we_need": "Test each script on Windows Git Bash. Identify Windows-specific gotchas.",
-      "blocking": ["Production deployment"],
-      "resolution_path": "Build and test scripts on the actual target platform (Windows Git Bash). Install jq if missing."
-    },
-    {
-      "id": "gap_004",
-      "topic": "Claude Code hook configuration specifics",
-      "severity": "medium",
-      "description": "Hook registration in settings.json — exact syntax for matcher patterns, tool name filtering, PostToolUse vs Stop hooks. Need to verify against current Claude Code version.",
-      "what_we_know": "PostToolUse hooks exist. Can filter by tool_name. Stop hooks fire at session end.",
-      "what_we_need": "Exact settings.json format validated against Claude Code docs",
-      "blocking": ["Hook-based phase transition detection"],
-      "resolution_path": "Read Claude Code documentation. Test hook registration with a simple echo script."
-    },
-    {
-      "id": "gap_005",
-      "topic": "Sprint contract negotiation dynamics",
-      "severity": "medium",
-      "description": "How the generator and evaluator actually negotiate in separate sessions. Does the evaluator get a fresh session? How is the feedback loop structured?",
-      "what_we_know": "Max 3 negotiation attempts. Generator proposes, evaluator approves or rejects with feedback.",
-      "what_we_need": "Real-world testing of the NEGOTIATE phase across multiple iterations",
-      "blocking": ["Full harness workflow"],
-      "resolution_path": "Test on a real feature. Observe negotiation dynamics. Adjust prompts."
-    },
-    {
-      "id": "gap_006",
-      "topic": "Multi-model orchestration",
-      "severity": "low",
-      "description": "Architecture designed for single-model (Opus) first. Multi-model is future work — Opus for Plan/Review, Sonnet for Execute, etc.",
-      "what_we_know": "File-driven state machine is model-agnostic. Model profiles documented for 4+ models.",
-      "what_we_need": "Testing with Sonnet as generator, MiniMax for summarisation, Codex for browser tasks",
-      "blocking": ["Nothing immediate — single-model works first"],
-      "resolution_path": "After single-model harness is stable, test model substitution at each phase."
-    },
-    {
-      "id": "gap_007",
-      "topic": "Cost tracking accuracy",
-      "severity": "low",
-      "description": "Budget circuit breaker uses iteration count * ~$4 as cost proxy. Actual costs vary significantly by session length and model.",
-      "what_we_know": "Claude Code doesn't expose token counts in bash. Iteration count is rough proxy.",
-      "what_we_need": "Better cost estimation or API usage tracking integration",
-      "blocking": ["Nothing — current proxy is acceptable for safety"],
-      "resolution_path": "Monitor actual costs against estimates over several harness runs. Adjust multiplier."
-    },
-    {
-      "id": "gap_008",
-      "topic": "Telegram/WhatsApp bridge not implemented",
-      "severity": "low",
-      "description": "The Telegram polling daemon, notification script, and WhatsApp alternative are designed but not built. This is optional — the harness works without it.",
-      "what_we_know": "Telegram Bot API via BotFather, curl wrapper for sendMessage, polling for getUpdates. WhatsApp via Twilio as alternative. Transport is interchangeable.",
-      "what_we_need": "Actual bot token, chat ID, and working scripts tested against Telegram API",
-      "blocking": ["Nothing — harness works without notification. Human can check state files manually."],
-      "resolution_path": "Create Telegram bot via BotFather, get token and chat ID, implement notify.sh and telegram-poll.sh, test end-to-end."
-    }
+    {"id": "gap_semantic_recall_quality", "topic": "Beast-mode recall precision", "severity": "medium", "description": "Literal concept matching remains; semantic-net threshold (D6) and richer win extraction quality need iteration on real usage."},
+    {"id": "gap_cron_pause_churn", "topic": "Watcher cron fires while paused", "severity": "low", "description": "cron_pause suppresses the printed reminder but the CronCreate job still fires each interval and consumes a turn while the session idles. Scheduler-level pause is not exposed to hooks."},
+    {"id": "gap_headless_claude_auth", "topic": "Headless claude -p auth on this machine", "severity": "low", "description": "GLM/z.ai ANTHROPIC_API_KEY hijacks headless auth ('Credit balance is too low'). Workaround: env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_BASE_URL claude -p ..."},
+    {"id": "gap_evaluator_calibration", "topic": "Evaluator scepticism calibration", "severity": "medium", "description": "Independent verifiers are used every sprint, but no systematic planted-failure calibration harness exists yet."}
   ]
 }

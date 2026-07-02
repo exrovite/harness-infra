@@ -114,9 +114,9 @@ if [ -f "$WATCHER_REGISTRY" ]; then
   CURRENT_PROJECT=$(printf '%s' "$CURRENT_PROJECT" | tr '\\\\' '/' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
 
   STALE_SLOTS=""
-  for SLOT_INFO in $(jq -r --arg proj "$CURRENT_PROJECT" \
-    '.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj)) | "\(.slot)|\(.claimed_at // "null")"' \
-    "$WATCHER_REGISTRY" 2>/dev/null); do
+  # Sprint 50 (audit C5): while read -r, no word-splitting of command output.
+  while IFS= read -r SLOT_INFO; do
+    [ -z "$SLOT_INFO" ] && continue
     SN="${SLOT_INFO%%|*}"
     CA="${SLOT_INFO#*|}"
     if [ "$CA" = "null" ]; then
@@ -127,7 +127,9 @@ if [ -f "$WATCHER_REGISTRY" ]; then
         STALE_SLOTS="$STALE_SLOTS $SN"
       fi
     fi
-  done
+  done < <(jq -r --arg proj "$CURRENT_PROJECT" \
+    '.watchers[] | select(.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj)) | "\(.slot)|\(.claimed_at // "null")"' \
+    "$WATCHER_REGISTRY" 2>/dev/null)
   STALE_SLOTS=$(echo "$STALE_SLOTS" | xargs)  # trim whitespace
 
   if [ -n "$STALE_SLOTS" ]; then
@@ -140,9 +142,10 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     }
 
     for SN in $STALE_SLOTS; do
-      # Reset in registry
+      # Sprint 50 (audit E4): REMOVE the entry (dynamic per-project pool) — the old "available"
+      # placeholder reset left permanent cruft rows that nothing ever claims or cleans.
       UPDATED_REG=$(jq --argjson s "$SN" \
-        '.watchers |= map(if .slot == $s then {slot, status: "available", claimed_by: null, claimed_at: null, cron_job_id: null} else . end)' \
+        '.watchers |= map(select(.slot != $s))' \
         "$WATCHER_REGISTRY" 2>/dev/null)
       if [ -n "$UPDATED_REG" ]; then
         printf '%s\n' "$UPDATED_REG" > "$WATCHER_REGISTRY"
@@ -161,18 +164,20 @@ if [ -f "$WATCHER_REGISTRY" ]; then
   # clearly-dead multi-day orphans. TODO(AC30): add a last_seen heartbeat, then this can safely tighten.
   GLOBAL_STALE=259200
   GLOBAL_SLOTS=""
-  for SLOT_INFO in $(jq -r '.watchers[] | select(.status == "active") | "\(.slot)|\(.claimed_at // "null")"' "$WATCHER_REGISTRY" 2>/dev/null); do
+  # Sprint 50 (audit C5): while read -r, no word-splitting of command output.
+  while IFS= read -r SLOT_INFO; do
+    [ -z "$SLOT_INFO" ] && continue
     GSN="${SLOT_INFO%%|*}"; GCA="${SLOT_INFO#*|}"
     [ "$GCA" = "null" ] && continue
     GCA_EPOCH=$(date -d "$GCA" +%s 2>/dev/null || echo "$NOW_EPOCH")
     if [ $((NOW_EPOCH - GCA_EPOCH)) -gt $GLOBAL_STALE ]; then GLOBAL_SLOTS="$GLOBAL_SLOTS $GSN"; fi
-  done
+  done < <(jq -r '.watchers[] | select(.status == "active") | "\(.slot)|\(.claimed_at // "null")"' "$WATCHER_REGISTRY" 2>/dev/null)
   GLOBAL_SLOTS=$(echo "$GLOBAL_SLOTS" | xargs)
   if [ -n "$GLOBAL_SLOTS" ]; then
     printf "startup-recovery: Global orphan reap (>72h): slots %s\n" "$GLOBAL_SLOTS" >&2
     if registry_lock; then
       for GSN in $GLOBAL_SLOTS; do
-        UPDATED_REG=$(jq --argjson s "$GSN" '.watchers |= map(if .slot == $s then {slot, status: "available", claimed_by: null, claimed_at: null, cron_job_id: null} else . end)' "$WATCHER_REGISTRY" 2>/dev/null)
+        UPDATED_REG=$(jq --argjson s "$GSN" '.watchers |= map(select(.slot != $s))' "$WATCHER_REGISTRY" 2>/dev/null)
         [ -n "$UPDATED_REG" ] && printf '%s\n' "$UPDATED_REG" > "$WATCHER_REGISTRY"
         printf "# Watcher Slot %s\n\n**Status**: available\n" "$GSN" > "$HOME/.openclaw/watchers/slot-${GSN}.md" 2>/dev/null
       done
@@ -185,8 +190,13 @@ if [ -f "$WATCHER_REGISTRY" ]; then
   # When a new session starts, those crons are dead but the registry still has their IDs.
   # pre-write-gate.sh checks cron_job_id != null, so stale IDs bypass the cron requirement.
   # Fix: clear cron_job_id and cron_interval on startup, forcing agents to re-create each session.
-  CRON_WATCHERS=$(jq -r --arg proj "$CURRENT_PROJECT" \
-    '[.watchers[] | select(.status == "active" and .cron_job_id != null and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj))] | length' \
+  # Sprint 50 (audit A5 interaction): with per-session write counters, EVERY new session's first
+  # write runs this script — so the clear must spare LIVE sessions (fresh heartbeat) and the
+  # CURRENT session, or it wipes the cron a session recorded moments ago and re-locks its gates.
+  CRON_ME="${HARNESS_SESSION_ID:-}"
+  CRON_CUTOFF=$(date -d "@$((NOW_EPOCH - ${HARNESS_WATCHER_STALE_SECONDS:-1200}))" -Iseconds 2>/dev/null || printf '')
+  CRON_WATCHERS=$(jq -r --arg proj "$CURRENT_PROJECT" --arg me "$CRON_ME" --arg cut "$CRON_CUTOFF" \
+    '[.watchers[] | select(.status == "active" and .cron_job_id != null and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj) and ((.session_id // "") != $me) and (($cut == "") or ((.last_seen // "") < $cut)))] | length' \
     "$WATCHER_REGISTRY" 2>/dev/null || printf "0")
 
   if [ "$CRON_WATCHERS" -gt 0 ]; then
@@ -198,8 +208,8 @@ if [ -f "$WATCHER_REGISTRY" ]; then
     }
 
     if [ "$CRON_WATCHERS" -gt 0 ]; then
-      UPDATED_REG=$(jq --arg proj "$CURRENT_PROJECT" \
-        '.watchers |= map(if (.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj)) then .cron_job_id = null | .cron_interval = null else . end)' \
+      UPDATED_REG=$(jq --arg proj "$CURRENT_PROJECT" --arg me "$CRON_ME" --arg cut "$CRON_CUTOFF" \
+        '.watchers |= map(if (.status == "active" and .project != null and ((.project | gsub("\\\\";"/") | sub("/$";"") | ascii_downcase) == $proj) and ((.session_id // "") != $me) and (($cut == "") or ((.last_seen // "") < $cut))) then .cron_job_id = null | .cron_interval = null else . end)' \
         "$WATCHER_REGISTRY" 2>/dev/null)
       if [ -n "$UPDATED_REG" ]; then
         printf '%s\n' "$UPDATED_REG" > "$WATCHER_REGISTRY"

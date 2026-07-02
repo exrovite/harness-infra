@@ -577,3 +577,40 @@
 {"ts":"2026-06-19T03:33:07+01:00","file":"G:/harness infra/.claude/contracts/sprint-34-proposal.md"}
 {"ts":"2026-06-19T03:33:19+01:00","file":"G:/harness infra/.claude/specs/evaluation-criteria.md"}
 {"ts":"2026-06-19T03:34:42+01:00","file":"G:/harness infra/.claude/contracts/sprint-34-contract.md"}
+{"ts":"2026-07-01T23:54:40+01:00","file":"G:/harness infra/.claude/reports/audit-2026-07-01-remaining-problems.md"}
+{"ts":"2026-07-01T23:55:15+01:00","file":"G:/harness infra/.claude/reports/audit-2026-07-01-remaining-problems.md"}
+{"ts":"2026-07-02T03:07:44+01:00","file":"G:/harness infra/.claude/contracts/sprint-50-proposal.md"}
+{"ts":"2026-07-02T03:08:59+01:00","file":"G:/harness infra/.claude/specs/evaluation-criteria-sprint-50.md"}
+{"ts":"2026-07-02T03:09:54+01:00","file":"G:/harness infra/.claude/contracts/sprint-50-contract.md"}
+{"ts":"2026-07-02T03:14:34+01:00","file":"G:/harness infra/.claude/specs/product-spec.md"}
+{"ts":"2026-07-02T03:34:05+01:00","file":"G:/harness infra/tests/test-audit-fixes-sprint50.sh"}
+{"ts":"2026-07-02T03:43:24+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-07-02T03:43:34+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-07-02T03:46:33+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-07-02T03:46:42+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-07-02T03:46:50+01:00","file":"C:/Users/exrov/.claude/hooks/pre-write-gate.sh"}
+{"ts":"2026-07-02T03:47:57+01:00","file":"C:/Users/exrov/.claude/hooks/beast-protocol-gate.sh"}
+{"ts":"2026-07-02T03:52:30+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-07-02T03:52:41+01:00","file":"C:/Users/exrov/.claude/hooks/pre-bash-gate.sh"}
+{"ts":"2026-07-02T03:52:51+01:00","file":"C:/Users/exrov/.claude/hooks/post-write-check.sh"}
+{"ts":"2026-07-02T03:55:28+01:00","file":"C:/Users/exrov/.claude/hooks/on-prompt-submit.sh"}
+{"ts":"2026-07-02T04:02:04+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T04:02:14+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T04:02:23+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T04:05:01+01:00","file":"C:/Users/exrov/.claude/scripts/startup-recovery.sh"}
+{"ts":"2026-07-02T04:05:59+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-07-02T04:06:10+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-07-02T04:06:19+01:00","file":"C:/Users/exrov/.claude/scripts/generate-pre-flight-challenge.sh"}
+{"ts":"2026-07-02T04:10:27+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-07-02T04:10:36+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-07-02T04:10:45+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-07-02T04:10:54+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-07-02T04:13:45+01:00","file":"C:/Users/exrov/.claude/scripts/validate-pre-flight.sh"}
+{"ts":"2026-07-02T04:13:55+01:00","file":"C:/Users/exrov/.claude/scripts/build-mustdo-pack.sh"}
+{"ts":"2026-07-02T04:15:30+01:00","file":"C:/Users/exrov/.claude/scripts/beast-wins-extract.sh"}
+{"ts":"2026-07-02T04:21:50+01:00","file":"C:/Users/exrov/.claude/scripts/beast-wins-extract.sh"}
+{"ts":"2026-07-02T04:35:02+01:00","file":"G:/harness infra/tests/test-headroom-last30days-integration.sh"}
+{"ts":"2026-07-02T04:36:10+01:00","file":"G:/harness infra/tests/test-preflight-session-keyed.sh"}
+{"ts":"2026-07-02T04:38:11+01:00","file":"G:/harness infra/tests/test-preflight-session-keyed.sh"}
+{"ts":"2026-07-02T04:46:41+01:00","file":"G:/harness infra/.claude/reports/sprint-50-audit-fixes.md"}
+{"ts":"2026-07-02T04:55:11+01:00","file":"G:/harness infra/tests/test-sprint31a-integration.sh"}

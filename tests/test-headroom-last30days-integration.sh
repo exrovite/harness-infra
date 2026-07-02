@@ -113,7 +113,7 @@ ASKILLS=$(ls -d "$ARBOR_SKILLS"/arbor-agent-* 2>/dev/null | wc -l | tr -d ' ')
 [ "$ASKILLS" -ge 10 ] && ok "A7 arbor-agent-* skills vendored ($ASKILLS found)" || no "A7 arbor-agent skills missing (found $ASKILLS)"
 [ -f "$LIC_DIR/arbor-LICENSE" ] && ok "A8 arbor-LICENSE (Apache-2.0) shipped" || no "A8 arbor-LICENSE missing"
 grep -qi 'arbor' "$README" && ok "A9 README documents Arbor" || no "A9 README does not mention Arbor"
-grep -qE '\[10/10\] Arbor' "$INSTALL" && ok "A10 install.sh step 10 labeled Arbor" || no "A10 install.sh step 10 label missing"
+grep -qE '\[10/1[0-9]\] Arbor' "$INSTALL" && ok "A10 install.sh step 10 labeled Arbor" || no "A10 install.sh step 10 label missing"
 
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

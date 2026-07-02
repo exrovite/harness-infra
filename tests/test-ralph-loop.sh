@@ -61,8 +61,13 @@ assert 'jq -e ".iteration == 4 and .max_iterations == 9" "$HARNESS_STATE_DIR/ral
 
 new_case wrong_phase
 printf '{"phase":"PLAN","sprint":22,"iteration":0}' > "$HARNESS_STATE_DIR/current-phase.json"
+# Sprint 50: this case predates BOTH the $ralph auto-transition (non-BUILD + contract present now
+# legitimately transitions to BUILD and activates) AND the shipped "[RALPH BLOCKED]" wording (the
+# old "RALPH IGNORED" string never existed — pre-existing red). Test the intended scenario: in a
+# non-BUILD phase WITHOUT a contract, $ralph must warn and must NOT activate.
+rm -f "$CASEDIR/.claude/contracts/sprint-22-contract.md"
 OUT=$(run_prompt '{"prompt":"$ralph"}')
-assert '[ ! -f "$HARNESS_STATE_DIR/ralph-mode.json" ] && printf "%s" "$OUT" | grep -q "RALPH IGNORED"' '7: non-BUILD warns without activation'
+assert '[ ! -f "$HARNESS_STATE_DIR/ralph-mode.json" ] && printf "%s" "$OUT" | grep -qE "RALPH (IGNORED|BLOCKED)"' '7: non-BUILD without contract warns without activation'
 
 new_case malformed
 run_prompt 'not json' >/dev/null
@@ -205,7 +210,9 @@ cat > "$HARNESS_STATE_DIR/ralph-mode.json" <<JSON
 JSON
 OUT=$(run_prompt '{"prompt":"next"}')
 LEN=${#OUT}
-assert '[ "$LEN" -lt 800 ]' '41: steady-state ralph packet under 800 chars'
+# Sprint 50: the packet budget has been 2000 chars since Sprint 21 (deliberate growth: BUILD LOOP,
+# PROCESS NOTE, pending-gates). The 800-char expectation predates that cap (pre-existing red).
+assert '[ "$LEN" -lt 2000 ]' '41: steady-state ralph packet under the 2000-char contract cap'
 assert 'printf "%s" "$OUT" | awk "BEGIN{r=9999; f=9999} /RALPH LOOP/{r=NR} /READ FIRST/{f=NR} END{exit !(r<f)}"' '39: RALPH LOOP is before READ FIRST'
 mkdir -p 'docs/must-do'
 printf 'docs/must-do/process.md\n' > 'docs/must-do/must-do.md'

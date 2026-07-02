@@ -183,9 +183,12 @@ Q5_OPTIONS=$(shuffle_binary "$Q5_YES" "$Q5_NO" 3>/tmp/pf_q5_label)
 Q5_YES_LABEL=$(cat /tmp/pf_q5_label 2>/dev/null)
 
 # --- Write challenge.md ---
+# Sprint 50 (audit B3): answer labels live in a SIDECAR file the agent is never pointed at —
+# embedding them as challenge.md comments handed the answer key to the reader.
+printf 'q5_yes_label: %s\n' "$Q5_YES_LABEL" > "$PREFLIGHT_DIR/answer-key"
+
 cat > "$PREFLIGHT_DIR/challenge.md" << CHALLENGE
 <!-- source_slot: $SLOT_FILE -->
-<!-- q5_yes_label: $Q5_YES_LABEL -->
 
 # Pre-Flight Challenge
 
@@ -292,8 +295,12 @@ if [ -n "$MUST_DO_MD" ]; then
     CORRECT_LINE=$(printf '%s\n' "$SIG_LINES" | shuf -n 1)
     [ -z "$CORRECT_LINE" ] && continue
 
-    # Distractors: lines from OTHER files (exclude correct line)
-    mapfile -t QN_DIST < <(grep -vxF "$CORRECT_LINE" "$ALL_DIST_TMP" 2>/dev/null | shuf -n 3)
+    # Distractors: lines from OTHER files — Sprint 50 (audit B3): a distractor must NOT itself
+    # appear in THIS question's source file, or an honest reader finds several "correct" options.
+    RFILE_PROC=$(mktemp)
+    grep -v '^[[:space:]]*$' "$RFILE" 2>/dev/null | sed 's/^[[:space:]]*//' | sed 's/\*\*//g' > "$RFILE_PROC"
+    mapfile -t QN_DIST < <(grep -vxF "$CORRECT_LINE" "$ALL_DIST_TMP" 2>/dev/null | grep -vxF -f "$RFILE_PROC" 2>/dev/null | shuf -n 3)
+    rm -f "$RFILE_PROC"
     while [ ${#QN_DIST[@]} -lt 3 ]; do
       QN_DIST+=("This directive does not appear in any required reading file")
     done
@@ -302,8 +309,8 @@ if [ -n "$MUST_DO_MD" ]; then
     QN_CORRECT=$(cat /tmp/pf_q${Q_NUM}_label 2>/dev/null)
 
     if [ -n "$QN_CORRECT" ]; then
-      sed -i "2a <!-- q${Q_NUM}_correct_label: ${QN_CORRECT} -->" "$PREFLIGHT_DIR/challenge.md"
-      sed -i "3a <!-- q${Q_NUM}_source: ${RBASENAME} -->" "$PREFLIGHT_DIR/challenge.md"
+      # Sprint 50 (audit B3): labels go to the sidecar answer-key, never into challenge.md.
+      printf 'q%s_correct_label: %s\nq%s_source: %s\n' "$Q_NUM" "$QN_CORRECT" "$Q_NUM" "$RBASENAME" >> "$PREFLIGHT_DIR/answer-key"
 
       cat >> "$PREFLIGHT_DIR/challenge.md" << QBLOCK
 

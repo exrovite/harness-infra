@@ -1,41 +1,37 @@
-# Product Spec — Secret-Safe GLM Add-On for the Install Pack (Sprint 34)
+# Product Spec — Sprint 50: Fix all audit findings; harness keeps working; beast mode works
 
-## Problem
-`claude-glm` (GLM via z.ai, routed through the headroom 8791 compression proxy) was fixed on this
-machine, but the fix lives entirely OUTSIDE the repo:
-- the launcher (`~/AppData/Roaming/npm/claude-glm.cmd`) contains the z.ai token in cleartext
-- the 8791 GLM proxy is only in the hand-edited live supervisor (`~/.headroom`)
-- the `CLAUDE_CONFIG_DIR` isolation (the actual OAuth-hijack fix) has no template
+(Previous sprint-34 spec preserved in git history.)
 
-So shipping the harness ships headroom but NOT GLM. We want GLM to be a first-class, installable,
-secret-safe part of `_install`.
+## What
+Repair every defect found by the 2026-07-01 whole-harness audit
+(`.claude/reports/audit-2026-07-01-remaining-problems.md`) without changing what the harness is
+FOR: deterministic gates that keep any model on task, per-session isolation, and beast-mode
+intuition that surfaces only RELEVANT, user-validated protocols.
 
-## What to build (WHAT, not HOW)
-1. **Launcher templates**, cross-platform, with the z.ai token as a placeholder (never a real secret):
-   - Windows `.cmd` and Linux/mac shell wrapper
-   - Each sets a dedicated `CLAUDE_CONFIG_DIR` (no OAuth login -> clean z.ai auth), clears
-     `ANTHROPIC_API_KEY`, sets `ANTHROPIC_AUTH_TOKEN`, points `ANTHROPIC_BASE_URL` at the 8791 proxy,
-     pins model **glm-5.1**.
-2. **Dual-proxy supervisor variant** (`.ps1` + `.sh`): keeps 8787 -> Anthropic (untouched) AND
-   8791 -> z.ai alive. Used only when GLM is enabled; otherwise the existing single-8787 supervisor ships.
-3. **Guarded install step** in `install.sh`:
-   - GLM is **opt-in**. Enabled only when a z.ai key is supplied (env `ZAI_API_KEY` or interactive prompt).
-   - No key -> installs the normal single-8787 supervisor, **zero behavior change**. `set -e` safe; skips
-     cleanly with a warning, like the existing node/uv-optional steps.
-   - On enable: writes the real launcher (token injected) to a **gitignored** local path, installs the
-     dual supervisor, creates the isolated GLM config dir.
-4. **Secret hygiene**: `.gitignore` the generated real launcher; only the placeholder template is tracked.
-5. **Tests (TDD)**: keep `tests/test-glm-headroom.sh` (live-setup tests); add packaging tests that prove
-   the template has no real secret, the install step is guarded, and the dual supervisor carries both ports.
+## Why
+The audit proved (live) that the gates can deadlock each other, that two enforcement mechanisms
+are silently ineffective (MCQ answer-key leak, verify-hardening dead code), that beast-mode fires
+on irrelevant matches, and that stale state misleads every new session.
+
+## Outcome (WHAT, not HOW)
+1. No gate combination can lock a session out of the actions the gates themselves demand
+   (state writes, watcher claim, ack files, verifier spawns).
+2. Enforcement that claims to verify actually verifies (MCQ, hardening, bash write detection).
+3. Beast mode: read-only work is never blocked; surfaced protocols are genuine user-validated
+   wins containing the concept; recall/gating still fires on real matches.
+4. State and registry reflect reality (phase/sprint, no zombie entries, no misleading metadata).
+5. Everything proven: TDD-first, full regression, live↔_install parity, independent verifier.
+
+## Evaluation Criteria
+Binding, binary criteria: `.claude/specs/evaluation-criteria-sprint-50.md` (AC1-AC18).
+Headlines: AC1-AC4 deadlock cluster; AC5/AC6/AC8 enforcement integrity; AC7/AC9/AC10 robustness;
+AC11/AC17 beast quality + functional proof; AC12/AC13 hygiene; AC14-AC16 parity/TDD/regression;
+AC18 documented dispositions.
 
 ## Constraints
-- **Do NOT touch the live working setup** (`claude-glm.cmd`, `~/.headroom` dual supervisor,
-  `~/.claude-glm-config`). The packaging must reproduce it, not disturb it.
-- **Do NOT touch the normal `claude` path** (settings.json -> 8787 -> api.anthropic.com).
-- **Never commit the real z.ai token.**
-- MSYS-safe bash throughout (no `sed 's|\\|/|'`; trailing-newline-safe read loops).
+- `---` kill-switch and all existing green behaviour preserved (regression baseline = law).
+- No new features; D3/D4/D6/D8 beast backlog stays out of scope.
+- Every hook/script change mirrored byte-identical to `_install/`.
 
-## Out of scope
-- Changing model from glm-5.1.
-- Compression-effectiveness tuning (routing is proven; savings show on real long sessions).
-- Re-running/altering the live GLM verification.
+## Stop condition
+Independent verifier renders PASS on all AC1-AC18; sprint report written; COMPLETE.

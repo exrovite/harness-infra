@@ -182,7 +182,7 @@ if [ "$CURRENT_PHASE" != "BUILD" ] && [ -n "$CURRENT_PHASE" ]; then
   PG_TARGET=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null)
   PG_TARGET_NORM=$(printf '%s' "$PG_TARGET" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
   PG_EXEMPT=false
-  for PG_PAT in '.claude/state/' '.claude/specs/' '.claude/contracts/' '.claude/pre-flight/' '.openclaw/watchers/' '.agent-memory/' 'agentwiki/' '.lavish-axi/' 'claude-progress' 'features.json' 'tests.json' 'claude.md'; do
+  for PG_PAT in '.claude/state/' '.claude/specs/' '.claude/contracts/' '.claude/pre-flight/' '.claude/evidence/' '.openclaw/watchers/' '.agent-memory/' 'agentwiki/' '.lavish-axi/' 'claude-progress' 'features.json' 'tests.json' 'claude.md'; do
     if printf '%s' "$PG_TARGET_NORM" | grep -qiF "$PG_PAT"; then
       PG_EXEMPT=true
       break
@@ -279,7 +279,7 @@ if [ -f "$SLB_STATE_FILE" ] && jq '.' "$SLB_STATE_FILE" >/dev/null 2>&1; then
     SLB_TARGET_NORM=$(printf '%s' "$SLB_TARGET" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
 
     SLB_EXEMPT=false
-    for SLB_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
+    for SLB_PAT in '.claude/state/' '.openclaw/watchers/' '.agent-memory/' '.claude/contracts/' '.claude/specs/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/'; do
       if printf '%s' "$SLB_TARGET_NORM" | grep -qiF "$SLB_PAT"; then
         SLB_EXEMPT=true
         break
@@ -438,7 +438,7 @@ if [ -n "$MUST_DO_MD" ]; then
     MD_FS_EXEMPT=false
     [ -z "$TARGET_MD_NORM" ] && MD_FS_EXEMPT=true
     if [ "$MD_FS_EXEMPT" = false ]; then
-      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
+      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
         if printf '%s' "$TARGET_MD_NORM" | grep -qiF "$PAT"; then MD_FS_EXEMPT=true; break; fi
       done
     fi
@@ -461,7 +461,11 @@ if [ -n "$MUST_DO_MD" ]; then
 
   # Exempt harness/state files (agent must be able to write the summary itself)
   MD_EXEMPT=false
-  for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/'; do
+  # Sprint 50 (audit A3): the Agent tool / any empty-target call writes no file — a subagent spawn
+  # must never be blocked on grounding, or the verifiers other gates demand cannot be spawned.
+  MD_TOOL=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_name // ""' 2>/dev/null)
+  if [ "$MD_TOOL" = "Agent" ] || [ -z "$TARGET_MD_NORM" ]; then MD_EXEMPT=true; fi
+  for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/'; do
     if printf '%s' "$TARGET_MD_NORM" | grep -qiF "$PAT"; then
       MD_EXEMPT=true
       break
@@ -625,7 +629,7 @@ else
     # Empty target (e.g. Agent tool spawns a subagent, writes no file) — never block.
     [ -z "$DON_NORM" ] && DON_EXEMPT=true
     if [ "$DON_EXEMPT" = false ]; then
-      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
+      for PAT in '.claude/state/' '.claude/contracts/' '.claude/specs/' '.openclaw/watchers/' '.agent-memory/' '.claude/pre-flight/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/' 'docs/'; do
         if printf '%s' "$DON_NORM" | grep -qiF "$PAT"; then DON_EXEMPT=true; break; fi
       done
     fi
@@ -865,7 +869,10 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
   fi
 fi
 
-# Read write count (sanitize to numeric)
+# Read write count (sanitize to numeric). Sprint 50 (audit A5): the counter is PER-SESSION when a
+# session id is present — a new session always starts with its own free writes; the old cumulative
+# project counter (1000+) permanently pre-locked every fresh session. Shared file = test back-compat.
+[ -n "${HARNESS_SESSION_ID:-}" ] && WRITE_COUNTER="${STATE_DIR}/write-count.${HARNESS_SESSION_ID}.txt"
 WRITES=$(cat "$WRITE_COUNTER" 2>/dev/null || printf "0")
 WRITES=$(printf '%s' "$WRITES" | grep -o '[0-9]*' | head -1)
 WRITES=${WRITES:-0}
@@ -874,6 +881,16 @@ WRITES=${WRITES:-0}
 if [ "$WRITES" -lt 2 ]; then
   exit 0
 fi
+
+# Sprint 50 (audit A1): the admin lock gates SOURCE work only. The Agent tool and harness-state
+# paths must stay reachable while locked, or the gate chain deadlocks on its own requirements
+# (watcher claim instructions, summary lane, protocol-ack files, verifier spawns all live there).
+WL_TOOL=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_name // ""' 2>/dev/null)
+if [ "$WL_TOOL" = "Agent" ]; then exit 0; fi
+WL_NORM=$(printf '%s' "$INPUT_DATA" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null | tr '\\' '/' | tr '[:upper:]' '[:lower:]')
+for WL_PAT in '.claude/state/' '.openclaw/watchers/' '.claude/pre-flight/' '.claude/contracts/' '.claude/specs/' '.agent-memory/' '.claude/evidence/' 'agentwiki/' '.lavish-axi/'; do
+  if [ -n "$WL_NORM" ] && printf '%s' "$WL_NORM" | grep -qiF "$WL_PAT"; then exit 0; fi
+done
 
 # Normalize current project path for comparison (lowercase, forward slashes, no trailing slash)
 CURRENT_PROJECT=$(pwd -W 2>/dev/null || pwd)

@@ -30,8 +30,12 @@ if [ -z "$SLOT_FILE" ] || [ ! -f "$SLOT_FILE" ]; then
   exit 1
 fi
 
-# --- Extract Q5 Yes label from challenge metadata (BEFORE any file deletion) ---
-Q5_YES_LABEL=$(sed -n 's/.*<!-- q5_yes_label: \([AB]\).*/\1/p' "$CHALLENGE_FILE" 2>/dev/null | head -1)
+# --- Extract Q5 Yes label — Sprint 50 (audit B3): sidecar answer-key first (labels no longer live
+# in challenge.md, which the agent reads); challenge comments kept as back-compat fallback.
+KEY_FILE="$PREFLIGHT_DIR/answer-key"
+Q5_YES_LABEL=""
+[ -f "$KEY_FILE" ] && Q5_YES_LABEL=$(sed -n 's/^q5_yes_label: \([AB]\).*/\1/p' "$KEY_FILE" 2>/dev/null | head -1)
+[ -n "$Q5_YES_LABEL" ] || Q5_YES_LABEL=$(sed -n 's/.*<!-- q5_yes_label: \([AB]\).*/\1/p' "$CHALLENGE_FILE" 2>/dev/null | head -1)
 
 # --- Extract correct content from watcher slot (same logic as generator) ---
 
@@ -208,6 +212,14 @@ if [ "$HARDENED" = "true" ]; then
       HAS_NEW_ENTRY="true"
     fi
   fi
+  if [ "$HAS_NEW_ENTRY" = "true" ]; then
+    # Sprint 50 (audit C3): a fresh verification UN-hardens — reset the counter so the 5-strike
+    # cycle starts over instead of one old ledger entry unblocking forever.
+    NO_COUNT=0; HARDENED="false"; LAST_RESET=""
+    mkdir -p .claude/pre-flight
+    jq -n --argjson nc "$NO_COUNT" --arg h "$HARDENED" --arg lr "$LAST_RESET" \
+      '{"no_verify_count": $nc, "hardened": ($h == "true"), "last_reset": $lr}' > "$VERIFY_COUNTER"
+  fi
   if [ "$HAS_NEW_ENTRY" = "false" ]; then
     FAILURES=$((FAILURES + 1))
     FAIL_MSG="${FAIL_MSG}BLOCKED: You have answered 'no verification needed' 5 times without spawning a verification subagent. You MUST use the Agent tool to spawn an independent verifier before continuing. The Agent prompt must include verification language (verify, review, evaluate, validate, audit, assess).\n"
@@ -234,8 +246,11 @@ if [ "$FAILURES" -eq 0 ] && [ -n "$AGENT_Q5" ] && [ -n "$Q5_YES_LABEL" ]; then
   else
     # Agent said "No" — increment counter
     NO_COUNT=$((NO_COUNT + 1))
-    if [ "$NO_COUNT" -ge 5 ]; then
+    if [ "$NO_COUNT" -ge 5 ] && [ "$HARDENED" != "true" ]; then
       HARDENED="true"
+      # Sprint 50 (audit C3): stamp last_reset when hardening ARMS — without it the ledger check
+      # above could never run ([ -n "$LAST_RESET" ] guard) and hardening could never be lifted.
+      LAST_RESET=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')
     fi
   fi
   # Save counter (ISO 8601 for lexicographic comparison)
@@ -247,9 +262,14 @@ fi
 # --- Q6+: Must-do reference questions (variable count, only when project has must-do files) ---
 MD_Q=6
 while true; do
-  MDQ_CORRECT=$(sed -n "s/.*<!-- q${MD_Q}_correct_label: \([A-D]\).*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1)
+  # Sprint 50 (audit B3): sidecar answer-key first; challenge comments as back-compat fallback.
+  MDQ_CORRECT=""
+  [ -f "$KEY_FILE" ] && MDQ_CORRECT=$(sed -n "s/^q${MD_Q}_correct_label: \([A-D]\).*/\1/p" "$KEY_FILE" 2>/dev/null | head -1)
+  [ -n "$MDQ_CORRECT" ] || MDQ_CORRECT=$(sed -n "s/.*<!-- q${MD_Q}_correct_label: \([A-D]\).*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1)
   [ -z "$MDQ_CORRECT" ] && break
-  MDQ_SOURCE=$(sed -n "s/.*<!-- q${MD_Q}_source: \([^>]*\) -->.*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
+  MDQ_SOURCE=""
+  [ -f "$KEY_FILE" ] && MDQ_SOURCE=$(sed -n "s/^q${MD_Q}_source: \(.*\)$/\1/p" "$KEY_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
+  [ -n "$MDQ_SOURCE" ] || MDQ_SOURCE=$(sed -n "s/.*<!-- q${MD_Q}_source: \([^>]*\) -->.*/\1/p" "$CHALLENGE_FILE" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')
   AGENT_MDQ=$(parse_answer "$MD_Q")
   if [ -z "$AGENT_MDQ" ]; then
     FAILURES=$((FAILURES + 1))
@@ -266,7 +286,7 @@ if [ "$FAILURES" -gt 0 ]; then
   exit 1
 fi
 
-# --- PASS: consume the challenge and response ---
-rm -f "$CHALLENGE_FILE" "$RESPONSE_FILE"
+# --- PASS: consume the challenge, response, and answer-key sidecar ---
+rm -f "$CHALLENGE_FILE" "$RESPONSE_FILE" "$KEY_FILE"
 printf "PASS: Pre-flight validated. Challenge consumed.\n" >&2
 exit 0

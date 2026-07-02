@@ -92,7 +92,9 @@ done
 RP="$SBX/realproj"; mkdir -p "$RP/.claude/state"; printf '{"phase":"BUILD","sprint":1}\n' > "$RP/.claude/state/current-phase.json"
 printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"'"$RP"'/a.txt","content":"x"},"session_id":"s","cwd":"'"$RP"'"}' \
   | ( cd "$RP" && bash "$HOOKS/post-write-check.sh" >/dev/null 2>&1 )
-[ -f "$RP/.claude/state/write-count.txt" ] && ok "real project: post-write-check still records its write" || bad "real project: post-write-check did not record (over-corrected)"
+# Sprint 50 (audit A5): counters are per-session — with a session id the file is write-count.<sid>.txt.
+RP_WC=$(find "$RP/.claude/state" -maxdepth 1 -name 'write-count*.txt' 2>/dev/null | head -1)
+[ -n "$RP_WC" ] && ok "real project: post-write-check still records its write" || bad "real project: post-write-check did not record (over-corrected)"
 
 echo "----------------------------------------"
 echo "PASS=$PASS FAIL=$FAIL"

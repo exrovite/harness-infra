@@ -1,0 +1,3 @@
+Q1: CONFIRMED - lib-helpers.sh:1043-1071 defines watcher_claim_pp returning slot number, and watcher_set_cron at 1084-1093 records the cron; procedure matches code exactly.
+
+Q2: CONFIRMED - pre-write-gate.sh:476-478 resolves to per-session must-do-summary.<session_id>.md; gate at 562-605 blocks until 200+ chars with file basename mentions; never uses shared must-do-summary.md.

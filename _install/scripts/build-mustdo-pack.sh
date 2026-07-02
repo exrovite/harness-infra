@@ -67,9 +67,21 @@ fi
   [ -n "$RAW_REL" ]    && printf -- '- [Raw conversation (verbatim)](%s)\n' "$RAW_REL"
   [ -n "$AGREEMENT" ]  && printf -- '- [Discussion agreement (validated)](%s)\n' "$AGREEMENT"
   if [ -n "$GROUNDING" ]; then
-    for g in $GROUNDING; do
-      printf -- '- [%s](%s)\n' "$g" "$g"
-    done
+    # Sprint 50 (audit C4): newline-separated list, SPACE-SAFE — this project's own paths contain
+    # spaces ("docs/must do/"). A line that exists as a path emits ONE link; otherwise fall back to
+    # word-splitting for legacy space-separated callers.
+    while IFS= read -r gl || [ -n "$gl" ]; do
+      [ -z "$gl" ] && continue
+      if [ -e "$gl" ]; then
+        printf -- '- [%s](%s)\n' "$gl" "$gl"
+      else
+        for g in $gl; do
+          printf -- '- [%s](%s)\n' "$g" "$g"
+        done
+      fi
+    done <<GRND
+$GROUNDING
+GRND
   fi
 } > "$OWN" || { printf 'build-mustdo-pack: cannot write own file: %s\n' "$OWN" >&2; exit 1; }
 

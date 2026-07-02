@@ -91,13 +91,16 @@ fi
 # --- SESSION START DETECTION ---
 # If write-count is 0 or missing, this is the first Write/Edit of a new session.
 # Run startup-recovery to catch missed session-end and refresh memory.
-CURRENT_WRITES=$(cat "${STATE_DIR}/write-count.txt" 2>/dev/null || printf "0")
+# Sprint 50 (audit A5): the counter is PER-SESSION when a session id is present, so every session
+# genuinely starts at 0 (free writes) instead of inheriting the project's cumulative count.
+WRITE_COUNTER="${STATE_DIR}/write-count.txt"
+[ -n "${HARNESS_SESSION_ID:-}" ] && WRITE_COUNTER="${STATE_DIR}/write-count.${HARNESS_SESSION_ID}.txt"
+CURRENT_WRITES=$(cat "$WRITE_COUNTER" 2>/dev/null || printf "0")
 if [ "$CURRENT_WRITES" = "0" ] && [ -f "${STATE_DIR}/current-phase.json" ]; then
   bash "$HOME/.claude/scripts/startup-recovery.sh" 2>/dev/null
 fi
 
 # --- WRITE COUNTER (atomic) ---
-WRITE_COUNTER="${STATE_DIR}/write-count.txt"
 WRITES=0
 if [ -f "$WRITE_COUNTER" ]; then
   WRITES=$(cat "$WRITE_COUNTER" 2>/dev/null || printf "0")

@@ -116,6 +116,20 @@ if printf '%s' "$COMMAND" | grep -qE '\b(cp|mv)\b\s+.+\s+[a-zA-Z."$]'; then
   WRITES_FILES=true
 fi
 
+# 7. Sprint 50 (audit B2): dd/truncate writes, patch appliers, perl one-liner writes, rsync copies.
+if printf '%s' "$COMMAND" | grep -qE '\b(dd|truncate)\b[^|]*\bof?='; then
+  WRITES_FILES=true
+fi
+if printf '%s' "$COMMAND" | grep -qE '\bgit\s+apply\b|(^|[;&|]\s*)patch\b\s*(-|<)'; then
+  WRITES_FILES=true
+fi
+if printf '%s' "$COMMAND" | grep -qiE '\bperl\b.*\b(open|print)\b'; then
+  WRITES_FILES=true
+fi
+if printf '%s' "$COMMAND" | grep -qE '\brsync\b\s+\S+\s+\S+'; then
+  WRITES_FILES=true
+fi
+
 # --- TEST LOCK CHECK (C2: GPU mutex enforcement) ---
 # Block test commands when harness holds the test lock.
 # Must run BEFORE the WRITES_FILES exit — test commands don't write files.
@@ -228,6 +242,10 @@ if printf '%s' "$COMMAND" | grep -qiF '.claude/pre-flight/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.claude/contracts/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.claude/specs/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiF '.agent-memory/'; then exit 0; fi
+# Sprint 50 (audit B1, residual — found live in EVALUATE): verifiers/evidence capture write to
+# .claude/evidence/ via Bash exactly when the phase gate forbids source writes; without this
+# exemption the harness blocks its own evidence pipeline.
+if printf '%s' "$COMMAND" | grep -qiF '.claude/evidence/'; then exit 0; fi
 if printf '%s' "$COMMAND" | grep -qiE 'agentwiki/|\.lavish-axi/'; then exit 0; fi
 
 # --- File-writing detected — apply same enforcement as Write/Edit ---
@@ -513,7 +531,10 @@ if [ "$CURRENT_PHASE" = "BUILD" ] && [ -f "$EC_CHECKPOINT" ] && jq -r '.status' 
 fi
 
 # Check 4: Watcher/cron enforcement (same logic as pre-write-gate.sh)
-WRITES=$(cat "${STATE_DIR}/write-count.txt" 2>/dev/null || printf "0")
+# Sprint 50 (audit A5): per-session counter — a fresh session gets its own free writes.
+BG_COUNTER="${STATE_DIR}/write-count.txt"
+[ -n "${HARNESS_SESSION_ID:-}" ] && BG_COUNTER="${STATE_DIR}/write-count.${HARNESS_SESSION_ID}.txt"
+WRITES=$(cat "$BG_COUNTER" 2>/dev/null || printf "0")
 WRITES=$(printf '%s' "$WRITES" | grep -o '[0-9]*' | head -1)
 WRITES=${WRITES:-0}
 

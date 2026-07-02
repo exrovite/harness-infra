@@ -1,4 +1,25 @@
-# Progress Notes — Sprint 35: Beast-Mode (intuition grounding)
+# Progress Notes
+
+## 2026-07-02 — Sprint 50: ALL audit findings fixed (session 624b9285)
+Contract sprint-50-contract.md, criteria AC1-AC18. Fixed: deadlock cluster (watcher-lock exemptions
++ Agent-tool must-do exemption + beast gate read-only/Bash-ack pass + .claude/evidence exemptions),
+MCQ answer-key sidecar + distractor uniqueness, verify-hardening last_reset, per-session write
+counters (+ startup-recovery liveness-aware cron clearing — new interaction bug found live), bash
+write-detector additions, packet staged trimming, space-safe pack grounding, beast wins filter
+(16 noisy -> 3 genuine), registry prune (.instances gone), state archive, backlog/knowledge-gaps
+regenerated, 3 stale test suites repaired. TDD red 12/30 -> green 30/30; full regression green.
+Report: .claude/reports/sprint-50-audit-fixes.md. Next: independent verifier -> COMPLETE.
+
+## 2026-07-01 — Whole-harness audit (session 624b9285)
+User asked for all remaining problems. Full report: `.claude/reports/audit-2026-07-01-remaining-problems.md`.
+Headline: live-fire gate-cycle deadlock (watcher admin lock × beast-protocol-gate × must-do gate, A1-A5),
+pre-flight challenge embeds its own answer key (B3), zombie `.instances[]` + phantom-cron leak (C1/C2),
+broken verify-hardening (C3), stale phase state Sprint 35 vs HEAD Sprint 49 (E1), noisy validated-wins (D1).
+No fixes applied — report only. Suggested fix order is in the report.
+
+---
+
+# (previous) Progress Notes — Sprint 35: Beast-Mode (intuition grounding)
 
 ## Status: BUILD complete, awaiting independent validation of the control proof.
 

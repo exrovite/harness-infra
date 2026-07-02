@@ -48,10 +48,16 @@ t_lane2_state_write_isolated(){
   local R SB REG; R=$(mksb); SB="${R%|*}"; REG="${R#*|}"
   ( cd "$SB" && printf '{"tool_name":"Write","tool_input":{"file_path":"%s/src/x.js"},"session_id":"L2"}' "$SB" \
     | HARNESS_REGISTRY="$REG" bash "$HOME/.claude/hooks/post-write-check.sh" >/dev/null 2>&1 )
-  if [ -f "$SB/.claude/state/lane-2/write-count.txt" ] && [ ! -f "$SB/.claude/state/write-count.txt" ]; then
+  # Sprint 50 (audit A5): counters are per-session — for session L2 the file is
+  # lane-2/write-count.L2.txt. The isolation property is unchanged: the counter lands under
+  # lane-2/, and nothing lands in the flat state dir.
+  local L2C FLATC
+  L2C=$(find "$SB/.claude/state/lane-2" -maxdepth 1 -name 'write-count*.txt' 2>/dev/null | head -1)
+  FLATC=$(find "$SB/.claude/state" -maxdepth 1 -name 'write-count*.txt' 2>/dev/null | head -1)
+  if [ -n "$L2C" ] && [ -z "$FLATC" ]; then
     ok "t_lane2_state_write_isolated lane-2 write-count under lane-2/, flat untouched"
   else
-    no "t_lane2_state_write_isolated (lane2=$([ -f "$SB/.claude/state/lane-2/write-count.txt" ] && echo y||echo n) flat=$([ -f "$SB/.claude/state/write-count.txt" ] && echo y||echo n))"
+    no "t_lane2_state_write_isolated (lane2=$([ -n "$L2C" ] && echo y||echo n) flat=$([ -n "$FLATC" ] && echo y||echo n))"
   fi
   rm -rf "$SB"
 }

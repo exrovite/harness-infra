@@ -40,8 +40,10 @@ SCH=1; while IFS= read -r l || [ -n "$l" ]; do [ -z "$l" ] && continue
 
 # 1. the REAL validated win is captured (microlabels worked well)
 grep -q 'worked really well' "$OUT" && ok "captures real validation (worked really well)" || bad "missing real win"
-# 2. report-request win captured (thinking budget headline report)
-grep -qi 'report on how the thinking budget' "$OUT" && ok "captures report-request win" || bad "missing report-request win"
+# 2. Sprint 50 (audit D1): a report REQUEST is NOT a validation — it must be EXCLUDED. (This
+# assertion previously required capturing it; that behavior filled the wins store with "please
+# write a report" prompts that fired the protocol gate on irrelevant work.)
+grep -qi 'report on how the thinking budget' "$OUT" && bad "report-request wrongly captured as a win" || ok "report-request excluded from wins"
 # 3. NEGATION excluded
 grep -q 'still all wrong' "$OUT" && bad "negation must be excluded" || ok "negation excluded"
 # 4. compaction SUMMARY excluded

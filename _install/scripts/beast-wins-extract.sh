@@ -36,12 +36,15 @@ BEGIN{ IGNORECASE=1; W=2; nc=0
 }
 {
   role[NR]=$1; t=$0; sub(/^[^\t]*\t/,"",t); txt[NR]=t; low=tolower(t); isUser=($1=="user")
-  noise=(low ~ /this session is being continued|primary request and intent|summary:|stop hook feedback|watcher reminder|system-reminder|caveat:|local-command|reply with exactly the word pong|you are an? |independent verifier|default verdict|your task|in the repo at|currently opt.?in|you are inside|you must read|^\s*-? ?\*\*|stop hook feedback/)
-  neg=(low ~ /still (all )?wrong|not work|isn.?t work|doesn.?t work|not right|all wrong|is wrong|not good|didn.?t work|broke|broken|not correct/)
+  noise=(low ~ /this session is being continued|primary request and intent|summary:|stop hook feedback|watcher reminder|system-reminder|caveat:|local-command|reply with exactly the word pong|you are an? |independent verifier|default verdict|your task|in the repo at|currently opt.?in|you are inside|you must read|^\s*-? ?\*\*|stop hook feedback|<command-name>|command-args|stop hook is now active|session-scoped stop hook/)
+  neg=(low ~ /still (all )?wrong|not work|isn.?t work|doesn.?t work|not right|all wrong|is wrong|not good|didn.?t work|broke|broken|not correct|don.?t think it (has )?work|hasn.?t worked|i don.?t think/)
   contract=(low ~ /save the (agreement|contract)|approve the (plan|contract|proposal)|proceed to build|build the contract|yes,? proceed|sign off/)
   pos=(low ~ /worked? (really |very )?well|works well|works now|fixed it|that fixed|solved (it|the)|that.?s (great|perfect|brilliant)|this (is|has) (now )?work|now (work|beautiful)|love (it|this)|well done|amazing|happy with|spot on|fantastic|nailed it|good job|very good (result|output)|much better/)
   rep=(low ~ /(write|create|do|can we (create|do|make|write))[^.]{0,45}report|report (on|of|for|explaining)|how we (have )?(managed|achieved|fixed|got)|write (this )?up (what|how)/)
-  if(isUser && !noise && !neg && !contract && (pos||rep)){
+  # Sprint 50 (audit D1): a report REQUEST is not a validation — it made most stored "wins"
+  # generic "please write a report" prompts that then fired the protocol gate on irrelevant work.
+  # A win now requires GENUINE praise of done work (pos) and must not be a bare report request.
+  if(isUser && !noise && !neg && !contract && !rep && pos){
     q=txt[NR]; if(length(q)>400) q=substr(q,1,400)
     for(ci=0; ci<nc; ci++){
       cre=tolower(concepts[ci]); hit=0

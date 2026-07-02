@@ -38,6 +38,19 @@ BN="$(basename "${FP:-}" 2>/dev/null)"
 case "$BN" in protocol-ack.*) exit 0 ;; esac
 case "$FP" in *.beast/*|*.claude/state/*|*.agent-memory/*) exit 0 ;; esac
 
+# Sprint 50 (audit A2): Bash has no file_path, so the exemptions above never applied to it and
+# read-only commands were being blocked on filename mentions. Only enforce on commands that can
+# WRITE, and let Bash writes to harness-state/ack/beast/memory paths through (the gate's own
+# escape hatch — same blanket trade-off pre-bash-gate.sh already accepts for its bootstrap paths).
+if [ "$TOOL" = "Bash" ]; then
+  if ! printf '%s' "$CONTENT" | grep -qE '>|\b(tee|cp|mv|dd|truncate|install|rsync)\b|sed\b[^|]*-i|<<|\bgit\s+apply\b|\bpatch\b\s*(-|<)|python[^|]*\bopen\b|\bperl\b.*\bopen\b'; then
+    exit 0
+  fi
+  if printf '%s' "$CONTENT" | grep -qiE 'protocol-ack\.|\.claude/state/|\.beast/|\.agent-memory/'; then
+    exit 0
+  fi
+fi
+
 HAY="$(printf '%s %s' "$FP" "$CONTENT" | tr '[:upper:]' '[:lower:]')"
 
 # Find the first validated concept present in the action whose adherence ack is missing/invalid.
