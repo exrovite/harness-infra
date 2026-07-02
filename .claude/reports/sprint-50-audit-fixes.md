@@ -114,3 +114,16 @@ longer blocks its own evidence pipeline in verification phases.
 ## Verification
 Independent verifier (adversarial, default-FAIL): first run FAIL (4 findings above), re-verified
 after fixes — verdict in `.claude/state/evidence-verdict.json`.
+
+## Sprint 51 addendum — install pack shipped complete + Linux-ready (2026-07-02)
+Committed+pushed through 9fcece3. Verified by independent verifier (3 rounds, PASS AC1-AC8):
+- CRLF purged from shipped files (validate-pre-flight.sh, claude-hr.sh, settings.json,
+  REGISTRY-template.json) + .gitattributes pins eol=lf so Windows checkouts can't regress it.
+- install.sh: hard jq prerequisite check; npm/uv/git/GLM steps guarded; chmods everything.
+- REGISTRY-template.json was v1.0.0 with THIS machine's old watcher claims baked in (leaked
+  project names, seeded fresh installs with phantom watchers) -> clean v3 empty pool.
+- post-write-check.sh:158 hardcoded C:\Users\<user> path -> ~/.openclaw/watchers/ (caught by the
+  verifier's drive-letter scan).
+- Completeness: full live<->_install parity; justified exceptions only (headroom-supervisor.sh
+  machine copy vs shipped glm.enabled-gated template; pack-only glm-setup.sh). Windows-only
+  commands exist solely inside uname-guarded branches. Full 43-suite sweep: zero failures.
